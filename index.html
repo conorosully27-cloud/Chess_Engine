@@ -6,31 +6,35 @@
 <title>Chess Engine</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Play chess on your phone: drag or tap pieces to legal squares.">
-<meta name="theme-color" content="#eef0ea" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121611" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#e9e9e2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1015" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Martian+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="app/style.css">
 </head>
 <body>
 <main class="layout">
   <header class="status" id="status" aria-live="polite">
-    <span class="turn-disc" id="turn-disc" aria-hidden="true"></span>
+    <span class="turn-mark" id="turn-mark" aria-hidden="true"></span>
     <div class="status-text">
+      <p class="status-line"><span id="status-move">Move 1</span><span class="status-detail" id="status-detail"></span></p>
       <h1 class="status-headline" id="status-headline">White to move</h1>
-      <p class="status-detail" id="status-detail"></p>
     </div>
   </header>
 
-  <div class="board-wrap">
-    <div class="board" id="board" role="application" aria-label="Chess board"></div>
-    <div class="promotion" id="promotion" hidden>
-      <div class="promotion-card" role="dialog" aria-label="Promote pawn to">
-        <p class="promotion-title">Promote to</p>
-        <div class="promotion-choices" id="promotion-choices"></div>
+  <div class="diagram">
+    <div class="ranks" id="ranks" aria-hidden="true"></div>
+    <div class="board-wrap">
+      <div class="board" id="board" role="application" aria-label="Chess board"></div>
+      <div class="promotion" id="promotion" hidden>
+        <div class="promotion-card" role="dialog" aria-label="Promote pawn to">
+          <p class="promotion-title">Promote to</p>
+          <div class="promotion-choices" id="promotion-choices"></div>
+        </div>
       </div>
     </div>
+    <div class="files" id="files" aria-hidden="true"></div>
   </div>
 
   <div class="controls">

@@ -3,8 +3,9 @@
 // Two ways to move, working the same with mouse, touch and pen (Pointer Events):
 //   - drag a piece and drop it on a legal square;
 //   - tap a piece, then tap a legal square.
-// Only the player to move can pick pieces up. Legal squares show a dot (or a
-// ring for captures), and dropping anywhere illegal sends the piece back.
+// Only the player to move can pick pieces up. Legal squares show a small
+// square (or corner brackets for captures), and dropping anywhere illegal
+// sends the piece back.
 
 import { Game, PROMOTION_PIECES } from './game.js';
 import { EMPTY, QUEEN, ROOK, BISHOP, KNIGHT, PIECE_CHARS, makeSquare, fileOf, rankOf, squareName, moveFrom, moveTo } from '../src/index.js';
@@ -21,7 +22,10 @@ const promotionChoicesEl = $('promotion-choices');
 const statusEl = $('status');
 const statusHeadlineEl = $('status-headline');
 const statusDetailEl = $('status-detail');
-const turnDiscEl = $('turn-disc');
+const statusMoveEl = $('status-move');
+const turnMarkEl = $('turn-mark');
+const ranksEl = $('ranks');
+const filesEl = $('files');
 const movesEl = $('moves');
 const movesEmptyEl = $('moves-empty');
 const takeBackButton = $('take-back');
@@ -31,6 +35,18 @@ const newGameButton = $('new-game');
 // 'wK', 'bN', ... (matches the image file names), or '' for an empty square.
 function pieceName(piece) {
   return piece === EMPTY ? '' : (piece & 8 ? 'b' : 'w') + PIECE_CHARS[piece & 7];
+}
+
+// SAN as figurine notation: "Nf3" becomes a knight symbol + "f3". The
+// letter stays in the text for screen readers and copying.
+function figurines(san) {
+  return san.split(/([KQRBN])/).filter(Boolean).map((part) => {
+    if (!/^[KQRBN]$/.test(part)) return document.createTextNode(part);
+    const fig = Object.assign(document.createElement('span'), { className: 'fig' });
+    fig.dataset.fig = part;
+    fig.append(Object.assign(document.createElement('span'), { className: 'visually-hidden', textContent: part }));
+    return fig;
+  });
 }
 
 function loadSaved() {
@@ -111,14 +127,21 @@ class BoardUI {
         const el = document.createElement('div');
         el.className = `square ${(file + rank) % 2 ? 'light' : 'dark'}`;
         el.dataset.square = squareName(sq);
-        // Coordinates along the left and bottom edges, as printed on a board.
-        if (col === 0) el.append(Object.assign(document.createElement('span'), { className: 'coord rank', textContent: rank + 1 }));
-        if (row === 7) el.append(Object.assign(document.createElement('span'), { className: 'coord file', textContent: 'abcdefgh'[file] }));
         el.append(Object.assign(document.createElement('div'), { className: 'piece' }));
         boardEl.append(el);
         this.squareEls.set(sq, el);
       }
     }
+    // Coordinates in the margin, as a printed diagram has them.
+    const label = (text) => Object.assign(document.createElement('span'), { textContent: text });
+    const ranks = [8, 7, 6, 5, 4, 3, 2, 1];
+    const files = [...'abcdefgh'];
+    if (this.flipped) {
+      ranks.reverse();
+      files.reverse();
+    }
+    ranksEl.replaceChildren(...ranks.map(label));
+    filesEl.replaceChildren(...files.map(label));
   }
 
   render() {
@@ -145,7 +168,8 @@ class BoardUI {
     statusHeadlineEl.textContent = headline;
     statusDetailEl.textContent = detail;
     statusEl.dataset.tone = tone;
-    turnDiscEl.dataset.side = side;
+    statusMoveEl.textContent = `Move ${game.pos.fullmoveNumber}`;
+    turnMarkEl.dataset.side = side;
     boardEl.setAttribute('aria-label', `Chess board. ${headline}${detail ? `. ${detail}` : ''}`);
 
     this.renderScoresheet();
@@ -159,9 +183,9 @@ class BoardUI {
     movesEmptyEl.hidden = rows.length > 0;
     movesEl.replaceChildren(...rows.map((row, i) => {
       const li = document.createElement('li');
-      const cell = (text, ply) => {
+      const cell = (san, ply) => {
         const span = document.createElement('span');
-        span.textContent = text;
+        span.append(...figurines(san));
         if (ply === total - 1) span.className = 'is-latest';
         return span;
       };
