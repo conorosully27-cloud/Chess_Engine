@@ -9,6 +9,7 @@
 import {
   WHITE, EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
   KNIGHT_OFFSETS, BISHOP_OFFSETS, ROOK_OFFSETS, KING_OFFSETS,
+  CASTLE_WK, CASTLE_WQ, CASTLE_BK, CASTLE_BQ,
 } from '../board.js';
 
 const MG_VALUE = [0, 90, 320, 330, 480, 950, 0];
@@ -141,6 +142,10 @@ const PASSED_PAWN_EG = [0, 10, 20, 35, 55, 85, 130, 0];
 const ROOK_OPEN_FILE = [25, 10];
 const ROOK_SEMI_OPEN_FILE = [12, 6];
 const TEMPO = 10; // having the move is worth a little
+// Middlegame penalty for a king on the d, e or f file while the enemy queen
+// is on: smaller if it can still castle out of there, larger once it can't.
+const CENTRAL_KING = [15, 40];
+const CASTLING_RIGHTS = [CASTLE_WK | CASTLE_WQ, CASTLE_BK | CASTLE_BQ];
 
 // Mobility: per square a piece can move to, measured from a typical count
 // so an average piece scores about zero. [mg, eg, typical count]
@@ -160,6 +165,7 @@ const rookSquares = [new Int16Array(16), new Int16Array(16)];
 const bishops = new Int32Array(2); // [color]
 const pawns = new Int32Array(2);
 const rooks = new Int32Array(2);
+const queens = new Int32Array(2);
 const nonPawnMaterial = new Int32Array(2);
 
 export function evaluate(pos) {
@@ -170,6 +176,7 @@ export function evaluate(pos) {
   bishops.fill(0);
   pawns.fill(0);
   rooks.fill(0);
+  queens.fill(0);
   nonPawnMaterial.fill(0);
   for (let c = 0; c < 2; c++) {
     pawnCount[c].fill(0);
@@ -198,6 +205,7 @@ export function evaluate(pos) {
       nonPawnMaterial[c] += MG_VALUE[type];
       if (type === BISHOP) bishops[c]++;
       else if (type === ROOK) rookSquares[c][rooks[c]++] = sq;
+      else if (type === QUEEN) queens[c]++;
       const [mgWeight, egWeight, typical] = MOBILITY[type];
       const moves = mobility(b, sq, type, piece & 8) - typical;
       mg += sign * mgWeight * moves;
@@ -256,7 +264,13 @@ export function evaluate(pos) {
       }
     }
 
-    mg += sign * kingShelter(b, pos.kingSquare[c], c);
+    const kingSq = pos.kingSquare[c];
+    const kingFile = kingSq & 7;
+    if (kingFile <= 2 || kingFile >= 6) {
+      mg += sign * kingShelter(b, kingSq, c);
+    } else if (queens[them] > 0) {
+      mg -= sign * CENTRAL_KING[pos.castling & CASTLING_RIGHTS[c] ? 0 : 1];
+    }
   }
 
   // Mop-up: against a bare king, drive it to the edge and bring our king
@@ -303,7 +317,9 @@ function mobility(b, sq, type, color) {
   return count;
 }
 
-// Middlegame bonus for pawns sheltering a king on its back two ranks.
+// Middlegame bonus for pawns sheltering a castled king (on the a-c or g-h
+// files) on its back two ranks. A king still in the centre is handled by
+// CENTRAL_KING instead, so pushing the e- or d-pawn isn't punished.
 function kingShelter(b, kingSq, c) {
   const relRank = c === 0 ? kingSq >> 4 : 7 - (kingSq >> 4);
   if (relRank > 1) return 0;
