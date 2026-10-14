@@ -285,7 +285,8 @@ body {
 .controls {
   grid-area: controls;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Two rows: three game controls, then Resign and Export PGN. */
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
   padding-left: var(--margin);
 }
@@ -309,7 +310,22 @@ body {
 }
 .controls button:active:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .controls button:disabled { opacity: 0.35; cursor: default; }
-#new-game[data-confirm] { background: var(--danger); border-color: var(--danger); color: var(--danger-fg); }
+.controls button { grid-column: span 2; }
+.controls #resign,
+.controls #export-pgn { grid-column: span 3; }
+#resign[data-confirm] { background: var(--danger); border-color: var(--danger); color: var(--danger-fg); }
+
+.pgn-text {
+  width: 100%;
+  min-height: 11rem;
+  padding: 10px;
+  border: 2px solid var(--fg);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 0.8rem/1.5 var(--font-mono);
+  resize: vertical;
+}
 
 button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 

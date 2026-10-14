@@ -25,7 +25,10 @@ small server.)
   captures), and only the player whose turn it is can pick pieces up.
 - Pawns reaching the last rank ask which piece to promote to.
 - **Take back** undoes a move, **Flip board** turns the board around, and
-  **New game** starts over (mid-game it asks you to tap twice).
+  **New game** starts a game against a friend or the engine.
+- **Resign** (tap twice to confirm) ends the game; Take back withdraws it.
+- **Export PGN** shows the game in PGN, the standard format, with a Copy
+  button, ready to paste into Lichess, Chess.com or any chess app.
 - The game is saved in the browser, so it survives a reload.
 
 ### Engine

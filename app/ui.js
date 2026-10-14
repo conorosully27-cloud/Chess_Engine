@@ -54,6 +54,10 @@ const evalScoreEl = $('eval-score');
 const evalFillEl = $('eval-fill');
 const evalLineEl = $('eval-line');
 const newGameSheetEl = $('new-game-sheet');
+const resignButton = $('resign');
+const pgnSheetEl = $('pgn-sheet');
+const pgnTextEl = $('pgn-text');
+const pgnCopyButton = $('pgn-copy');
 
 // Piece sets live in app/pieces/<id>/ (drawn by scripts/build-pieces.js);
 // board schemes are defined in style.css under [data-board="<id>"].
@@ -127,6 +131,8 @@ class BoardUI {
   constructor() {
     const saved = loadSaved();
     this.game = Game.fromUci(saved.moves);
+    if (saved.resigned) this.game.resign(saved.resigned);
+    this.resignTimer = 0;
     this.flipped = Boolean(saved.flipped);
     // opponent: 'friend' (both sides on this device) or 'engine'.
     this.settings = { opponent: saved.opponent, human: saved.human, thinkMs: saved.thinkMs };
@@ -157,11 +163,19 @@ class BoardUI {
       if (e.key !== 'Escape') return;
       if (!styleSheetEl.hidden) this.closeStyle();
       else if (!newGameSheetEl.hidden) this.closeNewGame();
+      else if (!pgnSheetEl.hidden) this.closePgn();
       else if (this.pendingPromotion) this.cancelPromotion();
       else if (this.selected >= 0 && !this.drag) this.select(-1);
     });
     takeBackButton.addEventListener('click', () => this.takeBack());
     flipButton.addEventListener('click', () => this.flip());
+    resignButton.addEventListener('click', () => this.resign());
+    $('export-pgn').addEventListener('click', () => this.openPgn());
+    $('pgn-done').addEventListener('click', () => this.closePgn());
+    pgnCopyButton.addEventListener('click', () => this.copyPgn());
+    pgnSheetEl.addEventListener('click', (e) => {
+      if (e.target === pgnSheetEl) this.closePgn();
+    });
     newGameButton.addEventListener('click', () => this.openNewGame());
     analysisToggle.addEventListener('click', () => this.setAnalysis(!this.analysisOn));
     $('new-game-cancel').addEventListener('click', () => this.closeNewGame());
@@ -263,9 +277,10 @@ class BoardUI {
       // Speak to the player: "Your move", "You win" rather than colors.
       const human = this.settings.human;
       if (!game.isOver) headline = game.turn === human ? 'Your move' : 'Engine thinking';
-      else if (game.status.reason === 'checkmate') {
+      else if (game.status.reason === 'checkmate' || game.status.reason === 'resignation') {
         const humanWon = (game.status.result === '1-0') === (human === 'w');
         detail = detail.replace(/^(White|Black) wins/, humanWon ? 'You win' : 'Engine wins');
+        if (game.status.reason === 'resignation') headline = humanWon ? 'Engine resigns' : 'You resigned';
       }
     }
     if (this.engineError) detail = 'The engine could not start in this browser';
@@ -277,7 +292,9 @@ class BoardUI {
     boardEl.setAttribute('aria-label', `Chess board. ${headline}${detail ? `. ${detail}` : ''}`);
 
     this.renderScoresheet();
-    takeBackButton.disabled = this.vsEngine ? this.humanPlies() === 0 : game.ply === 0;
+    takeBackButton.disabled = !game.resigned && (this.vsEngine ? this.humanPlies() === 0 : game.ply === 0);
+    resignButton.disabled = game.isOver;
+    if (game.isOver) this.resetResignButton();
     this.save();
     this.syncEngines();
     this.renderAnalysis();
@@ -327,6 +344,7 @@ class BoardUI {
         flipped: this.flipped,
         ...this.settings,
         analysis: this.analysisOn,
+        resigned: this.game.resigned,
       }));
     } catch {
       // Storage unavailable (private browsing): the game just won't survive a reload.
@@ -487,7 +505,9 @@ class BoardUI {
 
   takeBack() {
     if (this.pendingPromotion) this.cancelPromotion();
-    if (this.vsEngine) {
+    if (this.game.resigned) {
+      this.game.takeBack(); // withdraws the resignation; play resumes
+    } else if (this.vsEngine) {
       // Undo back to before your last move (taking back the engine's reply too).
       if (this.humanPlies() === 0) return;
       this.player.stop();
@@ -504,6 +524,62 @@ class BoardUI {
     this.flipped = !this.flipped;
     this.buildBoard();
     this.render();
+  }
+
+  // ---------------------------------------------------------------- resign and PGN
+
+  // Resigning ends the game, so it takes a second tap to confirm. Against the
+  // engine you resign; between friends, the player whose turn it is does.
+  resign() {
+    if (this.game.isOver) return;
+    if (!resignButton.dataset.confirm) {
+      resignButton.dataset.confirm = 'true';
+      resignButton.textContent = 'Tap to resign';
+      this.resignTimer = setTimeout(() => this.resetResignButton(), 3000);
+      return;
+    }
+    this.resetResignButton();
+    if (this.pendingPromotion) this.cancelPromotion();
+    this.player.stop();
+    this.thinkingFor = null;
+    this.game.resign(this.vsEngine ? this.settings.human : this.game.turn);
+    this.selected = -1;
+    this.render();
+  }
+
+  resetResignButton() {
+    clearTimeout(this.resignTimer);
+    if (!resignButton.dataset.confirm) return;
+    delete resignButton.dataset.confirm;
+    resignButton.textContent = 'Resign';
+  }
+
+  openPgn() {
+    const names = this.vsEngine
+      ? (this.settings.human === 'w' ? { white: 'You', black: 'Engine' } : { white: 'Engine', black: 'You' })
+      : { white: 'White', black: 'Black' };
+    pgnTextEl.value = this.game.pgn({ ...names, event: this.vsEngine ? 'Game vs engine' : 'Casual game' });
+    pgnCopyButton.textContent = 'Copy PGN';
+    $('pgn-note').textContent = 'Paste it into Lichess, Chess.com or any chess app to save or analyse the game.';
+    pgnSheetEl.hidden = false;
+    pgnCopyButton.focus({ preventScroll: true });
+  }
+
+  closePgn() {
+    pgnSheetEl.hidden = true;
+    $('export-pgn').focus({ preventScroll: true });
+  }
+
+  async copyPgn() {
+    try {
+      await navigator.clipboard.writeText(pgnTextEl.value);
+      pgnCopyButton.textContent = 'Copied';
+    } catch {
+      // Clipboard refused: select the text so it can be copied by hand.
+      pgnTextEl.focus();
+      pgnTextEl.select();
+      $('pgn-note').textContent = 'Copying was blocked here. The text is selected: use your device\'s Copy.';
+    }
   }
 
   // ---------------------------------------------------------------- new game
@@ -544,6 +620,7 @@ class BoardUI {
     this.thinkingFor = this.analysingFor = null;
     this.analysis = null;
     this.game.reset();
+    this.resetResignButton();
     this.selected = -1;
     // Playing Black against the engine, see the board from Black's side.
     const flipped = this.vsEngine && this.settings.human === 'b';

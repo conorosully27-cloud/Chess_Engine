@@ -37,12 +37,23 @@ export class Game {
   reset() {
     this.pos = new Position();
     this.sanHistory = [];
+    this.resigned = null; // 'w' or 'b' once a side resigns
     this._refresh();
   }
 
   _refresh() {
     this.legal = this.pos.legalMoves();
-    this.status = this.pos.status();
+    this.status = this.resigned
+      ? { isOver: true, result: this.resigned === 'w' ? '0-1' : '1-0', reason: 'resignation' }
+      : this.pos.status();
+  }
+
+  // The side `color` ('w' or 'b') resigns. Ignored once the game is over.
+  resign(color) {
+    if (this.isOver) return false;
+    this.resigned = color;
+    this._refresh();
+    return true;
   }
 
   _play(move) {
@@ -103,6 +114,12 @@ export class Game {
   }
 
   takeBack() {
+    if (this.resigned) {
+      // Taking back after resigning resumes the game where it stood.
+      this.resigned = null;
+      this._refresh();
+      return true;
+    }
     if (this.pos.ply === 0) return false;
     this.pos.unmakeMove();
     this.sanHistory.pop();
@@ -149,9 +166,56 @@ export class Game {
         tone: 'over',
       };
     }
+    if (reason === 'resignation') {
+      const whiteWon = result === '1-0';
+      return {
+        headline: `${whiteWon ? 'Black' : 'White'} resigns`,
+        detail: `${whiteWon ? 'White' : 'Black'} wins · ${whiteWon ? '1–0' : '0–1'}`,
+        side: whiteWon ? 'w' : 'b',
+        tone: 'over',
+      };
+    }
     if (reason === 'stalemate') {
       return { headline: 'Stalemate', detail: 'Draw · ½–½', side: 'draw', tone: 'over' };
     }
     return { headline: 'Draw', detail: `${DRAW_REASONS[reason]} · ½–½`, side: 'draw', tone: 'over' };
+  }
+
+  // The game in PGN (Portable Game Notation), the standard format other chess
+  // apps import. `white` and `black` name the players; `date` is a Date.
+  pgn({ white = 'White', black = 'Black', date = new Date(), event = 'Casual game' } = {}) {
+    const result = this.status.isOver ? this.status.result : '*';
+    const pad = (n) => String(n).padStart(2, '0');
+    const tags = [
+      ['Event', event],
+      ['Site', 'Chess Engine'],
+      ['Date', `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`],
+      ['Round', '-'],
+      ['White', white],
+      ['Black', black],
+      ['Result', result],
+    ];
+    const termination = { checkmate: 'Checkmate', resignation: `${this.resigned === 'w' ? 'White' : 'Black'} resigns`,
+      stalemate: 'Stalemate', 'insufficient material': 'Insufficient material',
+      'fifty-move rule': 'Fifty-move rule', 'threefold repetition': 'Threefold repetition' }[this.status.reason];
+    if (termination) tags.push(['Termination', termination]);
+    const header = tags.map(([k, v]) => `[${k} "${String(v).replace(/["\\]/g, '')}"]`).join('\n');
+
+    // Movetext, wrapped at 80 characters as the PGN standard asks.
+    const tokens = [];
+    this.sanHistory.forEach((san, i) => tokens.push(i % 2 === 0 ? `${i / 2 + 1}. ${san}` : san));
+    tokens.push(result);
+    const lines = [];
+    let line = '';
+    for (const token of tokens) {
+      if (line && line.length + 1 + token.length > 80) {
+        lines.push(line);
+        line = token;
+      } else {
+        line = line ? `${line} ${token}` : token;
+      }
+    }
+    lines.push(line);
+    return `${header}\n\n${lines.join('\n')}\n`;
   }
 }

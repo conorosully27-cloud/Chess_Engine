@@ -100,3 +100,47 @@ test('a saved game restores from its UCI moves', () => {
   assert.equal(Game.fromUci(['e2e4', 'e2e4', 'd2d4']).ply, 1);
   assert.equal(Game.fromUci(['e7e8q']).ply, 0);
 });
+
+test('resigning ends the game for the other side; take back resumes it', () => {
+  const game = new Game();
+  playMoves(game, 'e2-e4 e7-e5');
+  assert.ok(game.resign('w'));
+  assert.ok(game.isOver);
+  assert.deepEqual(game.status, { isOver: true, result: '0-1', reason: 'resignation' });
+  assert.deepEqual(game.describe(), { headline: 'White resigns', detail: 'Black wins · 0–1', side: 'b', tone: 'over' });
+  assert.ok(!game.canMoveFrom(sq('g1')));
+  assert.ok(!game.resign('b'), 'no resigning a finished game');
+  assert.ok(game.takeBack());
+  assert.ok(!game.isOver);
+  assert.equal(game.ply, 2, 'the moves are still there');
+});
+
+test('PGN export', () => {
+  const game = new Game();
+  playMoves(game, 'f2-f3 e7-e5 g2-g4 d8-h4');
+  const date = new Date(2026, 9, 14);
+  assert.equal(game.pgn({ white: 'You', black: 'Engine', date }), [
+    '[Event "Casual game"]',
+    '[Site "Chess Engine"]',
+    '[Date "2026.10.14"]',
+    '[Round "-"]',
+    '[White "You"]',
+    '[Black "Engine"]',
+    '[Result "0-1"]',
+    '[Termination "Checkmate"]',
+    '',
+    '1. f3 e5 2. g4 Qh4# 0-1',
+    '',
+  ].join('\n'));
+
+  const unfinished = new Game();
+  playMoves(unfinished, 'e2-e4');
+  assert.match(unfinished.pgn({ date }), /\[Result "\*"\]\n\n1\. e4 \*\n$/);
+
+  // Long games wrap at 80 characters, never splitting a move from its number.
+  const long = Game.fromUci(('e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1 f8e7 f1e1 b7b5 a4b3 d7d6 '
+    + 'c2c3 e8g8 h2h3 c6a5 b3c2 c7c5 d2d4 d8c7').split(' '));
+  assert.equal(long.ply, 22);
+  const movetext = long.pgn({ date }).split('\n\n')[1].trim().split('\n');
+  assert.ok(movetext.length > 1 && movetext.every((l) => l.length <= 80 && !/\d\.$/.test(l)));
+});

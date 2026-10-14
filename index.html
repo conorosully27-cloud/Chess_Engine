@@ -43,6 +43,8 @@
     <button type="button" id="take-back">Take back</button>
     <button type="button" id="flip">Flip board</button>
     <button type="button" id="new-game">New game</button>
+    <button type="button" id="resign">Resign</button>
+    <button type="button" id="export-pgn">Export PGN</button>
   </div>
 
   <section class="analysis" id="analysis" aria-labelledby="analysis-title">
@@ -108,6 +110,17 @@
       <p class="sheet-note">per move, at full strength</p>
     </div>
     <button type="button" class="start-button" id="start-game">Start game</button>
+  </section>
+</div>
+<div class="sheet-backdrop" id="pgn-sheet" hidden>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="pgn-title">
+    <div class="sheet-head">
+      <h2 class="sheet-title" id="pgn-title">Export PGN</h2>
+      <button type="button" class="sheet-done" id="pgn-done">Done</button>
+    </div>
+    <textarea class="pgn-text" id="pgn-text" rows="9" readonly spellcheck="false" aria-label="Game in PGN"></textarea>
+    <button type="button" class="start-button" id="pgn-copy">Copy PGN</button>
+    <p class="sheet-note" id="pgn-note"></p>
   </section>
 </div>
 <script type="module" src="app/ui.js"></script>
