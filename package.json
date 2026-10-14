@@ -1,0 +1,15 @@
+{
+  "name": "chess-engine",
+  "version": "0.1.0",
+  "description": "A chess engine written in plain JavaScript so it can run in a phone's browser.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "perft": "node scripts/perft.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
