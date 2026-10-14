@@ -3,14 +3,15 @@
 // Two ways to move, working the same with mouse, touch and pen (Pointer Events):
 //   - drag a piece and drop it on a legal square;
 //   - tap a piece, then tap a legal square.
-// Only the player to move can pick pieces up. Legal squares show a small
-// square (or corner brackets for captures), and dropping anywhere illegal
-// sends the piece back.
+// Only the player to move can pick pieces up. Legal squares show a dot (or
+// corner brackets for captures), and dropping anywhere illegal sends the
+// piece back. The Style button picks the piece set and board colors.
 
 import { Game, PROMOTION_PIECES } from './game.js';
 import { EMPTY, QUEEN, ROOK, BISHOP, KNIGHT, PIECE_CHARS, makeSquare, fileOf, rankOf, squareName, moveFrom, moveTo } from '../src/index.js';
 
 const STORAGE_KEY = 'chess-engine/game';
+const STYLE_KEY = 'chess-engine/style';
 const DRAG_THRESHOLD = 4; // CSS px a press must travel before it counts as a drag
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const PIECE_NAMES = { [QUEEN]: 'Queen', [ROOK]: 'Rook', [BISHOP]: 'Bishop', [KNIGHT]: 'Knight' };
@@ -31,6 +32,29 @@ const movesEmptyEl = $('moves-empty');
 const takeBackButton = $('take-back');
 const flipButton = $('flip');
 const newGameButton = $('new-game');
+const styleButton = $('style-button');
+const styleSheetEl = $('style-sheet');
+const pieceOptionsEl = $('piece-options');
+const boardOptionsEl = $('board-options');
+
+// Piece sets live in app/pieces/<id>/ (drawn by scripts/build-pieces.js);
+// board schemes are defined in style.css under [data-board="<id>"].
+const PIECE_SETS = [
+  { id: 'ink', name: 'Ink' },
+  { id: 'soft', name: 'Soft' },
+  { id: 'tokens', name: 'Tokens' },
+  { id: 'bauhaus', name: 'Bauhaus' },
+  { id: 'pixel', name: 'Pixel' },
+];
+const BOARDS = [
+  { id: 'walnut', name: 'Walnut' },
+  { id: 'stone', name: 'Stone' },
+  { id: 'lagoon', name: 'Lagoon' },
+  { id: 'coral', name: 'Coral' },
+  { id: 'midnight', name: 'Midnight' },
+];
+const PIECES_URL = new URL('./pieces/', import.meta.url);
+let pieceSet = PIECE_SETS[0].id;
 
 // 'wK', 'bN', ... (matches the image file names), or '' for an empty square.
 function pieceName(piece) {
@@ -47,6 +71,26 @@ function figurines(san) {
     fig.append(Object.assign(document.createElement('span'), { className: 'visually-hidden', textContent: part }));
     return fig;
   });
+}
+
+// Shows piece `name` ('wK', ...) on an element, from `set`; '' clears it.
+function paintPiece(el, name, set = pieceSet) {
+  if (el.dataset.piece === name && el.dataset.set === set) return;
+  el.dataset.piece = name;
+  el.dataset.set = set;
+  el.style.backgroundImage = name ? `url("${new URL(`${set}/${name}.svg`, PIECES_URL)}")` : '';
+}
+
+function loadStyle() {
+  const style = { pieces: PIECE_SETS[0].id, board: BOARDS[0].id };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STYLE_KEY));
+    if (PIECE_SETS.some((s) => s.id === saved?.pieces)) style.pieces = saved.pieces;
+    if (BOARDS.some((b) => b.id === saved?.board)) style.board = saved.board;
+  } catch {
+    // Storage unavailable or corrupt: use the defaults.
+  }
+  return style;
 }
 
 function loadSaved() {
@@ -83,12 +127,22 @@ class BoardUI {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (this.pendingPromotion) this.cancelPromotion();
+      if (!styleSheetEl.hidden) this.closeStyle();
+      else if (this.pendingPromotion) this.cancelPromotion();
       else if (this.selected >= 0 && !this.drag) this.select(-1);
     });
     takeBackButton.addEventListener('click', () => this.takeBack());
     flipButton.addEventListener('click', () => this.flip());
     newGameButton.addEventListener('click', () => this.newGame());
+
+    this.style = loadStyle();
+    this.applyStyle();
+    styleButton.addEventListener('click', () => (styleSheetEl.hidden ? this.openStyle() : this.closeStyle()));
+    $('style-done').addEventListener('click', () => this.closeStyle());
+    // The backdrop is transparent: a tap outside the sheet closes it.
+    styleSheetEl.addEventListener('click', (e) => {
+      if (e.target === styleSheetEl) this.closeStyle();
+    });
 
     this.buildBoard();
     this.render();
@@ -153,7 +207,7 @@ class BoardUI {
 
     for (const [sq, el] of this.squareEls) {
       const piece = board[sq];
-      el.lastElementChild.dataset.piece = pieceName(piece);
+      paintPiece(el.lastElementChild, pieceName(piece));
       el.classList.toggle('is-last', last !== null && (sq === moveFrom(last) || sq === moveTo(last)));
       el.classList.toggle('is-selected', sq === this.selected);
       el.classList.toggle('is-target', targets.has(sq));
@@ -310,7 +364,7 @@ class BoardUI {
     const size = boardEl.getBoundingClientRect().width / 8;
     this.ghost = document.createElement('div');
     this.ghost.className = 'piece ghost';
-    this.ghost.dataset.piece = pieceName(this.game.pos.board[from]);
+    paintPiece(this.ghost, pieceName(this.game.pos.board[from]));
     this.ghost.style.width = this.ghost.style.height = `${size}px`;
     this.ghostSize = size;
     document.body.append(this.ghost);
@@ -349,7 +403,7 @@ class BoardUI {
       button.dataset.promotion = type;
       button.setAttribute('aria-label', PIECE_NAMES[type]);
       button.append(Object.assign(document.createElement('div'), { className: 'piece' }));
-      button.firstChild.dataset.piece = color + PIECE_CHARS[type];
+      paintPiece(button.firstChild, color + PIECE_CHARS[type]);
       return button;
     }));
     promotionEl.hidden = false;
@@ -401,6 +455,69 @@ class BoardUI {
     this.game.reset();
     this.selected = -1;
     this.render();
+  }
+
+  // ---------------------------------------------------------------- style
+
+  applyStyle() {
+    pieceSet = this.style.pieces;
+    document.documentElement.dataset.board = this.style.board;
+    try {
+      localStorage.setItem(STYLE_KEY, JSON.stringify(this.style));
+    } catch {
+      // Storage unavailable: the choice lasts until the page is closed.
+    }
+  }
+
+  setStyle(change) {
+    Object.assign(this.style, change);
+    this.applyStyle();
+    this.buildStyleOptions();
+    this.render();
+    // The options were rebuilt; keep focus on the one just chosen.
+    const group = 'pieces' in change ? pieceOptionsEl : boardOptionsEl;
+    group.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
+  }
+
+  openStyle() {
+    this.buildStyleOptions();
+    styleSheetEl.hidden = false;
+    styleButton.setAttribute('aria-expanded', 'true');
+    pieceOptionsEl.querySelector('[aria-pressed="true"]')?.focus({ preventScroll: true });
+  }
+
+  closeStyle() {
+    styleSheetEl.hidden = true;
+    styleButton.setAttribute('aria-expanded', 'false');
+    styleButton.focus({ preventScroll: true });
+  }
+
+  // Each option previews a 2 x 2 corner of the board: piece sets on the
+  // current board, boards with the current pieces.
+  buildStyleOptions() {
+    const option = (label, pressed, boardId, setId, onPick) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'option';
+      button.setAttribute('aria-pressed', String(pressed));
+      const preview = Object.assign(document.createElement('span'), { className: 'option-preview' });
+      preview.dataset.board = boardId;
+      for (const [name, dark] of [['bN', false], ['bQ', true], ['wK', true], ['wN', false]]) {
+        const square = Object.assign(document.createElement('span'), { className: dark ? 'dark' : '' });
+        const piece = Object.assign(document.createElement('span'), { className: 'piece' });
+        paintPiece(piece, name, setId);
+        square.append(piece);
+        preview.append(square);
+      }
+      button.append(preview, label);
+      button.addEventListener('click', onPick);
+      return button;
+    };
+    const { pieces, board } = this.style;
+    pieceOptionsEl.replaceChildren(...PIECE_SETS.map((set) =>
+      option(set.name, set.id === pieces, board, set.id, () => this.setStyle({ pieces: set.id }))));
+    boardOptionsEl.replaceChildren(...BOARDS.map((b) =>
+      option(b.name, b.id === board, b.id, pieces, () => this.setStyle({ board: b.id }))));
   }
 
   resetNewGameButton() {
