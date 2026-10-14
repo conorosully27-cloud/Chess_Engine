@@ -33,9 +33,9 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.0** (git tag `engine-v1.0`). To build on it or
-measure a new version against it, check out that tag, e.g.
-`git worktree add ../engine-1.0 engine-v1.0`.
+**Current version: Engine 1.0**, kept as-is on the `engine-1.0` branch. To
+build on it or measure a new version against it, check that branch out, e.g.
+`git worktree add ../engine-1.0 engine-1.0`.
 
 Known weaknesses of 1.0, from a review of a game against it: the evaluation
 is materialistic and undervalues development, space and initiative. King

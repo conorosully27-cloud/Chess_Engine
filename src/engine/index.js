@@ -1,4 +1,4 @@
-// Engine 1.0: the first full-strength engine (git tag engine-v1.0). Later
+// Engine 1.0: the first full-strength engine (git branch engine-1.0). Later
 // versions are measured against it with engine-vs-engine matches.
 export const ENGINE_VERSION = '1.0';
 
