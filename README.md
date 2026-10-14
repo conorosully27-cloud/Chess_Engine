@@ -33,6 +33,16 @@ small server.)
 
 ### Engine
 
+**Current version: Engine 1.0** (git tag `engine-v1.0`). To build on it or
+measure a new version against it, check out that tag, e.g.
+`git worktree add ../engine-1.0 engine-v1.0`.
+
+Known weaknesses of 1.0, from a review of a game against it: the evaluation
+is materialistic and undervalues development, space and initiative. King
+shelter also penalises central pawn moves in front of an uncastled king, and
+there is no development or space term and little king safety. In gambit
+positions it judged White about 1.5 pawns worse than a reference engine.
+
 - **Analysis**: switch it on to see the evaluation (from White's side, in
   pawns; `#3` means mate in 3), the engine's main line, and an arrow for its
   best move. It analyses the position on the board for up to 30 seconds.
