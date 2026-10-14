@@ -37,6 +37,25 @@ small server.)
 build on it or measure a new version against it, check that branch out, e.g.
 `git worktree add ../engine-1.0 engine-1.0`.
 
+#### Comparing engine versions
+
+`npm run match` plays two checkouts of this repository against each other:
+paired openings (each played with both colors), equal thinking time, games in
+parallel. With `--sprt` it runs a sequential probability ratio test, the
+method Stockfish uses to accept changes: it stops as soon as the results
+decide, with 5% error rates.
+
+```sh
+git worktree add ../engine-1.0 engine-1.0                 # once
+npm run match -- --b ../engine-1.0 --sprt 0,10 --games 2000  # is this checkout ≥10 Elo better?
+npm run match -- --b ../engine-1.0 --games 200 --time 100    # fixed-length match
+```
+
+"H1 accepted" means the new version is better; "H0 accepted" means it isn't
+better by the margin tested. Small gains need many games (about ±45 Elo of
+uncertainty at 200 games), so use SPRT rather than reading too much into a
+short match. `npm run match -- --help` lists all options.
+
 Known weaknesses of 1.0, from a review of a game against it: the evaluation
 is materialistic and undervalues development, space and initiative. King
 shelter also penalises central pawn moves in front of an uncastled king, and
@@ -140,6 +159,7 @@ most chess apps.
 npm test                    # ~6 seconds
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
+npm run match -- --b ../engine-1.0 --sprt 0,10   # engine vs engine (see Engine)
 ```
 
 The tests include **perft**: counting every position reachable to a fixed depth
