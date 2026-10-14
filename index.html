@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chess Engine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Play chess on your phone: drag or tap pieces to legal squares.">
+<meta name="theme-color" content="#eef0ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121611" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="app/style.css">
+</head>
+<body>
+<main class="layout">
+  <header class="status" id="status" aria-live="polite">
+    <span class="turn-disc" id="turn-disc" aria-hidden="true"></span>
+    <div class="status-text">
+      <h1 class="status-headline" id="status-headline">White to move</h1>
+      <p class="status-detail" id="status-detail"></p>
+    </div>
+  </header>
+
+  <div class="board-wrap">
+    <div class="board" id="board" role="application" aria-label="Chess board"></div>
+    <div class="promotion" id="promotion" hidden>
+      <div class="promotion-card" role="dialog" aria-label="Promote pawn to">
+        <p class="promotion-title">Promote to</p>
+        <div class="promotion-choices" id="promotion-choices"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button type="button" id="take-back">Take back</button>
+    <button type="button" id="flip">Flip board</button>
+    <button type="button" id="new-game">New game</button>
+  </div>
+
+  <section class="scoresheet" aria-label="Moves">
+    <div class="scoresheet-head" aria-hidden="true"><span></span><span>White</span><span>Black</span></div>
+    <ol class="moves" id="moves"></ol>
+    <p class="moves-empty" id="moves-empty">No moves yet. Drag a piece, or tap it and then tap where it should go.</p>
+  </section>
+</main>
+<script type="module" src="app/ui.js"></script>
+</body>
+</html>

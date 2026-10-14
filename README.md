@@ -3,12 +3,31 @@
 A chess engine in plain JavaScript (ES modules, no dependencies), so it can run
 directly in a phone's browser. The plan:
 
-1. **Rules of chess** ✅ (this step)
-2. Engine: evaluation and alpha-beta search
-3. Mobile web app: a touch board, with the engine in a Web Worker, installable
-   to the home screen and playable offline
+1. **Rules of chess** ✅
+2. **Playable board** ✅ for two players on one device
+3. Engine: evaluation and alpha-beta search, running in a Web Worker
+4. Installable to the home screen and playable offline
 
-## Usage
+## Play
+
+```sh
+npm start
+```
+
+Then open http://localhost:8000. To play on your phone, open the
+"On your phone" address it prints while your phone is on the same Wi-Fi.
+(Browsers won't load the app straight from the file system, so it needs this
+small server.)
+
+- **Drag** a piece onto a square, or **tap** a piece and then tap a square.
+  Legal squares show a dot (a ring for captures), and only the player whose
+  turn it is can pick pieces up.
+- Pawns reaching the last rank ask which piece to promote to.
+- **Take back** undoes a move, **Flip board** turns the board around, and
+  **New game** starts over (mid-game it asks you to tap twice).
+- The game is saved in the browser, so it survives a reload.
+
+## Using the rules library
 
 ```js
 import { Position } from './src/index.js';
@@ -52,11 +71,15 @@ most chess apps.
 | `src/position.js` | `Position`: board state, FEN, move generation, make/unmake, game end |
 | `src/notation.js` | SAN and UCI conversion |
 | `src/zobrist.js` | Hash keys |
+| `index.html`, `app/style.css` | The page |
+| `app/ui.js` | Board rendering and drag/tap input |
+| `app/game.js` | Game session behind the board (no DOM code, so it's unit-tested) |
+| `app/pieces/` | Piece images |
 
 ## Testing
 
 ```sh
-npm test                    # ~5 seconds
+npm test                    # ~6 seconds
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
 ```
@@ -67,3 +90,10 @@ positions and 14 edge-case positions (illegal en passant, castling through check
 promotions with check, self-stalemate and more), about 30 million positions in all.
 Unit tests cover each rule directly, along with a fuzz test of make/unmake
 across random games.
+
+## Credits
+
+Piece images are the "cburnett" set by
+[Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), as
+distributed by [Lichess](https://github.com/lichess-org/lila) under the
+[GPLv2+](https://www.gnu.org/licenses/gpl-2.0.txt).

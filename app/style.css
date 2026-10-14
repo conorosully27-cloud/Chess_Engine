@@ -1,0 +1,372 @@
+/* Layout: the board is the page. On phones the status sits above it and the
+   controls and scoresheet below, within thumb reach; on wide screens they
+   move into a panel beside it. */
+:root {
+  --bg: #eef0ea;
+  --surface: #f8f9f5;
+  --fg: #1c211b;
+  --muted: #5d6659;
+  --line: #d3d8cc;
+  --accent: #3f6b35;
+  --accent-fg: #ffffff;
+  --danger: #b3261e;
+  --danger-fg: #ffffff;
+  --scrim: rgb(20 26 18 / 0.5);
+
+  /* The board keeps its colors in both themes, like a real roll-up board. */
+  --sq-light: #ebe5cd;
+  --sq-dark: #7a9a60;
+  --hl-last: rgb(246 218 74 / 0.5);
+  --hl-selected: rgb(246 206 46 / 0.78);
+  --hl-target: rgb(22 40 14 / 0.3);
+  --hl-hover: rgb(255 255 255 / 0.4);
+  --piece-white: #fbfbf8;
+  --piece-black: #1b1d1a;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --font-ui: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121611;
+    --surface: #1a2019;
+    --fg: #e4e8df;
+    --muted: #9aa394;
+    --line: #2e372b;
+    --accent: #9cc58a;
+    --accent-fg: #10170e;
+    --danger: #ff7b6e;
+    --danger-fg: #1d0806;
+    --scrim: rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #121611;
+  --surface: #1a2019;
+  --fg: #e4e8df;
+  --muted: #9aa394;
+  --line: #2e372b;
+  --accent: #9cc58a;
+  --accent-fg: #10170e;
+  --danger: #ff7b6e;
+  --danger-fg: #1d0806;
+  --scrim: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1rem/1.4 var(--font-ui);
+  -webkit-tap-highlight-color: transparent;
+  padding-block: 16px 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.layout {
+  --gutters: calc(max(16px, env(safe-area-inset-left, 0px)) + max(16px, env(safe-area-inset-right, 0px)));
+  --board-size: min(calc(100vw - var(--gutters)), 40rem, max(18rem, calc(100vh - 17rem)));
+  --board-size: min(calc(100vw - var(--gutters)), 40rem, max(18rem, calc(100dvh - 17rem)));
+  display: grid;
+  grid-template-columns: var(--board-size);
+  grid-template-areas: "status" "board" "controls" "moves";
+  gap: 14px;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------------ status */
+
+.status {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 3.4rem;
+}
+
+.turn-disc {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 2px solid var(--fg);
+  background: var(--piece-white);
+}
+.turn-disc[data-side="b"] { background: var(--piece-black); }
+.turn-disc[data-side="draw"] { background: linear-gradient(90deg, var(--piece-white) 50%, var(--piece-black) 50%); }
+
+.status-headline {
+  margin: 0;
+  font: 600 clamp(1.6rem, 7vw, 2.1rem)/1 var(--font-display);
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.status-detail {
+  margin: 3px 0 0;
+  min-height: 1.35em;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.status[data-tone="check"] .status-detail { color: var(--danger); font-weight: 700; }
+.status[data-tone="over"] .status-detail { color: var(--fg); font-weight: 700; }
+
+/* ------------------------------------------------------------------ board */
+
+.board-wrap {
+  grid-area: board;
+  position: relative;
+  width: var(--board-size);
+  max-width: 100%;
+  aspect-ratio: 1;
+}
+
+.board {
+  display: grid;
+  grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--line), 0 12px 28px -14px rgb(0 0 0 / 0.45);
+  /* The board owns every touch: no scrolling, zooming or callouts mid-drag. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.square {
+  position: relative;
+  background: var(--sq-dark);
+}
+.square.light { background: var(--sq-light); }
+.square.is-movable { cursor: grab; }
+.square.is-target { cursor: pointer; }
+
+/* ::before tints the whole square; ::after draws move hints above the pieces. */
+.square::before,
+.square::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.square.is-last::before { background: var(--hl-last); }
+.square.is-selected::before { background: var(--hl-selected); }
+.square.is-check::before {
+  background: radial-gradient(circle, rgb(255 48 24) 0%, rgb(230 24 0 / 0.6) 40%, rgb(200 0 0 / 0) 72%);
+}
+.square::after { z-index: 3; }
+.square.is-target::after { background: radial-gradient(circle, var(--hl-target) 0 16%, transparent 17%); }
+.square.is-target.is-occupied::after { background: radial-gradient(circle, transparent 0 76%, var(--hl-target) 77%); }
+.square.is-target.is-hover::after { background: var(--hl-hover); box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.85); }
+
+/* Coordinates sit above the pieces (in a corner the artwork leaves clear). */
+.coord {
+  position: absolute;
+  z-index: 3;
+  font: 700 clamp(9px, 2.5vw, 12px)/1 var(--font-ui);
+  pointer-events: none;
+}
+.coord.rank { top: 3px; left: 4px; }
+.coord.file { right: 4px; bottom: 3px; }
+.square.light .coord { color: var(--sq-dark); }
+.square.dark .coord { color: var(--sq-light); }
+
+.piece {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.piece[data-piece="wK"] { background-image: url(pieces/wK.svg); }
+.piece[data-piece="wQ"] { background-image: url(pieces/wQ.svg); }
+.piece[data-piece="wR"] { background-image: url(pieces/wR.svg); }
+.piece[data-piece="wB"] { background-image: url(pieces/wB.svg); }
+.piece[data-piece="wN"] { background-image: url(pieces/wN.svg); }
+.piece[data-piece="wP"] { background-image: url(pieces/wP.svg); }
+.piece[data-piece="bK"] { background-image: url(pieces/bK.svg); }
+.piece[data-piece="bQ"] { background-image: url(pieces/bQ.svg); }
+.piece[data-piece="bR"] { background-image: url(pieces/bR.svg); }
+.piece[data-piece="bB"] { background-image: url(pieces/bB.svg); }
+.piece[data-piece="bN"] { background-image: url(pieces/bN.svg); }
+.piece[data-piece="bP"] { background-image: url(pieces/bP.svg); }
+
+.square.is-drag-origin .piece { opacity: 0.3; }
+
+.piece.ghost {
+  position: fixed;
+  inset: auto;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  cursor: grabbing;
+  will-change: transform;
+  filter: drop-shadow(0 6px 6px rgb(0 0 0 / 0.3));
+}
+
+/* ------------------------------------------------------------------ promotion */
+
+.promotion {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--scrim);
+}
+
+.promotion-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.5);
+}
+
+.promotion-title {
+  margin: 0;
+  font: 700 0.75rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.promotion-choices {
+  display: grid;
+  grid-template-columns: repeat(4, calc(var(--board-size) / 6));
+  gap: 8px;
+}
+
+.promotion-choice {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sq-light);
+  cursor: pointer;
+}
+.promotion-choice:hover { border-color: var(--accent); }
+.promotion-choice .piece { inset: 6%; }
+
+/* ------------------------------------------------------------------ controls */
+
+.controls {
+  grid-area: controls;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+button {
+  font: 700 0.95rem/1.1 var(--font-ui);
+  color: var(--fg);
+}
+
+.controls button {
+  min-height: 46px;
+  padding: 10px 6px;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.controls button:hover:not(:disabled) { border-color: var(--accent); }
+.controls button:disabled { opacity: 0.45; cursor: default; }
+#new-game[data-confirm] { background: var(--danger); border-color: var(--danger); color: var(--danger-fg); }
+
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ scoresheet */
+
+.scoresheet {
+  grid-area: moves;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scoresheet-head,
+.moves li {
+  display: grid;
+  grid-template-columns: 2.8rem 1fr 1fr;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.scoresheet-head {
+  padding-block: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  font: 700 0.72rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.moves {
+  margin: 0;
+  padding: 4px 0 6px;
+  list-style: none;
+  max-height: 11rem;
+  overflow-y: auto;
+  font: 400 0.95rem/1.95 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.moves .num { color: var(--muted); }
+.moves .is-latest {
+  justify-self: start;
+  margin-left: -6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 500;
+}
+
+.moves-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* ------------------------------------------------------------------ wide screens */
+
+@media (min-width: 52rem) {
+  .layout {
+    /* Leave room for the panel (up to 20rem) and the 24px gap beside it. */
+    --board-size: min(calc(100vw - var(--gutters) - 21.5rem), 46rem, calc(100vh - 3rem));
+    --board-size: min(calc(100vw - var(--gutters) - 21.5rem), 46rem, calc(100dvh - 3rem));
+    grid-template-columns: var(--board-size) minmax(16rem, 20rem);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "board status" "board moves" "board controls";
+    column-gap: 24px;
+    height: var(--board-size);
+  }
+  .moves { max-height: none; flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
