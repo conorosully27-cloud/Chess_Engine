@@ -102,6 +102,43 @@ from one file per set in `scripts/pieces/`; after editing one, run
 `[data-board="..."]`. To add either, add it there and to the lists at the top
 of `app/ui.js`.
 
+## Handover: status and next steps
+
+*For whoever picks this up next (including a new Claude session). Read this
+first.*
+
+**Status (Oct 2026).** Rules, board UI, style picker, analysis, play vs
+engine, resign and PGN export are done and tested (`npm test`, 96 tests).
+The engine is **Engine 1.0**, frozen on the `engine-1.0` branch. New work
+goes on `main` (or a branch such as `engine-1.1`).
+
+**Next: improve the evaluation** (`src/engine/evaluate.js`). In a gambit game
+1.0 judged White about 1.5 pawns worse than a reference engine. Fix in this
+order:
+1. King shelter: only score it for a castled king (now it penalises central
+   pawn moves in front of a king on e1/e8); add a penalty for a king left in
+   the centre while queens are on.
+2. Development: penalise minor pieces on their starting squares and early
+   queen moves, scaled to the opening phase.
+3. Space/centre, and pieces attackable by enemy pawns.
+4. Later: tune the weights on a large set of positions (Texel tuning).
+
+**How to test a change:**
+1. Run `npm test`. The evaluation must stay colour-symmetric; a test checks it.
+2. Run `git worktree add ../engine-1.0 engine-1.0` once.
+3. Run `npm run match -- --b ../engine-1.0 --sprt 0,10 --games 2000`.
+   Accept the change only on "H1 accepted". The book has 24 openings (48
+   games before they repeat); a bigger opening set would help long matches.
+
+**Notes:**
+- Earlier trials: a capture-exchange (SEE) pruning attempt showed no gain and
+  was reverted; mobility was kept.
+- The phone build is a claude.ai artifact made from `index.html` (with the
+  page skeleton stripped) plus `app/` and `src/`; the artifact sandbox blocks
+  downloads, hence Copy PGN.
+- The owner is a strong player who tests by playing. Ask before starting the
+  weaker play levels (planned only once full strength is satisfactory).
+
 ## Using the rules library
 
 ```js
