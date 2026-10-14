@@ -247,23 +247,26 @@ export class Position {
   // Appends every pseudo-legal move (one that obeys how the pieces move but
   // may leave the mover's king in check) to `moves`. Castling is fully
   // checked here, since its rules about attacked squares go beyond king safety.
-  generatePseudoLegalMoves(moves = []) {
+  // With `tacticalOnly`, generates just captures and queen promotions, which is
+  // what the engine's quiescence search looks at.
+  generatePseudoLegalMoves(moves = [], tacticalOnly = false) {
     const b = this.board;
     const us = this.turn;
+    const quiet = !tacticalOnly;
     for (let sq = 0; sq < 120; sq++) {
       if (sq & 0x88) { sq += 7; continue; }
       const piece = b[sq];
       if (piece === EMPTY || (piece & 8) !== us) continue;
       switch (piece & 7) {
-        case PAWN: this._pawnMoves(sq, moves); break;
-        case KNIGHT: this._leaperMoves(sq, KNIGHT_OFFSETS, moves); break;
-        case BISHOP: this._sliderMoves(sq, BISHOP_OFFSETS, moves); break;
-        case ROOK: this._sliderMoves(sq, ROOK_OFFSETS, moves); break;
-        case QUEEN: this._sliderMoves(sq, KING_OFFSETS, moves); break;
-        case KING: this._leaperMoves(sq, KING_OFFSETS, moves); break;
+        case PAWN: this._pawnMoves(sq, moves, quiet); break;
+        case KNIGHT: this._leaperMoves(sq, KNIGHT_OFFSETS, moves, quiet); break;
+        case BISHOP: this._sliderMoves(sq, BISHOP_OFFSETS, moves, quiet); break;
+        case ROOK: this._sliderMoves(sq, ROOK_OFFSETS, moves, quiet); break;
+        case QUEEN: this._sliderMoves(sq, KING_OFFSETS, moves, quiet); break;
+        case KING: this._leaperMoves(sq, KING_OFFSETS, moves, quiet); break;
       }
     }
-    this._castlingMoves(moves);
+    if (quiet) this._castlingMoves(moves);
     return moves;
   }
 
@@ -292,7 +295,7 @@ export class Position {
     return this.legalMoves().includes(move);
   }
 
-  _pawnMoves(from, moves) {
+  _pawnMoves(from, moves, quiet) {
     const b = this.board;
     const us = this.turn;
     const forward = us === WHITE ? 16 : -16;
@@ -303,8 +306,8 @@ export class Position {
     const to = from + forward;
     if (b[to] === EMPTY) {
       if (rankOf(to) === lastRank) {
-        this._addPromotions(from, to, 0, moves);
-      } else {
+        this._addPromotions(from, to, 0, moves, quiet);
+      } else if (quiet) {
         moves.push(encodeMove(from, to));
         if (rankOf(from) === startRank && b[to + forward] === EMPTY) {
           moves.push(encodeMove(from, to + forward, 0, FLAG_DOUBLE_PUSH));
@@ -317,7 +320,7 @@ export class Position {
       if (target & 0x88) continue;
       const victim = b[target];
       if (victim !== EMPTY && (victim & 8) !== us) {
-        if (rankOf(target) === lastRank) this._addPromotions(from, target, FLAG_CAPTURE, moves);
+        if (rankOf(target) === lastRank) this._addPromotions(from, target, FLAG_CAPTURE, moves, quiet);
         else moves.push(encodeMove(from, target, 0, FLAG_CAPTURE));
       } else if (target === this.epSquare) {
         moves.push(encodeMove(from, target, 0, FLAG_CAPTURE | FLAG_EN_PASSANT));
@@ -325,27 +328,31 @@ export class Position {
     }
   }
 
-  _addPromotions(from, to, flags, moves) {
+  _addPromotions(from, to, flags, moves, underpromotions) {
     // Queen first: it's almost always the best, which helps search ordering later.
     moves.push(encodeMove(from, to, QUEEN, flags));
+    if (!underpromotions) return;
     moves.push(encodeMove(from, to, ROOK, flags));
     moves.push(encodeMove(from, to, BISHOP, flags));
     moves.push(encodeMove(from, to, KNIGHT, flags));
   }
 
-  _leaperMoves(from, offsets, moves) {
+  _leaperMoves(from, offsets, moves, quiet) {
     const b = this.board;
     const us = this.turn;
     for (let i = 0; i < offsets.length; i++) {
       const to = from + offsets[i];
       if (to & 0x88) continue;
       const target = b[to];
-      if (target === EMPTY) moves.push(encodeMove(from, to));
-      else if ((target & 8) !== us) moves.push(encodeMove(from, to, 0, FLAG_CAPTURE));
+      if (target === EMPTY) {
+        if (quiet) moves.push(encodeMove(from, to));
+      } else if ((target & 8) !== us) {
+        moves.push(encodeMove(from, to, 0, FLAG_CAPTURE));
+      }
     }
   }
 
-  _sliderMoves(from, directions, moves) {
+  _sliderMoves(from, directions, moves, quiet) {
     const b = this.board;
     const us = this.turn;
     for (let i = 0; i < directions.length; i++) {
@@ -353,7 +360,7 @@ export class Position {
       for (let to = from + step; (to & 0x88) === 0; to += step) {
         const target = b[to];
         if (target === EMPTY) {
-          moves.push(encodeMove(from, to));
+          if (quiet) moves.push(encodeMove(from, to));
           continue;
         }
         if ((target & 8) !== us) moves.push(encodeMove(from, to, 0, FLAG_CAPTURE));
@@ -512,6 +519,48 @@ export class Position {
 
     this.hashLo = lo;
     this.hashHi = hi;
+  }
+
+  // "Passes" the turn: the engine's null-move pruning asks whether a position
+  // is so good that even giving the opponent a free move doesn't help them.
+  // Not a legal chess move, and must be undone with unmakeNullMove().
+  makeNullMove() {
+    if ((this.ply + 1) * UNDO_SIZE > this.undoStack.length) {
+      const bigger = new Int32Array(this.undoStack.length * 2);
+      bigger.set(this.undoStack);
+      this.undoStack = bigger;
+    }
+    const u = this.undoStack;
+    const base = this.ply * UNDO_SIZE;
+    u[base + U_MOVE] = 0;
+    u[base + U_CAPTURED] = EMPTY;
+    u[base + U_CASTLING] = this.castling;
+    u[base + U_EP] = this.epSquare;
+    u[base + U_HALFMOVE] = this.halfmoveClock;
+    u[base + U_HASH_LO] = this.hashLo;
+    u[base + U_HASH_HI] = this.hashHi;
+    this.ply++;
+    if (this.epSquare >= 0) {
+      this.hashLo ^= Z_EP_LO[fileOf(this.epSquare)];
+      this.hashHi ^= Z_EP_HI[fileOf(this.epSquare)];
+      this.epSquare = -1;
+    }
+    this.hashLo ^= Z_SIDE_LO;
+    this.hashHi ^= Z_SIDE_HI;
+    this.turn ^= 8;
+    // Positions before a null move can't be repeated through it.
+    this.halfmoveClock = 0;
+  }
+
+  unmakeNullMove() {
+    this.ply--;
+    const u = this.undoStack;
+    const base = this.ply * UNDO_SIZE;
+    this.epSquare = u[base + U_EP];
+    this.halfmoveClock = u[base + U_HALFMOVE];
+    this.hashLo = u[base + U_HASH_LO];
+    this.hashHi = u[base + U_HASH_HI];
+    this.turn ^= 8;
   }
 
   // Takes back the last move made.

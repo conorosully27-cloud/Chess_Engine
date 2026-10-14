@@ -28,6 +28,7 @@
     <div class="ranks" id="ranks" aria-hidden="true"></div>
     <div class="board-wrap">
       <div class="board" id="board" role="application" aria-label="Chess board"></div>
+      <svg class="arrows" id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
       <div class="promotion" id="promotion" hidden>
         <div class="promotion-card" role="dialog" aria-label="Promote pawn to">
           <p class="promotion-title">Promote to</p>
@@ -43,6 +44,23 @@
     <button type="button" id="flip">Flip board</button>
     <button type="button" id="new-game">New game</button>
   </div>
+
+  <section class="analysis" id="analysis" aria-labelledby="analysis-title">
+    <div class="analysis-head">
+      <h2 class="analysis-title" id="analysis-title">Analysis</h2>
+      <span class="analysis-meta" id="analysis-meta"></span>
+      <button type="button" class="switch" id="analysis-toggle" role="switch" aria-checked="false" aria-labelledby="analysis-title">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+      </button>
+    </div>
+    <div class="analysis-body" id="analysis-body" hidden>
+      <div class="eval-row">
+        <span class="eval-score" id="eval-score">0.00</span>
+        <div class="eval-bar" aria-hidden="true"><span class="eval-fill" id="eval-fill"></span></div>
+      </div>
+      <p class="eval-line" id="eval-line"></p>
+    </div>
+  </section>
 
   <section class="scoresheet" aria-label="Moves">
     <div class="scoresheet-head" aria-hidden="true"><span></span><span>White</span><span>Black</span></div>
@@ -61,6 +79,35 @@
     <div class="options" id="piece-options" role="group" aria-labelledby="pieces-label"></div>
     <h3 class="sheet-label" id="board-label">Board</h3>
     <div class="options" id="board-options" role="group" aria-labelledby="board-label"></div>
+  </section>
+</div>
+<div class="sheet-backdrop" id="new-game-sheet" hidden>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="new-game-title">
+    <div class="sheet-head">
+      <h2 class="sheet-title" id="new-game-title">New game</h2>
+      <button type="button" class="sheet-done" id="new-game-cancel">Cancel</button>
+    </div>
+    <h3 class="sheet-label" id="opponent-label">Opponent</h3>
+    <div class="segmented" id="opponent-options" role="group" aria-labelledby="opponent-label">
+      <button type="button" data-value="engine">Engine</button>
+      <button type="button" data-value="friend">A friend</button>
+    </div>
+    <div class="engine-settings" id="engine-settings">
+      <h3 class="sheet-label" id="color-label">You play</h3>
+      <div class="segmented" id="color-options" role="group" aria-labelledby="color-label">
+        <button type="button" data-value="w">White</button>
+        <button type="button" data-value="b">Black</button>
+      </div>
+      <h3 class="sheet-label" id="time-label">Engine thinks for</h3>
+      <div class="segmented" id="time-options" role="group" aria-labelledby="time-label">
+        <button type="button" data-value="2000">2 s</button>
+        <button type="button" data-value="5000">5 s</button>
+        <button type="button" data-value="10000">10 s</button>
+        <button type="button" data-value="20000">20 s</button>
+      </div>
+      <p class="sheet-note">per move, at full strength</p>
+    </div>
+    <button type="button" class="start-button" id="start-game">Start game</button>
   </section>
 </div>
 <script type="module" src="app/ui.js"></script>

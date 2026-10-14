@@ -5,8 +5,9 @@ directly in a phone's browser. The plan:
 
 1. **Rules of chess** ✅
 2. **Playable board** ✅ for two players on one device
-3. Engine: evaluation and alpha-beta search, running in a Web Worker
-4. Installable to the home screen and playable offline
+3. **Engine** ✅ full strength: analysis mode and play vs engine
+4. Weaker levels, once the full-strength engine is right
+5. Installable to the home screen and playable offline
 
 ## Play
 
@@ -26,6 +27,22 @@ small server.)
 - **Take back** undoes a move, **Flip board** turns the board around, and
   **New game** starts over (mid-game it asks you to tap twice).
 - The game is saved in the browser, so it survives a reload.
+
+### Engine
+
+- **Analysis**: switch it on to see the evaluation (from White's side, in
+  pawns; `#3` means mate in 3), the engine's main line, and an arrow for its
+  best move. It analyses the position on the board for up to 30 seconds.
+- **Play vs engine**: New game → Engine, choose your color and how long it
+  thinks per move (2-20 s). It plays at full strength, with a small opening
+  book for variety. Take back undoes your move and its reply.
+
+How it works (`src/engine/`): a tapered evaluation (material, piece-square
+tables, mobility, pawn structure, passed pawns, rooks on open files, king
+shelter, bishop pair) and an alpha-beta search with iterative deepening,
+quiescence search, a transposition table, null-move pruning, late move
+reductions and killer/history move ordering. It runs in a Web Worker so the
+board stays responsive.
 
 ### Board and pieces
 
@@ -100,6 +117,8 @@ most chess apps.
 | `index.html`, `app/style.css` | The page |
 | `app/ui.js` | Board rendering and drag/tap input |
 | `app/game.js` | Game session behind the board (no DOM code, so it's unit-tested) |
+| `app/engine-worker.js`, `app/engine-client.js` | Runs the engine in a background thread |
+| `src/engine/` | Evaluation, search, opening book |
 | `app/pieces/` | Piece images, one folder per set, generated from `scripts/pieces/` |
 
 ## Testing

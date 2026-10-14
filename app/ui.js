@@ -6,13 +6,23 @@
 // Only the player to move can pick pieces up. Legal squares show a dot (or
 // corner brackets for captures), and dropping anywhere illegal sends the
 // piece back. The Style button picks the piece set and board colors.
+//
+// The engine runs in background workers (see engine-client.js): one plays its
+// side when you play against it, the other powers the analysis panel.
 
 import { Game, PROMOTION_PIECES } from './game.js';
-import { EMPTY, QUEEN, ROOK, BISHOP, KNIGHT, PIECE_CHARS, makeSquare, fileOf, rankOf, squareName, moveFrom, moveTo } from '../src/index.js';
+import { EngineClient } from './engine-client.js';
+import {
+  Position, parseUci, EMPTY, QUEEN, ROOK, BISHOP, KNIGHT, PIECE_CHARS,
+  makeSquare, fileOf, rankOf, squareName, moveFrom, moveTo, movePromotion,
+} from '../src/index.js';
 
 const STORAGE_KEY = 'chess-engine/game';
 const STYLE_KEY = 'chess-engine/style';
 const DRAG_THRESHOLD = 4; // CSS px a press must travel before it counts as a drag
+const ANALYSIS_LIMITS = { timeMs: 30000, depth: 40 }; // then it stops, to save battery
+const ENGINE_MIN_DELAY = 500; // ms, so instant (book) replies don't feel abrupt
+const PV_PLIES = 10; // moves of the engine's line to show
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const PIECE_NAMES = { [QUEEN]: 'Queen', [ROOK]: 'Rook', [BISHOP]: 'Bishop', [KNIGHT]: 'Knight' };
 
@@ -36,6 +46,14 @@ const styleButton = $('style-button');
 const styleSheetEl = $('style-sheet');
 const pieceOptionsEl = $('piece-options');
 const boardOptionsEl = $('board-options');
+const arrowsEl = $('arrows');
+const analysisToggle = $('analysis-toggle');
+const analysisBodyEl = $('analysis-body');
+const analysisMetaEl = $('analysis-meta');
+const evalScoreEl = $('eval-score');
+const evalFillEl = $('eval-fill');
+const evalLineEl = $('eval-line');
+const newGameSheetEl = $('new-game-sheet');
 
 // Piece sets live in app/pieces/<id>/ (drawn by scripts/build-pieces.js);
 // board schemes are defined in style.css under [data-board="<id>"].
@@ -96,24 +114,34 @@ function loadStyle() {
 function loadSaved() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.moves)) return saved;
+    if (saved && Array.isArray(saved.moves)) return { ...DEFAULT_SAVE, ...saved };
   } catch {
     // Storage unavailable or corrupt: start fresh.
   }
-  return { moves: [], flipped: false };
+  return { ...DEFAULT_SAVE };
 }
+
+const DEFAULT_SAVE = { moves: [], flipped: false, opponent: 'friend', human: 'w', thinkMs: 5000, analysis: false };
 
 class BoardUI {
   constructor() {
     const saved = loadSaved();
     this.game = Game.fromUci(saved.moves);
     this.flipped = Boolean(saved.flipped);
+    // opponent: 'friend' (both sides on this device) or 'engine'.
+    this.settings = { opponent: saved.opponent, human: saved.human, thinkMs: saved.thinkMs };
+    this.analysisOn = Boolean(saved.analysis);
+    this.player = new EngineClient(); // plays the engine's moves
+    this.analyst = new EngineClient(); // runs the analysis panel
+    this.thinkingFor = null; // the position (UCI history) the player is thinking about
+    this.analysingFor = null; // the position the analysis is for
+    this.analysis = null; // latest analysis info, or null
+    this.engineError = false;
     this.selected = -1; // square of the picked-up piece, or -1
     this.drag = null; // in-progress press/drag, see onPointerDown
     this.ghost = null; // the piece image that follows the pointer while dragging
     this.pendingPromotion = null; // { from, to } while the promotion picker is open
     this.squareEls = new Map(); // 0x88 square -> element
-    this.confirmTimer = 0;
 
     boardEl.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     boardEl.addEventListener('pointermove', (e) => this.onPointerMove(e));
@@ -128,12 +156,24 @@ class BoardUI {
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if (!styleSheetEl.hidden) this.closeStyle();
+      else if (!newGameSheetEl.hidden) this.closeNewGame();
       else if (this.pendingPromotion) this.cancelPromotion();
       else if (this.selected >= 0 && !this.drag) this.select(-1);
     });
     takeBackButton.addEventListener('click', () => this.takeBack());
     flipButton.addEventListener('click', () => this.flip());
-    newGameButton.addEventListener('click', () => this.newGame());
+    newGameButton.addEventListener('click', () => this.openNewGame());
+    analysisToggle.addEventListener('click', () => this.setAnalysis(!this.analysisOn));
+    $('new-game-cancel').addEventListener('click', () => this.closeNewGame());
+    $('start-game').addEventListener('click', () => this.startNewGame());
+    newGameSheetEl.addEventListener('click', (e) => {
+      if (e.target === newGameSheetEl) this.closeNewGame();
+      const choice = e.target.closest('.segmented button');
+      if (choice) {
+        for (const b of choice.parentElement.children) b.setAttribute('aria-pressed', String(b === choice));
+        this.updateNewGameForm();
+      }
+    });
 
     this.style = loadStyle();
     this.applyStyle();
@@ -213,12 +253,22 @@ class BoardUI {
       el.classList.toggle('is-target', targets.has(sq));
       el.classList.toggle('is-occupied', piece !== EMPTY);
       el.classList.toggle('is-check', sq === checked);
-      el.classList.toggle('is-movable', game.canMoveFrom(sq));
+      el.classList.toggle('is-movable', this.canPlayerMove(sq));
       el.classList.toggle('is-drag-origin', Boolean(this.drag?.active) && sq === this.drag.from);
       el.classList.toggle('is-hover', Boolean(this.drag?.active) && sq === this.drag.hover && targets.has(sq));
     }
 
-    const { headline, detail, side, tone } = game.describe();
+    let { headline, detail, side, tone } = game.describe();
+    if (this.vsEngine) {
+      // Speak to the player: "Your move", "You win" rather than colors.
+      const human = this.settings.human;
+      if (!game.isOver) headline = game.turn === human ? 'Your move' : 'Engine thinking';
+      else if (game.status.reason === 'checkmate') {
+        const humanWon = (game.status.result === '1-0') === (human === 'w');
+        detail = detail.replace(/^(White|Black) wins/, humanWon ? 'You win' : 'Engine wins');
+      }
+    }
+    if (this.engineError) detail = 'The engine could not start in this browser';
     statusHeadlineEl.textContent = headline;
     statusDetailEl.textContent = detail;
     statusEl.dataset.tone = tone;
@@ -227,8 +277,10 @@ class BoardUI {
     boardEl.setAttribute('aria-label', `Chess board. ${headline}${detail ? `. ${detail}` : ''}`);
 
     this.renderScoresheet();
-    takeBackButton.disabled = game.ply === 0;
+    takeBackButton.disabled = this.vsEngine ? this.humanPlies() === 0 : game.ply === 0;
     this.save();
+    this.syncEngines();
+    this.renderAnalysis();
   }
 
   renderScoresheet() {
@@ -270,7 +322,12 @@ class BoardUI {
 
   save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ moves: this.game.uciHistory(), flipped: this.flipped }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        moves: this.game.uciHistory(),
+        flipped: this.flipped,
+        ...this.settings,
+        analysis: this.analysisOn,
+      }));
     } catch {
       // Storage unavailable (private browsing): the game just won't survive a reload.
     }
@@ -295,7 +352,7 @@ class BoardUI {
       return;
     }
 
-    if (!this.game.canMoveFrom(sq)) {
+    if (!this.canPlayerMove(sq)) {
       this.select(-1);
       return;
     }
@@ -430,7 +487,15 @@ class BoardUI {
 
   takeBack() {
     if (this.pendingPromotion) this.cancelPromotion();
-    this.game.takeBack();
+    if (this.vsEngine) {
+      // Undo back to before your last move (taking back the engine's reply too).
+      if (this.humanPlies() === 0) return;
+      this.player.stop();
+      this.thinkingFor = null;
+      do this.game.takeBack(); while (this.game.turn !== this.settings.human);
+    } else {
+      this.game.takeBack();
+    }
     this.selected = -1;
     this.render();
   }
@@ -441,20 +506,227 @@ class BoardUI {
     this.render();
   }
 
-  // Starting over loses the game, so mid-game it takes a second tap to confirm.
-  newGame() {
-    const needsConfirm = this.game.ply > 0 && !this.game.isOver;
-    if (needsConfirm && !newGameButton.dataset.confirm) {
-      newGameButton.dataset.confirm = 'true';
-      newGameButton.textContent = 'Start over?';
-      this.confirmTimer = setTimeout(() => this.resetNewGameButton(), 3000);
-      return;
-    }
-    this.resetNewGameButton();
+  // ---------------------------------------------------------------- new game
+
+  openNewGame() {
+    const press = (group, value) => {
+      for (const b of $(group).children) b.setAttribute('aria-pressed', String(b.dataset.value === String(value)));
+    };
+    press('opponent-options', this.settings.opponent);
+    press('color-options', this.settings.human);
+    press('time-options', this.settings.thinkMs);
+    this.updateNewGameForm();
+    newGameSheetEl.hidden = false;
+    $('start-game').focus({ preventScroll: true });
+  }
+
+  updateNewGameForm() {
+    const opponent = $('opponent-options').querySelector('[aria-pressed="true"]').dataset.value;
+    $('engine-settings').hidden = opponent !== 'engine';
+  }
+
+  closeNewGame() {
+    newGameSheetEl.hidden = true;
+    newGameButton.focus({ preventScroll: true });
+  }
+
+  startNewGame() {
+    const chosen = (group) => $(group).querySelector('[aria-pressed="true"]').dataset.value;
+    this.settings = {
+      opponent: chosen('opponent-options'),
+      human: chosen('color-options'),
+      thinkMs: Number(chosen('time-options')),
+    };
+    newGameSheetEl.hidden = true;
     if (this.pendingPromotion) this.cancelPromotion();
+    this.player.stop();
+    this.analyst.stop();
+    this.thinkingFor = this.analysingFor = null;
+    this.analysis = null;
     this.game.reset();
     this.selected = -1;
+    // Playing Black against the engine, see the board from Black's side.
+    const flipped = this.vsEngine && this.settings.human === 'b';
+    if (flipped !== this.flipped) {
+      this.flipped = flipped;
+      this.buildBoard();
+    }
     this.render();
+  }
+
+  // ---------------------------------------------------------------- engine
+
+  get vsEngine() {
+    return this.settings.opponent === 'engine';
+  }
+
+  get engineToMove() {
+    return this.vsEngine && !this.game.isOver && this.game.turn !== this.settings.human;
+  }
+
+  canPlayerMove(sq) {
+    return this.game.canMoveFrom(sq) && !this.engineToMove;
+  }
+
+  // Moves the human has made in an engine game.
+  humanPlies() {
+    const ply = this.game.ply;
+    return this.settings.human === 'w' ? Math.ceil(ply / 2) : Math.floor(ply / 2);
+  }
+
+  // Starts or stops the two engines to match the current position: the player
+  // when it's the engine's turn, the analysis whenever it's switched on (but
+  // not while the engine is thinking, so they don't share the CPU).
+  syncEngines() {
+    const history = this.game.uciHistory();
+    const key = history.join(' ');
+
+    if (this.engineToMove) {
+      if (this.thinkingFor !== key) {
+        this.thinkingFor = key;
+        const started = performance.now();
+        this.player.run({ type: 'play', history, timeMs: this.settings.thinkMs }, {
+          onDone: (result) => {
+            const wait = Math.max(0, ENGINE_MIN_DELAY - (performance.now() - started));
+            setTimeout(() => this.playEngineMove(key, result.bestMove), wait);
+          },
+          onError: () => this.engineFailed(),
+        });
+      }
+    } else if (this.thinkingFor !== null) {
+      this.player.stop();
+      this.thinkingFor = null;
+    }
+
+    const analyse = this.analysisOn && !this.engineToMove && !this.game.isOver;
+    if (analyse) {
+      if (this.analysingFor !== key) {
+        this.analysingFor = key;
+        this.analysis = null;
+        this.analyst.run({ type: 'analyse', history, ...ANALYSIS_LIMITS }, {
+          onInfo: (info) => this.showAnalysis(key, info, false),
+          onDone: (result) => this.showAnalysis(key, result, true),
+          onError: () => this.engineFailed(),
+        });
+      }
+    } else if (this.analysingFor !== null) {
+      this.analyst.stop();
+      this.analysingFor = null;
+      this.analysis = null;
+    }
+  }
+
+  playEngineMove(key, uci) {
+    // Ignore a reply to a position that has since changed (e.g. taken back).
+    if (this.thinkingFor !== key || this.game.uciHistory().join(' ') !== key) return;
+    this.thinkingFor = null;
+    const move = uci && parseUci(this.game.pos, uci);
+    if (!move) return;
+    this.game.play(moveFrom(move), moveTo(move), movePromotion(move));
+    this.selected = -1;
+    this.render();
+    this.animateMove(moveFrom(move), moveTo(move));
+  }
+
+  engineFailed() {
+    this.engineError = true;
+    this.thinkingFor = this.analysingFor = null;
+    this.render();
+  }
+
+  setAnalysis(on) {
+    this.analysisOn = on;
+    this.render();
+  }
+
+  showAnalysis(key, info, done) {
+    if (this.analysingFor !== key || !info.bestMove) return;
+    this.analysis = { ...info, done };
+    this.renderAnalysis();
+  }
+
+  renderAnalysis() {
+    analysisToggle.setAttribute('aria-checked', String(this.analysisOn));
+    analysisBodyEl.hidden = !this.analysisOn;
+    const info = this.analysisOn ? this.analysis : null;
+    this.renderArrow(info?.bestMove ?? null);
+    if (!this.analysisOn) {
+      analysisMetaEl.textContent = '';
+      return;
+    }
+    if (!info) {
+      evalScoreEl.textContent = '…';
+      evalFillEl.style.width = '50%';
+      analysisMetaEl.textContent = '';
+      evalLineEl.textContent = this.game.isOver ? 'The game is over.'
+        : this.engineToMove ? 'Paused while the engine thinks.' : 'Thinking…';
+      return;
+    }
+    // The engine scores for the side to move; show everything from White's side.
+    const sign = this.game.turn === 'w' ? 1 : -1;
+    let whiteShare;
+    if (info.mate !== null) {
+      const mate = info.mate * sign;
+      evalScoreEl.textContent = mate > 0 ? `#${mate}` : `#-${-mate}`;
+      whiteShare = mate > 0 ? 1 : 0;
+    } else {
+      const pawns = (info.score * sign) / 100;
+      evalScoreEl.textContent = `${pawns > 0 ? '+' : pawns < 0 ? '−' : ''}${Math.abs(pawns).toFixed(2)}`;
+      whiteShare = 1 / (1 + Math.exp(-info.score * sign / 250));
+    }
+    evalFillEl.style.width = `${(whiteShare * 100).toFixed(1)}%`;
+    analysisMetaEl.textContent = `Depth ${info.depth}${info.done ? '' : '…'}`;
+    evalLineEl.replaceChildren(...this.lineNodes(info.pv));
+  }
+
+  // The engine's line in figurine notation with move numbers: "12… ♘f6 13. e5".
+  lineNodes(pv) {
+    const pos = new Position(this.game.pos.fen());
+    const nodes = [];
+    pv.slice(0, PV_PLIES).forEach((uci, i) => {
+      const move = parseUci(pos, uci);
+      if (move === null) return;
+      const white = pos.turn === 0;
+      if (white || i === 0) {
+        const number = `${pos.fullmoveNumber}${white ? '.' : '…'}`;
+        nodes.push(Object.assign(document.createElement('span'), { className: 'num', textContent: `${i ? ' ' : ''}${number} ` }));
+      } else {
+        nodes.push(document.createTextNode(' '));
+      }
+      const span = document.createElement('span');
+      if (i === 0) span.className = 'best';
+      span.append(...figurines(pos.toSan(move)));
+      nodes.push(span);
+      pos.makeMove(move);
+    });
+    return nodes;
+  }
+
+  // An arrow over the board for the engine's best move.
+  renderArrow(uci) {
+    if (!uci) {
+      arrowsEl.replaceChildren();
+      return;
+    }
+    const from = parseUci(this.game.pos, uci);
+    if (from === null) {
+      arrowsEl.replaceChildren();
+      return;
+    }
+    const a = moveFrom(from);
+    const b = moveTo(from);
+    const x1 = this.col(a) + 0.5, y1 = this.row(a) + 0.5;
+    const x2 = this.col(b) + 0.5, y2 = this.row(b) + 0.5;
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+    // Drawn pointing right from the origin, then rotated into place.
+    const shaft = 0.13, head = 0.36, headLength = 0.4, end = length - 0.12;
+    const path = `M0 ${-shaft / 2}H${end - headLength}V${-head / 2}L${end} 0L${end - headLength} ${head / 2}V${shaft / 2}H0Z`;
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arrow.setAttribute('class', 'arrow');
+    arrow.setAttribute('d', path);
+    arrow.setAttribute('transform', `translate(${x1} ${y1}) rotate(${angle})`);
+    arrowsEl.replaceChildren(arrow);
   }
 
   // ---------------------------------------------------------------- style
@@ -518,12 +790,6 @@ class BoardUI {
       option(set.name, set.id === pieces, board, set.id, () => this.setStyle({ pieces: set.id }))));
     boardOptionsEl.replaceChildren(...BOARDS.map((b) =>
       option(b.name, b.id === board, b.id, pieces, () => this.setStyle({ board: b.id }))));
-  }
-
-  resetNewGameButton() {
-    clearTimeout(this.confirmTimer);
-    delete newGameButton.dataset.confirm;
-    newGameButton.textContent = 'New game';
   }
 }
 

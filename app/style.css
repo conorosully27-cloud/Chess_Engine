@@ -83,7 +83,7 @@ body {
   --board-size: min(calc(100vw - var(--gutters) - var(--margin)), 40rem, max(17rem, calc(100dvh - 18rem)));
   display: grid;
   grid-template-columns: calc(var(--board-size) + var(--margin));
-  grid-template-areas: "status" "board" "controls" "moves";
+  grid-template-areas: "status" "board" "controls" "analysis" "moves";
   gap: 16px;
   justify-content: center;
 }
@@ -397,6 +397,151 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   font-size: 0.92rem;
 }
 
+/* ------------------------------------------------------------------ best-move arrow */
+
+.arrows {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.arrows .arrow { fill: var(--arrow); stroke: none; }
+
+/* ------------------------------------------------------------------ analysis */
+
+.analysis {
+  grid-area: analysis;
+  display: grid;
+  gap: 8px;
+  margin-left: var(--margin);
+  padding-block: 10px;
+  border-top: 2px solid var(--fg);
+}
+
+.analysis-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.analysis-title {
+  margin: 0;
+  font: 700 0.68rem/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.analysis-meta {
+  flex: 1;
+  font: 400 0.72rem/1 var(--font-mono);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.switch {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.switch-track {
+  display: block;
+  width: 40px;
+  height: 22px;
+  padding: 2px;
+  border: 2px solid var(--fg);
+  background: transparent;
+}
+.switch-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: var(--fg);
+  transition: transform 0.15s ease-out;
+}
+.switch[aria-checked="true"] .switch-track { background: var(--fg); }
+.switch[aria-checked="true"] .switch-thumb { background: var(--bg); transform: translateX(18px); }
+.switch:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+.eval-row {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.eval-score {
+  font: 500 1.15rem/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* White's share of the bar grows with White's advantage. */
+.eval-bar {
+  position: relative;
+  height: 12px;
+  border: 2px solid var(--fg);
+  background: var(--ink);
+}
+.eval-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 50%;
+  background: var(--paper);
+  transition: width 0.3s ease-out;
+}
+
+.eval-line {
+  margin: 0;
+  font: 400 0.84rem/1.6 var(--font-mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.eval-line .best { color: var(--fg); font-weight: 500; }
+.eval-line .num { color: var(--muted); }
+
+/* ------------------------------------------------------------------ new game */
+
+.segmented {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  border: 2px solid var(--fg);
+}
+.segmented button {
+  min-height: 42px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font: 700 0.8rem/1 var(--font-ui);
+  cursor: pointer;
+}
+.segmented button + button { border-left: 2px solid var(--fg); }
+.segmented button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.segmented button:focus-visible { outline: 3px solid var(--accent); outline-offset: -5px; }
+
+.engine-settings { display: grid; gap: 10px; }
+.sheet-note { margin: -4px 0 0; font-size: 0.8rem; color: var(--muted); }
+
+.start-button {
+  min-height: 48px;
+  margin-top: 6px;
+  border: 2px solid var(--fg);
+  border-radius: 0;
+  background: var(--fg);
+  color: var(--bg);
+  font: 700 0.8rem/1 var(--font-ui);
+  font-stretch: 112%;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 /* ------------------------------------------------------------------ board schemes */
 
 /* Each scheme sets its square colors and texture, the frame, and highlights
@@ -406,6 +551,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
    every scheme sets every property. Walnut is the default. */
 :root,
 [data-board="walnut"] {
+  --arrow: rgb(30 110 200 / 0.8);
   --sq-light: #e7cda3;
   --sq-dark: #9a6943;
   --sq-light-texture:
@@ -421,6 +567,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 
 [data-board="stone"] {
+  --arrow: rgb(30 110 220 / 0.8);
   --sq-light: #e5e2d9;
   --sq-dark: #8d8f88;
   --sq-light-texture: none;
@@ -432,6 +579,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 
 [data-board="lagoon"] {
+  --arrow: rgb(232 92 52 / 0.85);
   --sq-light: #e1ede7;
   --sq-dark: #4e8e89;
   --sq-light-texture: none;
@@ -443,6 +591,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 
 [data-board="coral"] {
+  --arrow: rgb(36 104 170 / 0.85);
   --sq-light: #f6e7dc;
   --sq-dark: #d68871;
   --sq-light-texture: none;
@@ -454,6 +603,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 
 [data-board="midnight"] {
+  --arrow: rgb(255 176 64 / 0.9);
   --sq-light: #aab4d0;
   --sq-dark: #56628b;
   --sq-light-texture: none;
@@ -563,8 +713,8 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     --board-size: min(calc(100vw - var(--gutters) - var(--margin) - 22rem), 46rem, calc(100vh - 4rem));
     --board-size: min(calc(100vw - var(--gutters) - var(--margin) - 22rem), 46rem, calc(100dvh - 4rem));
     grid-template-columns: calc(var(--board-size) + var(--margin)) minmax(16rem, 20rem);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: "board status" "board moves" "board controls";
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "board status" "board analysis" "board moves" "board controls";
     column-gap: 28px;
     row-gap: 20px;
     height: calc(var(--board-size) + var(--margin));
@@ -572,7 +722,8 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .status,
   .controls { padding-left: 0; }
   .status-headline { font-size: 1.4rem; font-stretch: 110%; } /* fits beside the Style button */
-  .scoresheet { margin-left: 0; }
+  .scoresheet,
+  .analysis { margin-left: 0; }
   .moves { max-height: none; flex: 1; }
 }
 
