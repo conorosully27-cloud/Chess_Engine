@@ -33,9 +33,18 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.0**, kept as-is on the `engine-1.0` branch. To
-build on it or measure a new version against it, check that branch out, e.g.
-`git worktree add ../engine-1.0 engine-1.0`.
+**Current version: Engine 1.1.** Engine 1.0 is kept as-is on the
+`engine-1.0` branch; to measure a new version against either, check out the
+older one with `git worktree add`, e.g. `git worktree add ../engine-1.0
+engine-1.0`.
+
+*Changes in 1.1 over 1.0:* all evaluation weights (material, piece-square
+tables, pawn structure, mobility, rook files, king shelter, tempo) were
+Texel-tuned on 1.4 million positions from the Zurichess "quiet-labeled"
+set; the search is unchanged. Estimated **+18 Elo** over 1.0 (95% +5 to
++31), SPRT H1 accepted after 2154 games at 100 ms a move. Notable shifts:
+pieces are worth more against pawns in the middlegame, passed pawns count
+mostly in the endgame, and a missing shelter pawn costs more.
 
 #### Comparing engine versions
 
@@ -56,7 +65,8 @@ better by the margin tested. Small gains need many games (about ±45 Elo of
 uncertainty at 200 games), so use SPRT rather than reading too much into a
 short match. `npm run match -- --help` lists all options.
 
-Known weaknesses of 1.0, from a review of a game against it: the evaluation
+Known weaknesses of 1.0 (1.1 retuned the weights but added no new terms),
+from a review of a game against it: the evaluation
 is materialistic and undervalues development, space and initiative. King
 shelter also penalises central pawn moves in front of an uncastled king, and
 there is no development or space term and little king safety. In gambit
@@ -108,31 +118,40 @@ of `app/ui.js`.
 first.*
 
 **Status (Oct 2026).** Rules, board UI, style picker, analysis, play vs
-engine, resign and PGN export are done and tested (`npm test`, 96 tests).
-The engine is **Engine 1.0**, frozen on the `engine-1.0` branch. New work
-goes on `main` (or a branch such as `engine-1.1`).
+engine, resign and PGN export are done and tested (`npm test`, 98 tests).
+The engine is **Engine 1.1** (Engine 1.0 with Texel-tuned evaluation
+weights, about +18 Elo). Engine 1.0 is frozen on the `engine-1.0` branch.
 
 **Next: improve the evaluation** (`src/engine/evaluate.js`). In a gambit game
 1.0 judged White about 1.5 pawns worse than a reference engine. Fix in this
 order:
-1. King shelter: only score it for a castled king (now it penalises central
-   pawn moves in front of a king on e1/e8); add a penalty for a king left in
-   the centre while queens are on.
-2. Development: penalise minor pieces on their starting squares and early
-   queen moves, scaled to the opening phase.
+1. ~~King shelter for castled kings only, central-king penalty~~: tried in
+   three versions, none gained (see `FAILED_EXPERIMENTS.md`).
+2. ~~Development~~: tried with hand-set weights, no gain (same file).
 3. Space/centre, and pieces attackable by enemy pawns.
-4. Later: tune the weights on a large set of positions (Texel tuning).
+4. **Done in 1.1:** Texel tuning (`npm run tune -- --data <file.epd.gz>`,
+   see `scripts/tune.js`). New evaluation terms should be added to
+   `src/engine/weights.js` and `scripts/eval-trace.js` and tuned rather
+   than given hand-picked weights; hand-set terms kept double counting what
+   the piece-square tables already score.
+5. Search speed: the evaluation rescans the whole board each call; updating
+   it incrementally in make/unmake should give more depth.
 
 **How to test a change:**
 1. Run `npm test`. The evaluation must stay colour-symmetric; a test checks it.
-2. Run `git worktree add ../engine-1.0 engine-1.0` once.
-3. Run `npm run match -- --b ../engine-1.0 --sprt 0,10 --games 2000`.
+2. Check out the current baseline once, e.g. `git worktree add ../engine-1.1
+   <commit or branch of 1.1>`.
+3. Run `npm run match -- --b ../engine-1.1 --sprt 0,10 --games 2000`.
    Accept the change only on "H1 accepted". The book has 24 openings (48
    games before they repeat); a bigger opening set would help long matches.
 
 **Notes:**
 - Changes that didn't gain strength are logged, with commentary, in
   `FAILED_EXPERIMENTS.md`. Check it before retrying an idea.
+- The starting piece-square tables in 1.0 were Tomasz Michniewski's
+  "Simplified Evaluation Function" tables (Chess Programming Wiki); 1.1
+  tuned them from there. The tuning data, the Zurichess "quiet-labeled.v7"
+  EPD set, is not stored in the repo; download it before tuning.
 - Earlier trials: a capture-exchange (SEE) pruning attempt showed no gain and
   was reverted; mobility was kept.
 - The phone build is a claude.ai artifact made from `index.html` (with the
