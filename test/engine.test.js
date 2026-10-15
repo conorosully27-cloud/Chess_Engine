@@ -223,27 +223,6 @@ describe('endgame knowledge', () => {
     assert.equal(rookBehind(new Position('4k3/8/P7/8/N7/8/8/R3K3 w - - 0 1').board, 0x50, 0), -1);
   });
 
-  test('drawish endings are scaled toward a draw', async () => {
-    const { endgameScale, SCALE_FULL } = await import('../src/engine/evaluate.js');
-    const scale = (fen) => endgameScale(new Position(fen)) / SCALE_FULL;
-    // Opposite-colored bishops, a pawn up: about half.
-    assert.equal(scale('4k3/4b3/8/3p4/2PP4/8/4B3/4K3 w - - 0 1'), 0.5);
-    // Same-colored bishops: full score.
-    assert.equal(scale('4k3/3b4/8/3p4/2PP4/8/4B3/4K3 w - - 0 1'), 1);
-    // Rook against knight, no pawns: drawish. Queen against rook: winning.
-    assert.ok(scale('4k3/8/8/3n4/8/8/8/R3K3 w - - 0 1') < 0.2);
-    assert.equal(scale('4k3/8/8/3r4/8/8/8/Q3K3 w - - 0 1'), 1);
-    // Two knights against a bare king.
-    assert.equal(scale('4k3/8/8/8/8/8/8/1NN1K3 w - - 0 1'), 0);
-    // Wrong rook pawn: h-pawn and light-squared bishop (h8 is dark), king in the corner.
-    assert.equal(scale('7k/8/8/7P/8/8/4B3/4K3 w - - 0 1'), 0);
-    // The right bishop wins, and so does the wrong one if the king is far away.
-    assert.equal(scale('7k/8/8/7P/8/8/3B4/4K3 w - - 0 1'), 1);
-    assert.equal(scale('8/8/8/2k4P/8/8/4B3/4K3 w - - 0 1'), 1);
-    // An ordinary rook ending is left alone.
-    assert.equal(scale('4k3/pp3ppp/8/8/8/8/PPP2PPP/R3K3 w - - 0 1'), 1);
-  });
-
   test('a rook on the seventh needs a target', async () => {
     const { onSeventh } = await import('../src/engine/evaluate.js');
     const least = (pos, c) => {

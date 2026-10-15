@@ -28,7 +28,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Position } from '../src/index.js';
 import { WEIGHTS } from '../src/engine/weights.js';
-import { layout, trace, unflatten, share as weightShare } from './eval-trace.js';
+import { layout, trace, unflatten } from './eval-trace.js';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 
@@ -138,11 +138,12 @@ async function loadPositions(file, lay, limit, validateShare) {
       if (!t) { skipped++; continue; }
       const mgShare = t.phase / 24;
       for (const [i, n] of t.coef) {
+        const kind = lay.kinds[i];
         index.push(i);
-        share.push(n * weightShare(lay.kinds[i], mgShare, t.scale));
+        share.push(n * (kind === 'mg' ? mgShare : kind === 'eg' ? 1 - mgShare : 1));
       }
       starts.push(index.length);
-      constants.push(t.mopup * (1 - mgShare) * t.scale);
+      constants.push(t.mopup * (1 - mgShare));
       results.push(result);
     }
     return {
