@@ -76,7 +76,6 @@ export class Engine {
   // `pos` is returned to its original state.
   search(pos, { depth: maxDepth = MAX_PLY - 1, timeMs = Infinity, nodes: maxNodes = Infinity, onInfo } = {}) {
     this.pos = pos;
-    this.rootPly = pos.ply;
     this.nodes = 0;
     this.stopped = false;
     this.startTime = now();
@@ -131,7 +130,6 @@ export class Engine {
   // weaker playing levels, which pick among them with some randomness.
   scoreRootMoves(pos, depth) {
     this.pos = pos;
-    this.rootPly = pos.ply;
     this.nodes = 0;
     this.stopped = false;
     this.deadline = Infinity;
@@ -177,8 +175,8 @@ export class Engine {
     const pvNode = beta - alpha > 1;
 
     if (ply > 0) {
-      // A repetition or the fifty-move rule is a draw.
-      if (pos.isSearchDraw(this.rootPly)) return 0;
+      // A repeated position or the fifty-move rule is a draw.
+      if (pos.halfmoveClock >= 100 || pos.repetitionCount() >= 2) return 0;
       if (ply >= MAX_PLY - 1) return evaluate(pos);
       // Mate distance pruning: no line from here beats a mate already found nearer the root.
       alpha = Math.max(alpha, -MATE + ply);

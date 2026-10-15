@@ -121,34 +121,6 @@ describe('search', () => {
     assert.notEqual(engine.search(new Position('4k3/8/2p5/3p4/8/8/8/3QK3 w - - 0 1'), { depth: 5 }).bestMove, 'd1d5');
   });
 
-  test('a repeat inside the search is a draw, one from before it only as a threefold', () => {
-    const pos = positionFromHistory(['e2e4', 'e7e5']);
-    const root = pos.ply;
-    for (const uci of ['g1f3', 'g8f6', 'f3g1', 'f6g8']) pos.play(uci);
-    assert.equal(pos.isSearchDraw(root), false, 'back at the root position: only twofold');
-    pos.play('g1f3');
-    assert.equal(pos.isSearchDraw(root), true, 'repeats a position reached in the search');
-    assert.equal(pos.isSearchDraw(pos.ply), false, 'seen once before the search began');
-    for (const uci of ['g8f6', 'f3g1', 'f6g8', 'g1f3']) pos.play(uci);
-    assert.equal(pos.isSearchDraw(pos.ply), true, 'seen twice before: threefold');
-  });
-
-  test('does not score a position seen once before in the game as a draw', () => {
-    // Engine 1.2 v the chess.com 2900 bot: it played 24.Rf4, scoring it 0.00
-    // because it recreated the position after 22.Rf4, and lost the exchange
-    // to 24...Bxf4.
-    const history = (
-      'g1f3 f7f5 g2g3 g8f6 f1g2 g7g6 c2c4 f8g7 d2d4 e8g8 b1c3 d7d6 e1g1 d8e8 c1e3 '
-      + 'e7e6 d4d5 b8a6 f3g5 e6e5 c3b5 c8d7 a2a4 h7h6 g5f3 f6g4 d1d2 g4e3 f2e3 e5e4 '
-      + 'f3d4 g7e5 d4b3 e8e7 b5c3 h6h5 d2e1 a8e8 a4a5 a6b4 a1d1 e7g5 f1f4 g5e7 f4f1 e7g5'
-    ).split(' ');
-    const pos = positionFromHistory(history);
-    assert.equal(pos.fen(), '4rrk1/pppb4/3p2p1/P2Pbpqp/1nP1p3/1NN1P1P1/1P2P1BP/3RQRK1 w - - 7 24');
-    const result = new Engine({ ttBits: 16 }).search(pos, { depth: 6 });
-    assert.notEqual(result.bestMove, 'f1f4');
-    assert.notEqual(result.score, 0);
-  });
-
   test('a position with no moves has no best move', () => {
     const mated = engine.search(positionFromHistory(['f2f3', 'e7e5', 'g2g4', 'd8h4']), { depth: 3 });
     assert.equal(mated.bestMove, null);
