@@ -16,6 +16,7 @@ import {
 } from '../src/board.js';
 import {
   mobility, MOBILITY_TYPICAL, distance, rookBehind, outsideSquare, onSeventh,
+  attackScan, danger, stormPawn, DANGER_TERMS, DANGER_MG_DIVISOR, DANGER_EG_DIVISOR,
 } from '../src/engine/evaluate.js';
 
 const PHASE_WEIGHT = [0, 0, 1, 1, 2, 4, 0];
@@ -32,6 +33,10 @@ const KIND_BY_KEY = {
   passedEnemyKing: 'eg',
   passedBlocked: 'eg',
   unstoppablePasser: 'eg',
+  kingDanger: 'danger',
+  pawnStorm: 'mg',
+  pawnStormBlocked: 'mg',
+  kingOpenFile: 'mg',
   tempo: 'tempo',
 };
 
@@ -39,7 +44,7 @@ const KIND_BY_KEY = {
 // starts and whether each entry is a middlegame, endgame or tempo weight.
 export function layout(weights) {
   const values = [];
-  const kinds = []; // 'mg', 'eg' or 'tempo'
+  const kinds = []; // 'mg', 'eg', 'tempo' or 'danger' (king-danger units)
   const names = [];
   const offset = {};
   const walk = (node, path, kind) => {
@@ -84,10 +89,13 @@ export function unflatten(weights, values) {
 
 const pawnCount = [new Int8Array(8), new Int8Array(8)];
 const pawnLeastAdvanced = [new Int8Array(8), new Int8Array(8)];
+const pawnMostAdvanced = [new Int8Array(8), new Int8Array(8)];
 
 // Returns null for positions evaluate() scores as dead draws. Otherwise
 // { coef: Map(index -> count, White's point of view), phase (0-24),
-//   mopup: constant endgame term from White's side, stm: +1/-1 }.
+//   mopup: constant endgame term from White's side, stm: +1/-1,
+//   danger: [White's king, Black's king], each null or Map(index -> count)
+//   of king-danger units, which aren't linear (see dangerPenalty) }.
 export function trace(pos, lay) {
   const o = lay.offset;
   const coef = new Map();
@@ -101,6 +109,7 @@ export function trace(pos, lay) {
   for (let c = 0; c < 2; c++) {
     pawnCount[c].fill(0);
     pawnLeastAdvanced[c].fill(8);
+    pawnMostAdvanced[c].fill(-1);
   }
 
   for (let sq = 0; sq < 120; sq++) {
@@ -122,6 +131,7 @@ export function trace(pos, lay) {
       const relRank = c === 0 ? rank : 7 - rank;
       pawnCount[c][file]++;
       if (relRank < pawnLeastAdvanced[c][file]) pawnLeastAdvanced[c][file] = relRank;
+      if (relRank > pawnMostAdvanced[c][file]) pawnMostAdvanced[c][file] = relRank;
       pawns[c].push(sq);
     } else if (type !== KING) {
       nonPawnMaterial[c] += MOPUP_VALUE[type];
@@ -207,7 +217,23 @@ export function trace(pos, lay) {
         else add(o.kingShelter + 2, sign);
       }
     }
+    // Open files at the king and pawn storms.
+    for (let f = Math.max(0, (kingSq & 7) - 1); f <= Math.min(7, (kingSq & 7) + 1); f++) {
+      if (pawnCount[c][f] === 0) add(o.kingOpenFile + (pawnCount[them][f] === 0 ? 1 : 0), sign);
+      const storm = stormPawn(b, kingSq, c, f, pawnMostAdvanced[them][f]);
+      if (storm >= 0) add((storm & 8 ? o.pawnStormBlocked : o.pawnStorm) + (storm & 7), sign);
+    }
   }
+
+  // King danger, from the same attack scan evaluate() uses.
+  attackScan(pos);
+  const kingDanger = [0, 1].map((c) => {
+    const features = danger.subarray(c * DANGER_TERMS, (c + 1) * DANGER_TERMS);
+    if (!features[DANGER_TERMS - 1]) return null; // not counted: too few attackers
+    const units = new Map();
+    for (let i = 0; i < DANGER_TERMS; i++) if (features[i]) units.set(o.kingDanger + i, features[i]);
+    return units;
+  });
 
   let mopup = 0;
   for (let c = 0; c < 2; c++) {
@@ -225,7 +251,13 @@ export function trace(pos, lay) {
   const stm = pos.turn === WHITE ? 1 : -1;
   add(o.tempo, stm);
   for (const [index, n] of coef) if (n === 0) coef.delete(index);
-  return { coef, phase: Math.min(phase, MAX_PHASE), mopup, stm };
+  return { coef, phase: Math.min(phase, MAX_PHASE), mopup, stm, danger: kingDanger };
+}
+
+// The king-danger penalty for `units` attack units, from that king's side:
+// [middlegame, endgame].
+export function dangerPenalty(units) {
+  return units > 0 ? [(units * units) / DANGER_MG_DIVISOR, units / DANGER_EG_DIVISOR] : [0, 0];
 }
 
 // The linear model's evaluation from White's side, before rounding.
@@ -236,5 +268,12 @@ export function linearEval(t, values, kinds) {
     const kind = kinds[index];
     score += values[index] * n * (kind === 'mg' ? mgShare : kind === 'eg' ? 1 - mgShare : 1);
   }
+  t.danger.forEach((units, c) => {
+    if (!units) return;
+    let u = 0;
+    for (const [index, n] of units) u += values[index] * n;
+    const [mg, eg] = dangerPenalty(u);
+    score -= (c === 0 ? 1 : -1) * (mg * mgShare + eg * (1 - mgShare));
+  });
   return score;
 }

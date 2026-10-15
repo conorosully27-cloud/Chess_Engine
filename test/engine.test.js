@@ -60,7 +60,7 @@ describe('evaluation', () => {
   });
 
   test('the start position is roughly level', () => {
-    assert.ok(Math.abs(evaluate(new Position())) <= 30);
+    assert.ok(Math.abs(evaluate(new Position())) <= 40); // only the tuned tempo bonus
   });
 
   test('an extra rook is a big advantage for the side that has it', () => {

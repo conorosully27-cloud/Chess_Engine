@@ -15,7 +15,9 @@
 // eval-trace.js), each position's coefficients are extracted once, and the
 // error and its gradient for all weights together are then cheap to compute,
 // so the weights are fitted by gradient descent (Adam) rather than by
-// nudging one weight at a time.
+// nudging one weight at a time. The one non-linear part, king danger
+// (attack units, charged units² in the middlegame), is kept as per-king
+// unit counts and differentiated through the square.
 //
 // 10% of the positions are held back to check the fit generalises; the
 // weights that score best on them are written back to weights.js (or
@@ -28,7 +30,8 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Position } from '../src/index.js';
 import { WEIGHTS } from '../src/engine/weights.js';
-import { layout, trace, unflatten } from './eval-trace.js';
+import { layout, trace, unflatten, dangerPenalty } from './eval-trace.js';
+import { DANGER_MG_DIVISOR, DANGER_EG_DIVISOR } from '../src/engine/evaluate.js';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 
@@ -97,7 +100,10 @@ function save(file, values) {
 // Positions packed for speed: for position j, entries start[j]..start[j+1]
 // of `index`/`share` say which weights it uses and how much (the coefficient
 // already scaled by the game phase), plus a constant term and the result.
-async function loadPositions(file, lay, limit, validateShare) {
+// King danger: group 2j (White's king) and 2j + 1 (Black's) are entries
+// dangerStart[g]..dangerStart[g+1] of dangerIndex/dangerCount, and
+// mgShare[j] is the position's middlegame share.
+export async function loadPositions(file, lay, limit, validateShare) {
   const lines = [];
   const input = createReadStream(file);
   const reader = createInterface({ input: file.endsWith('.gz') ? input.pipe(createGunzip()) : input, crlfDelay: Infinity });
@@ -125,6 +131,10 @@ async function loadPositions(file, lay, limit, validateShare) {
     const starts = [0];
     const index = [];
     const share = [];
+    const mgShares = [];
+    const dangerStarts = [0];
+    const dangerIndex = [];
+    const dangerCount = [];
     for (const line of subset) {
       const result = parseResult(line);
       let pos;
@@ -143,6 +153,16 @@ async function loadPositions(file, lay, limit, validateShare) {
         share.push(n * (kind === 'mg' ? mgShare : kind === 'eg' ? 1 - mgShare : 1));
       }
       starts.push(index.length);
+      for (const units of t.danger) {
+        if (units) {
+          for (const [i, n] of units) {
+            dangerIndex.push(i);
+            dangerCount.push(n);
+          }
+        }
+        dangerStarts.push(dangerIndex.length);
+      }
+      mgShares.push(mgShare);
       constants.push(t.mopup * (1 - mgShare));
       results.push(result);
     }
@@ -153,6 +173,11 @@ async function loadPositions(file, lay, limit, validateShare) {
       start: Uint32Array.from(starts),
       index: Uint16Array.from(index),
       share: Float32Array.from(share),
+      mgShare: Float32Array.from(mgShares),
+      dangerStart: Uint32Array.from(dangerStarts),
+      dangerIndex: Uint16Array.from(dangerIndex),
+      dangerCount: Float32Array.from(dangerCount),
+      units: new Float64Array(2 * results.length), // scratch: each king's units
     };
   };
   const valid = pack(lines.slice(0, validCount));
@@ -170,10 +195,20 @@ function parseResult(line) {
 // ------------------------------------------------------------- the fitting
 
 function evaluateAll(set, weights, out) {
-  const { start, index, share, constant } = set;
+  const { start, index, share, constant, mgShare, dangerStart, dangerIndex, dangerCount, units } = set;
   for (let j = 0; j < set.n; j++) {
     let score = constant[j];
     for (let e = start[j], end = start[j + 1]; e < end; e++) score += weights[index[e]] * share[e];
+    for (let side = 0; side < 2; side++) {
+      const g = 2 * j + side;
+      let u = 0;
+      for (let e = dangerStart[g], end = dangerStart[g + 1]; e < end; e++) u += weights[dangerIndex[e]] * dangerCount[e];
+      units[g] = u;
+      if (u > 0) {
+        const [mg, eg] = dangerPenalty(u);
+        score -= (side === 0 ? 1 : -1) * (mg * mgShare[j] + eg * (1 - mgShare[j]));
+      }
+    }
     out[j] = score;
   }
 }
@@ -188,7 +223,7 @@ function scores(set, weights) {
 
 const sigmoid = (score, K) => 1 / (1 + Math.pow(10, (-K * score) / 400));
 
-function error(set, weights, K) {
+export function error(set, weights, K) {
   const q = scores(set, weights);
   let sum = 0;
   for (let j = 0; j < set.n; j++) {
@@ -199,15 +234,25 @@ function error(set, weights, K) {
 }
 
 // d(error)/d(weight) for every weight at once.
-function gradient(set, weights, K, grad) {
+export function gradient(set, weights, K, grad) {
   const q = scores(set, weights);
-  const { start, index, share, result } = set;
+  const { start, index, share, result, mgShare, dangerStart, dangerIndex, dangerCount, units } = set;
   const k = (K * Math.LN10) / 400;
   grad.fill(0);
   for (let j = 0; j < set.n; j++) {
     const s = sigmoid(q[j], K);
     const g = (-2 * (result[j] - s) * s * (1 - s) * k) / set.n;
     for (let e = start[j], end = start[j + 1]; e < end; e++) grad[index[e]] += g * share[e];
+    for (let side = 0; side < 2; side++) {
+      const group = 2 * j + side;
+      const u = units[group];
+      if (u <= 0) continue;
+      // d(score)/d(units), through the square in the middlegame.
+      const slope = -(side === 0 ? 1 : -1) * ((mgShare[j] * 2 * u) / DANGER_MG_DIVISOR + (1 - mgShare[j]) / DANGER_EG_DIVISOR);
+      for (let e = dangerStart[group], end = dangerStart[group + 1]; e < end; e++) {
+        grad[dangerIndex[e]] += g * slope * dangerCount[e];
+      }
+    }
   }
 }
 
@@ -296,6 +341,18 @@ ${['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'].map(pst).join('\n')}
   rookOnSeventh: ${pair(w.rookOnSeventh)},
   // A pawn ending passer the enemy king can no longer catch.
   unstoppablePasser: ${w.unstoppablePasser},
+  // King danger, in attack units (see DANGER in evaluate.js): attackers on
+  // the king zone (knight, bishop, rook, queen), zone squares hit, weak zone
+  // squares, safe checks (knight, bishop, rook, queen), no enemy queen, and
+  // a constant. Costs units² / 720 in the middlegame, units / 20 endgame.
+  kingDanger: ${list(w.kingDanger)},
+  // Middlegame, per rank of the enemy pawn nearest our king on its file or
+  // the next (counted from the enemy's side): free, or blocked by our pawn.
+  pawnStorm: ${list(w.pawnStorm)},
+  pawnStormBlocked: ${list(w.pawnStormBlocked)},
+  // Middlegame, per file on or next to our king without our pawns:
+  // half-open (they have one there) and fully open.
+  kingOpenFile: ${list(w.kingOpenFile)},
   tempo: ${w.tempo}, // having the move is worth a little
 };
 `;
