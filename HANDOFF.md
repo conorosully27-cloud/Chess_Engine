@@ -47,6 +47,9 @@ starved and results skew.
   relaying moves against chess.com bots. They appreciate chess explanations
   of what the engine does, short status updates, and honest reads of noisy
   results ("early leads fade" has happened every time).
+- **The only goal is beating the current best engine** (by SPRT). Games
+  against chess.com bots are background, not a target: don't tune or judge
+  changes by how they play in those games.
 - **Testing a change:** SPRT against the current version, from the varied
   openings:
   `npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10 --games 2000`.
