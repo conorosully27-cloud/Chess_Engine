@@ -11,144 +11,56 @@ import {
   KNIGHT_OFFSETS, BISHOP_OFFSETS, ROOK_OFFSETS, KING_OFFSETS,
 } from '../board.js';
 
-const MG_VALUE = [0, 90, 320, 330, 480, 950, 0];
-const EG_VALUE = [0, 110, 290, 310, 530, 960, 0];
+import { WEIGHTS } from './weights.js';
+
+const W = WEIGHTS;
+
+// Fixed piece values for deciding when mop-up applies; not tuned.
+const MOPUP_VALUE = [0, 90, 320, 330, 480, 950, 0];
 
 // Game phase: 24 with all pieces on the board, 0 with only kings and pawns.
 const PHASE_WEIGHT = [0, 0, 1, 1, 2, 4, 0];
 const MAX_PHASE = 24;
 
-// Piece-square tables, written from White's side with rank 8 at the top as
-// the board is printed. Black uses the same tables mirrored.
-// prettier-ignore
-const PST = {
-  pawnMg: [
-      0,   0,   0,   0,   0,   0,   0,   0,
-     50,  50,  50,  50,  50,  50,  50,  50,
-     10,  10,  20,  30,  30,  20,  10,  10,
-      5,   5,  10,  25,  25,  10,   5,   5,
-      0,   0,   0,  20,  20,   0,   0,   0,
-      5,  -5, -10,   0,   0, -10,  -5,   5,
-      5,  10,  10, -20, -20,  10,  10,   5,
-      0,   0,   0,   0,   0,   0,   0,   0,
-  ],
-  pawnEg: [
-      0,   0,   0,   0,   0,   0,   0,   0,
-     80,  80,  80,  80,  80,  80,  80,  80,
-     50,  50,  50,  50,  50,  50,  50,  50,
-     30,  30,  30,  30,  30,  30,  30,  30,
-     15,  15,  15,  15,  15,  15,  15,  15,
-      5,   5,   5,   5,   5,   5,   5,   5,
-      0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,
-  ],
-  knight: [
-    -50, -40, -30, -30, -30, -30, -40, -50,
-    -40, -20,   0,   0,   0,   0, -20, -40,
-    -30,   0,  10,  15,  15,  10,   0, -30,
-    -30,   5,  15,  20,  20,  15,   5, -30,
-    -30,   0,  15,  20,  20,  15,   0, -30,
-    -30,   5,  10,  15,  15,  10,   5, -30,
-    -40, -20,   0,   5,   5,   0, -20, -40,
-    -50, -40, -30, -30, -30, -30, -40, -50,
-  ],
-  bishop: [
-    -20, -10, -10, -10, -10, -10, -10, -20,
-    -10,   0,   0,   0,   0,   0,   0, -10,
-    -10,   0,   5,  10,  10,   5,   0, -10,
-    -10,   5,   5,  10,  10,   5,   5, -10,
-    -10,   0,  10,  10,  10,  10,   0, -10,
-    -10,  10,  10,  10,  10,  10,  10, -10,
-    -10,   5,   0,   0,   0,   0,   5, -10,
-    -20, -10, -10, -10, -10, -10, -10, -20,
-  ],
-  rook: [
-      0,   0,   0,   0,   0,   0,   0,   0,
-      5,  10,  10,  10,  10,  10,  10,   5,
-     -5,   0,   0,   0,   0,   0,   0,  -5,
-     -5,   0,   0,   0,   0,   0,   0,  -5,
-     -5,   0,   0,   0,   0,   0,   0,  -5,
-     -5,   0,   0,   0,   0,   0,   0,  -5,
-     -5,   0,   0,   0,   0,   0,   0,  -5,
-      0,   0,   0,   5,   5,   0,   0,   0,
-  ],
-  queen: [
-    -20, -10, -10,  -5,  -5, -10, -10, -20,
-    -10,   0,   0,   0,   0,   0,   0, -10,
-    -10,   0,   5,   5,   5,   5,   0, -10,
-     -5,   0,   5,   5,   5,   5,   0,  -5,
-      0,   0,   5,   5,   5,   5,   0,  -5,
-    -10,   5,   5,   5,   5,   5,   0, -10,
-    -10,   0,   5,   0,   0,   0,   0, -10,
-    -20, -10, -10,  -5,  -5, -10, -10, -20,
-  ],
-  kingMg: [
-    -30, -40, -40, -50, -50, -40, -40, -30,
-    -30, -40, -40, -50, -50, -40, -40, -30,
-    -30, -40, -40, -50, -50, -40, -40, -30,
-    -30, -40, -40, -50, -50, -40, -40, -30,
-    -20, -30, -30, -40, -40, -30, -30, -20,
-    -10, -20, -20, -20, -20, -20, -20, -10,
-     20,  20,   0,   0,   0,   0,  20,  20,
-     20,  30,  10,   0,   0,  10,  30,  20,
-  ],
-  kingEg: [
-    -50, -40, -30, -20, -20, -30, -40, -50,
-    -30, -20, -10,   0,   0, -10, -20, -30,
-    -30, -10,  20,  30,  30,  20, -10, -30,
-    -30, -10,  30,  40,  40,  30, -10, -30,
-    -30, -10,  30,  40,  40,  30, -10, -30,
-    -30, -10,  20,  30,  30,  20, -10, -30,
-    -30, -30,   0,   0,   0,   0, -30, -30,
-    -50, -30, -30, -30, -30, -30, -30, -50,
-  ],
-};
-
-const TABLES = {
-  [PAWN]: [PST.pawnMg, PST.pawnEg],
-  [KNIGHT]: [PST.knight, PST.knight],
-  [BISHOP]: [PST.bishop, PST.bishop],
-  [ROOK]: [PST.rook, PST.rook],
-  [QUEEN]: [PST.queen, PST.queen],
-  [KING]: [PST.kingMg, PST.kingEg],
-};
+const PST_BY_TYPE = [null, W.pst.pawn, W.pst.knight, W.pst.bishop, W.pst.rook, W.pst.queen, W.pst.king];
 
 // Material plus table bonus for every (piece, 0x88 square), precomputed.
 // Values are positive for both colors; evaluate() applies the sign.
 const MG = new Int16Array(16 * 128);
 const EG = new Int16Array(16 * 128);
 for (let type = PAWN; type <= KING; type++) {
-  const [mgTable, egTable] = TABLES[type];
+  const { mg: mgTable, eg: egTable } = PST_BY_TYPE[type];
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
       const sq = (rank << 4) | file;
       const whiteIndex = (7 - rank) * 8 + file; // tables list rank 8 first
       const blackIndex = rank * 8 + file; // mirrored for Black
-      MG[type * 128 + sq] = MG_VALUE[type] + mgTable[whiteIndex];
-      EG[type * 128 + sq] = EG_VALUE[type] + egTable[whiteIndex];
-      MG[(8 | type) * 128 + sq] = MG_VALUE[type] + mgTable[blackIndex];
-      EG[(8 | type) * 128 + sq] = EG_VALUE[type] + egTable[blackIndex];
+      MG[type * 128 + sq] = W.material.mg[type] + mgTable[whiteIndex];
+      EG[type * 128 + sq] = W.material.eg[type] + egTable[whiteIndex];
+      MG[(8 | type) * 128 + sq] = W.material.mg[type] + mgTable[blackIndex];
+      EG[(8 | type) * 128 + sq] = W.material.eg[type] + egTable[blackIndex];
     }
   }
 }
 
-const BISHOP_PAIR = [30, 50];
-const DOUBLED_PAWN = [-10, -20];
-const ISOLATED_PAWN = [-12, -16];
-// By how far the pawn has advanced (relative rank 1-6).
-const PASSED_PAWN_MG = [0, 5, 10, 15, 25, 40, 60, 0];
-const PASSED_PAWN_EG = [0, 10, 20, 35, 55, 85, 130, 0];
-const ROOK_OPEN_FILE = [25, 10];
-const ROOK_SEMI_OPEN_FILE = [12, 6];
-const TEMPO = 10; // having the move is worth a little
+const BISHOP_PAIR = W.bishopPair;
+const DOUBLED_PAWN = W.doubledPawn;
+const ISOLATED_PAWN = W.isolatedPawn;
+const PASSED_PAWN_MG = W.passedPawn.mg;
+const PASSED_PAWN_EG = W.passedPawn.eg;
+const ROOK_OPEN_FILE = W.rookOpenFile;
+const ROOK_SEMI_OPEN_FILE = W.rookSemiOpenFile;
+const [SHELTER_NEAR, SHELTER_FAR, SHELTER_NONE] = W.kingShelter;
+const TEMPO = W.tempo;
 
 // Mobility: per square a piece can move to, measured from a typical count
 // so an average piece scores about zero. [mg, eg, typical count]
+export const MOBILITY_TYPICAL = [0, 0, 4, 6, 7, 13, 0];
 const MOBILITY = {
-  [KNIGHT]: [4, 4, 4],
-  [BISHOP]: [5, 5, 6],
-  [ROOK]: [2, 4, 7],
-  [QUEEN]: [1, 2, 13],
+  [KNIGHT]: [...W.mobility.knight, MOBILITY_TYPICAL[KNIGHT]],
+  [BISHOP]: [...W.mobility.bishop, MOBILITY_TYPICAL[BISHOP]],
+  [ROOK]: [...W.mobility.rook, MOBILITY_TYPICAL[ROOK]],
+  [QUEEN]: [...W.mobility.queen, MOBILITY_TYPICAL[QUEEN]],
 };
 
 // Scratch space reused by every call, so evaluation never allocates.
@@ -195,7 +107,7 @@ export function evaluate(pos) {
       if (relRank < pawnLeastAdvanced[c][file]) pawnLeastAdvanced[c][file] = relRank;
       pawnSquares[c][pawns[c]++] = sq;
     } else if (type !== KING) {
-      nonPawnMaterial[c] += MG_VALUE[type];
+      nonPawnMaterial[c] += MOPUP_VALUE[type];
       if (type === BISHOP) bishops[c]++;
       else if (type === ROOK) rookSquares[c][rooks[c]++] = sq;
       const [mgWeight, egWeight, typical] = MOBILITY[type];
@@ -263,7 +175,7 @@ export function evaluate(pos) {
   // close, which is how king-and-queen or king-and-rook mates are won.
   for (let c = 0; c < 2; c++) {
     const them = 1 - c;
-    if (pawns[them] === 0 && nonPawnMaterial[them] === 0 && nonPawnMaterial[c] >= MG_VALUE[ROOK]) {
+    if (pawns[them] === 0 && nonPawnMaterial[them] === 0 && nonPawnMaterial[c] >= MOPUP_VALUE[ROOK]) {
       const loser = pos.kingSquare[them];
       const winner = pos.kingSquare[c];
       const lf = loser & 7, lr = loser >> 4;
@@ -313,9 +225,9 @@ function kingShelter(b, kingSq, c) {
   let bonus = 0;
   for (let f = Math.max(0, file - 1); f <= Math.min(7, file + 1); f++) {
     const front = (kingSq & 0x70) + f + forward;
-    if (b[front] === pawn) bonus += 12;
-    else if (b[front + forward] === pawn) bonus += 6;
-    else bonus -= 12;
+    if (b[front] === pawn) bonus += SHELTER_NEAR;
+    else if (b[front + forward] === pawn) bonus += SHELTER_FAR;
+    else bonus += SHELTER_NONE;
   }
   return bonus;
 }
