@@ -7,6 +7,29 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Development: undeveloped minors and early queen moves (Oct 2026)
+
+**Change:** a middlegame penalty of 12 centipawns per knight or bishop
+still on its starting square, plus 6 per undeveloped minor once the queen
+has left d1/d8. Built on Engine 1.0. Commit `5ac00ca` on local branch
+`exp-development` (not pushed).
+
+**Result:** stopped at 320 games: +104 -111 =105, Elo -8 (95% -39 to +24),
+LLR -0.50. Led at +29 Elo after 120 games, then went 59-76-65.
+
+**Prior:** 6/10. Slow development is a standard weakness and the handover
+listed it as step 2.
+
+**Commentary:** the same double counting as the king terms. The
+piece-square tables already score a knight on b1 at -40 against +10 on c3,
+and a bishop on c1 at -10, so development was already being rewarded; the
+new term mostly made the engine rush pieces out at the expense of better
+moves. The early-queen part is also crude: it penalises useful queen moves
+(Qe2 to support e4, recapturing with the queen) the same as Qh5 sorties.
+Hand-picked weights for new terms keep landing on top of what the tables
+already do; the next step is Texel tuning, which fits all the weights
+together, and these terms could be retried there with tuned weights.
+
 ## Castled-only shelter plus a smaller central-king penalty of 5/20 (Oct 2026)
 
 **Change:** the 15/40 version below with the penalty cut to 5 centipawns
