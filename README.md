@@ -63,22 +63,28 @@ method Stockfish uses to accept changes: it stops as soon as the results
 decide, with 5% error rates.
 
 ```sh
-git worktree add ../engine-1.0 engine-1.0                 # once
-npm run match -- --b ../engine-1.0 --sprt 0,10 --games 2000  # is this checkout ≥10 Elo better?
-npm run match -- --b ../engine-1.0 --games 200 --time 100    # fixed-length match
+git worktree add ../engine-1.2 5a42226                    # once: the Engine 1.2 commit
+npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10 --games 2000
+npm run match -- --b ../engine-1.2 --games 200 --time 100    # fixed-length match, book openings
+npm run match -- --b ../engine-1.2 --fens test/endgames.epd --games 400   # endgames only
 ```
+
+`--fens test/openings.epd` starts each game pair from one of 1000 different
+positions (3 random moves each, made by `scripts/make-openings.js`), so long
+matches don't repeat openings; without it the match cycles through the 24
+book openings.
 
 "H1 accepted" means the new version is better; "H0 accepted" means it isn't
 better by the margin tested. Small gains need many games (about ±45 Elo of
 uncertainty at 200 games), so use SPRT rather than reading too much into a
 short match. `npm run match -- --help` lists all options.
 
-Known weaknesses of 1.0 (1.1 retuned the weights but added no new terms),
-from a review of a game against it: the evaluation
-is materialistic and undervalues development, space and initiative. King
-shelter also penalises central pawn moves in front of an uncastled king, and
-there is no development or space term and little king safety. In gambit
-positions it judged White about 1.5 pawns worse than a reference engine.
+Known weaknesses of 1.2, from games against chess.com bots (it beat the
+2200 and 2600 bots and lost twice to the 2900 bot; see
+`ENGINE_CHANGELOG.md`): king safety is little more than pawn shelter, so it
+grabs material with its queen while the enemy attack builds; it is often
+over-optimistic (about +1 in balanced openings); and a search bug treats any
+position seen once before in the game as a draw (see `HANDOFF.md`).
 
 - **Analysis**: switch it on to see the evaluation (from White's side, in
   pawns; `#3` means mate in 3), the engine's main line, and an arrow for its
@@ -89,7 +95,9 @@ positions it judged White about 1.5 pawns worse than a reference engine.
 
 How it works (`src/engine/`): a tapered evaluation (material, piece-square
 tables, mobility, pawn structure, passed pawns, rooks on open files, king
-shelter, bishop pair) and an alpha-beta search with iterative deepening,
+shelter, bishop pair, and endgame terms for passed pawns, rooks behind
+passers, the seventh rank and the rule of the square), with every weight in
+`weights.js` Texel-tuned by `scripts/tune.js`, and an alpha-beta search with iterative deepening,
 quiescence search, a transposition table, null-move pruning, late move
 reductions and killer/history move ordering. It runs in a Web Worker so the
 board stays responsive.
@@ -122,63 +130,12 @@ of `app/ui.js`.
 
 ## Handover: status and next steps
 
-*For whoever picks this up next (including a new Claude session). Read this
-first.*
-
-**Status (Oct 2026).** Rules, board UI, style picker, analysis, play vs
-engine, resign and PGN export are done and tested (`npm test`, 101 tests).
-The engine is **Engine 1.2**: 1.0 with Texel-tuned weights (1.1, about +18
-Elo) plus tuned endgame terms (1.2, about +44 Elo over 1.1). Engine 1.0 is
-frozen on the `engine-1.0` branch.
-
-**Next: improve the evaluation** (`src/engine/evaluate.js`). In a gambit game
-1.0 judged White about 1.5 pawns worse than a reference engine. Fix in this
-order:
-1. ~~King shelter for castled kings only, central-king penalty~~: tried in
-   three versions, none gained (see `FAILED_EXPERIMENTS.md`).
-2. ~~Development~~: tried with hand-set weights, no gain (same file).
-3. Space/centre, and pieces attackable by enemy pawns.
-4. **Done in 1.1:** Texel tuning (`npm run tune -- --data <file.epd.gz>`,
-   see `scripts/tune.js`). New evaluation terms should be added to
-   `src/engine/weights.js` and `scripts/eval-trace.js` and tuned rather
-   than given hand-picked weights; hand-set terms kept double counting what
-   the piece-square tables already score.
-5. Search speed: the evaluation rescans the whole board each call; updating
-   it incrementally in make/unmake should give more depth.
-6. **Done in 1.2:** endgame terms (passed pawns, rooks, rule of the square).
-   Tried and left out: drawish-ending scaling and an exact KPK table, both
-   neutral (see `FAILED_EXPERIMENTS.md`; code in history, commits `6701735`
-   and `c3ca513`). Not encoded yet: Lucena/Philidor, two weaknesses.
-
-**How to test a change:**
-1. Run `npm test`. The evaluation must stay colour-symmetric; a test checks it.
-2. Check out the current baseline once: `git worktree add ../engine-1.2
-   5a42226` (the "Engine 1.2" commit).
-3. Run `npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt
-   0,10 --games 2000`. Accept the change only on "H1 accepted".
-   `test/openings.epd` has 1000 different starting positions (3 random moves
-   each, 50 per White first move, up to about two pawns out of balance), so
-   a 2000-game match never repeats an opening; without `--fens` the match
-   cycles through the 24 book openings. Engine 1.2 and earlier were tested
-   on the book openings.
-
-**Notes:**
-- Changes that passed, with their measured Elo gain, are in
-  `ENGINE_CHANGELOG.md`; changes that didn't gain strength are logged, with
-  commentary, in `FAILED_EXPERIMENTS.md`. Check both before retrying an idea.
-- The starting piece-square tables in 1.0 were Tomasz Michniewski's
-  "Simplified Evaluation Function" tables (Chess Programming Wiki); 1.1
-  tuned them from there. The tuning data is the "quiet-labeled.v7" EPD set
-  by The Zurichess Authors (BSD 3-Clause), from
-  https://bitbucket.org/zurichess/tuner/downloads/. It is not stored in the
-  repo; download it before tuning.
-- Earlier trials: a capture-exchange (SEE) pruning attempt showed no gain and
-  was reverted; mobility was kept.
-- The phone build is a claude.ai artifact made from `index.html` (with the
-  page skeleton stripped) plus `app/` and `src/`; the artifact sandbox blocks
-  downloads, hence Copy PGN.
-- The owner is a strong player who tests by playing. Ask before starting the
-  weaker play levels (planned only once full strength is satisfactory).
+*For whoever picks this up next (including a new Claude session).* Read
+**`HANDOFF.md`** first: it has the current state, the working process, the
+prioritised next steps (starting with a known repetition bug) and the
+owner's preferences. Accepted changes and their Elo gains are in
+`ENGINE_CHANGELOG.md`; changes that didn't gain strength, with commentary,
+are in `FAILED_EXPERIMENTS.md`.
 
 ## Using the rules library
 
@@ -228,16 +185,22 @@ most chess apps.
 | `app/ui.js` | Board rendering and drag/tap input |
 | `app/game.js` | Game session behind the board (no DOM code, so it's unit-tested) |
 | `app/engine-worker.js`, `app/engine-client.js` | Runs the engine in a background thread |
-| `src/engine/` | Evaluation, search, opening book |
+| `src/engine/` | Evaluation (`evaluate.js`, weights in `weights.js`), search, opening book |
+| `scripts/match.js`, `scripts/sprt.js` | Engine-vs-engine matches and the SPRT |
+| `scripts/tune.js`, `scripts/eval-trace.js` | Texel tuner and the evaluation as a linear model |
+| `scripts/make-openings.js` | Generates `test/openings.epd` |
+| `test/openings.epd`, `test/endgames.epd` | Match starting positions: 1000 openings, 270 endgames |
+| `HANDOFF.md`, `ENGINE_CHANGELOG.md`, `FAILED_EXPERIMENTS.md` | Status and next steps, accepted changes, rejected ones |
 | `app/pieces/` | Piece images, one folder per set, generated from `scripts/pieces/` |
 
 ## Testing
 
 ```sh
-npm test                    # ~6 seconds
+npm test                    # ~7 seconds, 101 tests
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
-npm run match -- --b ../engine-1.0 --sprt 0,10   # engine vs engine (see Engine)
+npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
+npm run tune -- --data quiet-labeled.v7.epd.gz     # Texel tuning (see HANDOFF.md)
 ```
 
 The tests include **perft**: counting every position reachable to a fixed depth

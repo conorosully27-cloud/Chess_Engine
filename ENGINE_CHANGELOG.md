@@ -16,6 +16,18 @@ roughly, since each is measured against the version before it.
 
 Running total over Engine 1.0: about **+62 Elo** (rough, see above).
 
+## External results
+
+Games the owner played against chess.com bots, relaying moves between the
+bot and this app. Not a rating, but the only outside measure so far.
+
+| Date | Engine | Thinking time | Opponent | Result | Notes |
+|---|---|---|---|---|---|
+| 2026-10-15 | 1.0 (app not yet updated) | analysis mode | chess.com 2200 bot | Win | "without much difficulty" |
+| 2026-10-15 | 1.2 | analysis mode | chess.com 2600 bot ("Grandmaster", level 22) | Win | chess.com accuracy 95.6 vs the bot's 88.7 |
+| 2026-10-15 | 1.2 | 2 s a move | chess.com 2900 bot | Loss | lost the exchange to the repetition bug (24.Rf4, see `HANDOFF.md`), then ground down |
+| 2026-10-15 | 1.2 | 10 s a move | chess.com 2900 bot | Loss | no single blunder; queen went pawn-hunting (Qa7, Qa6, Qxa5) and Black's kingside attack crept in: king safety |
+
 ## Engine 1.2: tuned endgame terms
 
 New endgame-weighted evaluation terms, all Texel-tuned together with the

@@ -1,0 +1,190 @@
+# Handoff
+
+Start here when picking up this project in a new session. It covers where
+things stand, how to set up, how the owner likes to work, and what to do
+next. Last updated 2026-10-15, at Engine 1.2.
+
+Companion files: `ENGINE_CHANGELOG.md` (every accepted change and its Elo
+gain, plus results against chess.com bots), `FAILED_EXPERIMENTS.md` (every
+rejected change, with how promising it looked and why it failed), `README.md`
+(the app and tools), `games/` (PGNs of notable games).
+
+## Where things stand
+
+- **Engine 1.2** is current, on `main` (commit `5a42226` is the 1.2 release;
+  `ENGINE_VERSION` in `src/engine/index.js`). About +62 Elo over 1.0:
+  - 1.1 (`19aa147`): all evaluation weights Texel-tuned, +18 Elo over 1.0.
+  - 1.2 (`5a42226`): tuned endgame terms (king distance to passed pawns,
+    blocked passers, rooks behind passers, rook on the seventh, rule of the
+    square), +44 Elo over 1.1.
+- **Engine 1.0** is frozen on the `engine-1.0` branch (on GitHub). 1.1 and
+  1.2 have no branches on GitHub; use their commits.
+- **The phone app** is a private claude.ai artifact the owner plays on:
+  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.2).
+- **Tests:** `npm test`, 101 tests, about 7 seconds, all passing.
+- **Outside results:** beat the chess.com 2200 and 2600 bots; lost twice to
+  the 2900 bot (details in `ENGINE_CHANGELOG.md`, games in `games/`).
+
+## Setting up a new session
+
+```sh
+npm test                                       # should pass 101 tests
+git worktree add ../engine-1.2 5a42226         # baseline to measure against
+git worktree add ../engine-1.0 engine-1.0      # optional, the original
+
+# Tuning data (25 MB, not in the repo; BSD 3-Clause, The Zurichess Authors)
+mkdir -p ~/data && curl -sSL -o ~/data/quiet-labeled.v7.epd.gz \
+  https://bitbucket.org/zurichess/tuner/downloads/quiet-labeled.v7.epd.gz
+```
+
+The cloud machine has 4 cores. A match with `--threads 3` uses them; two
+matches side by side should use `--threads 2` each, or timed searches get
+starved and results skew.
+
+## How the owner works (follow these)
+
+- **The owner is a strong chess player** who tests by playing, including
+  relaying moves against chess.com bots. They appreciate chess explanations
+  of what the engine does, short status updates, and honest reads of noisy
+  results ("early leads fade" has happened every time).
+- **Testing a change:** SPRT against the current version, from the varied
+  openings:
+  `npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10 --games 2000`.
+  Accept only on "H1 accepted". Use `--fens test/endgames.epd` (400 games,
+  fixed length) as an extra check for endgame changes.
+- **The owner starts the final full test** of a release candidate against
+  the previous version. Get the candidate ready (tested, committed), then
+  stop and tell them; don't start that match yourself.
+- **Releases:** set `ENGINE_VERSION` and its comment (what changed, Elo
+  gain) in `src/engine/index.js`, update the README Engine section and this
+  file, add a row to `ENGINE_CHANGELOG.md`. Keep older versions reachable.
+- **Every rejected change goes in `FAILED_EXPERIMENTS.md`:** what changed,
+  the commit, the results, a prior rating out of 10, and commentary on why
+  it failed. Newest at the top.
+- **Git:** work on the session's assigned branch and push there; merge to
+  `main` only when the owner asks (it has always been a fast-forward).
+- **Long matches:** start them detached (`setsid nohup node scripts/match.js
+  ... > log 2>&1 < /dev/null &`), since tracked background tasks stop after
+  2 hours, and watch the process ID. Label which experiment each log
+  belongs to when reporting; the owner was confused once when two
+  experiments' logs were mixed up. The owner likes to follow logs in the
+  side panel (send them as files when asked).
+- **Updating the app:** republish to the same artifact URL. The page is
+  `index.html` with the document skeleton stripped (`<!doctype>`, `<html>`,
+  `<head>`, the charset and viewport metas, `</head>`, `<body>`, `</body>`,
+  `</html>`); compare the published files with the repo and send only the
+  changed ones in `files` (unchanged ones are kept). Last update republished
+  `src/engine/evaluate.js`, `index.js` and the new `weights.js`.
+
+## What to do next, in order
+
+### 1. Fix the repetition bug (small, do first)
+
+`src/engine/search.js`, in `negamax`:
+
+```js
+if (pos.halfmoveClock >= 100 || pos.repetitionCount() >= 2) return 0;
+```
+
+`repetitionCount()` counts earlier occurrences across the whole game, so
+any position that occurred once before in the game is scored as a draw on
+the spot, and the side to move's alternatives are never searched. Engines
+treat a twofold repetition as a draw only when the earlier occurrence is
+inside the current search (after the root); a repeat of a position from
+before the root needs a true threefold.
+
+It decided a game: against the 2900 bot the engine played 24.Rf4, scoring
+it 0.00 because it recreated the position after 22.Rf4, and the bot simply
+took the exchange with 24...Bxf4. Reproduce it with the game history:
+
+```
+g1f3 f7f5 g2g3 g8f6 f1g2 g7g6 c2c4 f8g7 d2d4 e8g8 b1c3 d7d6 e1g1 d8e8 c1e3
+e7e6 d4d5 b8a6 f3g5 e6e5 c3b5 c8d7 a2a4 h7h6 g5f3 f6g4 d1d2 g4e3 f2e3 e5e4
+f3d4 g7e5 d4b3 e8e7 b5c3 h6h5 d2e1 a8e8 a4a5 a6b4 a1d1 e7g5 f1f4 g5e7 f4f1
+e7g5
+```
+
+`positionFromHistory(those moves)` then `engine.search(pos, { timeMs: 2000 })`
+currently returns `f1f4` with score 0 (FEN before the move:
+`4rrk1/pppb4/3p2p1/P2Pbpqp/1nP1p3/1NN1P1P1/1P2P1BP/3RQRK1 w - - 7 24`).
+After the fix it should not play Rf4. Make that a test. The fix needs the
+search to know the root ply (e.g. store `pos.ply` at the start of
+`search()`) and a repetition check that tells "seen since the root" from
+"seen before the root". Then SPRT against 1.2. Self-play matches will
+under-measure it, since both sides share the bug; the fix is worth keeping
+as a correctness fix even if the SPRT is neutral (ask the owner).
+
+### 2. King safety (Engine 1.3's main feature)
+
+The clearest weakness in play: in the 10-second loss to the 2900 bot the
+engine went pawn-hunting with its queen (Qa7, Qa6, Qxa5) while Black's
+pieces gathered round its king, and it only noticed once the attack was
+concrete. King safety today is just three pawn-shelter weights. Add, as
+tuned terms:
+- attacks on the king zone (squares around the king), weighted by attacker
+  type; this is the core of king safety in most engines;
+- open and half-open files on or next to the king;
+- enemy pawn storms (advanced pawns near our king);
+- safe checks available to the enemy.
+
+Recipe that worked for 1.2: add the terms to `src/engine/evaluate.js`,
+their weights to `src/engine/weights.js` (with starting guesses), mirror
+them in `scripts/eval-trace.js` (and in `KIND_BY_KEY` there if they aren't
+`{ mg, eg }` or `[mg, eg]` pairs) and in `formatWeights()` in
+`scripts/tune.js`; keep `test/tune.test.js` passing (it checks the trace
+matches `evaluate()` exactly); tune (`node --max-old-space-size=8000
+scripts/tune.js --data ~/data/quiet-labeled.v7.epd.gz --epochs 400 --out
+<file>`, about 4 minutes; held-back error is now about 0.0605); put the
+tuned weights in a worktree and SPRT. Hand-set weights failed four times
+(see `FAILED_EXPERIMENTS.md`): always tune. Note the classic king-safety
+formula is non-linear (attack units squared); the tuner needs linear
+terms, so either keep the terms linear or extend the tuner.
+
+### 3. Search speed (a natural 1.4)
+
+`evaluate()` rescans the whole board on every call. Updating material and
+piece-square scores incrementally in make/unmake, and generating captures
+first with early cut-offs, should give noticeably more depth. Measured
+speed: about 200,000-600,000 nodes a second, depth 6 at 100 ms and 8-11 at
+1 s on this machine; phones are slower.
+
+### 4. Smaller items
+
+- **Over-optimism:** the engine rates balanced openings around +1 (e.g. a
+  normal Leningrad Dutch). The tuned `tempo` of 30 is a suspect; it may be
+  a data artifact.
+- **Rook on the seventh** tuned to -70 in the middlegame (+43 endgame),
+  which looks like noise; worth a look when retuning.
+- **Not encoded:** Lucena and Philidor rook endings, the principle of two
+  weaknesses. Drawish-ending scaling and an exact KPK table were tried and
+  were neutral (`FAILED_EXPERIMENTS.md`, code in commits `6701735` and
+  `c3ca513`).
+- **Weaker play levels** are planned, but ask the owner before starting:
+  they want full strength right first.
+- **App behaviours to know:** Resign resigns for the human's side (the owner
+  used it to end a game the engine had lost, so that PGN said 1-0); the
+  engine replies instantly to book moves early in a game; the thinking time
+  is read when a new game starts.
+
+## Tools quick reference
+
+| Command | What it does |
+|---|---|
+| `npm test` | All unit tests, perft and the tuner consistency check |
+| `npm run match -- --b <dir> [--fens <file>] [--sprt 0,10] [--games n] [--threads n] [--time ms]` | Engine-vs-engine match between this checkout and `<dir>` |
+| `npm run tune -- --data <epd.gz> [--epochs n] [--out file]` | Texel tuning of every weight in `weights.js` |
+| `node scripts/make-openings.js` | Regenerates `test/openings.epd` |
+| `npm start` | Serves the app locally on port 8000 |
+
+## History in brief
+
+1. Handover step 1 (king shelter only for a castled king, plus a central-king
+   penalty): three versions, all neutral or worse.
+2. Handover step 2 (development penalties, hand-set): neutral.
+3. Texel tuner built; tuning all weights gave Engine 1.1 (+18 Elo).
+4. Endgame work: tuned endgame terms gave Engine 1.2 (+44 Elo); draw scaling
+   and the KPK table were neutral and left out.
+5. Infrastructure: `--fens` match starts, an endgame suite, 1000 varied
+   openings, the changelog and the failure log.
+6. Owner's chess.com tests found the repetition bug and the king-safety gap
+   above.
