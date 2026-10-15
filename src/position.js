@@ -688,6 +688,26 @@ export class Position {
     return count;
   }
 
+  // The engine's repetition test, for a search that started at `rootPly`.
+  // A position repeated within the search is a draw at once: if repeating
+  // was the best either side could do, it could be repeated again. A
+  // position that only occurred before the search began needs a true
+  // threefold, or the search would score a game position seen once before
+  // as a draw without looking at the alternatives.
+  isSearchDraw(rootPly) {
+    if (this.halfmoveClock >= 100) return true;
+    let count = 1;
+    const u = this.undoStack;
+    const stop = Math.max(0, this.ply - this.halfmoveClock);
+    for (let i = this.ply - 2; i >= stop; i -= 2) {
+      const base = i * UNDO_SIZE;
+      if (u[base + U_HASH_LO] === this.hashLo && u[base + U_HASH_HI] === this.hashHi) {
+        if (i > rootPly || ++count >= 3) return true;
+      }
+    }
+    return false;
+  }
+
   isThreefoldRepetition() {
     return this.repetitionCount() >= 3;
   }
