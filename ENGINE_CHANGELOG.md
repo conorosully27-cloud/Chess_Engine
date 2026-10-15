@@ -10,7 +10,7 @@ roughly, since each is measured against the version before it.
 
 | Version / change | Measured against | Games | W-L-D | Elo (95% range) | Commit |
 |---|---|---|---|---|---|
-| Engine 1.2: tuned endgame terms | Engine 1.1 | 637 | 267-186-184 | **+44** (+22 to +68) | see below |
+| Engine 1.2: tuned endgame terms | Engine 1.1 | 637 | 267-186-184 | **+44** (+22 to +68) | `5a42226` |
 | Engine 1.1: Texel-tuned weights | Engine 1.0 | 2154 | 897-786-471 | **+18** (+5 to +31) | `19aa147` |
 | Engine 1.0: baseline | - | - | - | - | `engine-1.0` branch |
 

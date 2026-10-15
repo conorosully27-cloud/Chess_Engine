@@ -153,7 +153,7 @@ order:
 **How to test a change:**
 1. Run `npm test`. The evaluation must stay colour-symmetric; a test checks it.
 2. Check out the current baseline once: `git worktree add ../engine-1.2
-   <the "Engine 1.2" commit>`.
+   5a42226` (the "Engine 1.2" commit).
 3. Run `npm run match -- --b ../engine-1.2 --sprt 0,10 --games 2000`.
    Accept the change only on "H1 accepted". The book has 24 openings (48
    games before they repeat); a bigger opening set would help long matches.
