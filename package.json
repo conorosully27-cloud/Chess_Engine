@@ -9,7 +9,8 @@
     "test": "node --test",
     "perft": "node scripts/perft.js",
     "pieces": "node scripts/build-pieces.js",
-    "match": "node scripts/match.js"
+    "match": "node scripts/match.js",
+    "tune": "node scripts/tune.js"
   },
   "engines": {
     "node": ">=18"

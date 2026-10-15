@@ -191,7 +191,7 @@ export function evaluate(pos) {
 }
 
 // How many squares the piece on `sq` can move to (empty or enemy-occupied).
-function mobility(b, sq, type, color) {
+export function mobility(b, sq, type, color) {
   let count = 0;
   if (type === KNIGHT) {
     for (let i = 0; i < 8; i++) {
