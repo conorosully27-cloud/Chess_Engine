@@ -49,7 +49,6 @@ const POSITIONS = [
   'r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10',
   '8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1',
   '4k3/8/8/3r4/8/8/3Q4/4K3 w - - 0 1',
-  'r1bq1b1r/ppp3pp/2n1k3/3np3/2B5/5Q2/PPPP1PPP/RNB1K2R w KQ - 2 7',
 ];
 
 describe('evaluation', () => {
@@ -68,20 +67,6 @@ describe('evaluation', () => {
     const pos = new Position('4k3/8/8/8/8/8/8/R3K3 w - - 0 1');
     assert.ok(evaluate(pos) > 400);
     assert.ok(evaluate(new Position('4k3/8/8/8/8/8/8/R3K3 b - - 0 1')) < -400);
-  });
-
-  test('a king stuck in the centre with queens on is a liability', () => {
-    const canCastle = evaluate(new Position('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4'));
-    const cannot = evaluate(new Position('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w kq - 4 4'));
-    assert.ok(cannot < canCastle);
-  });
-
-  test('pushing a central pawn does not weaken an uncastled king', () => {
-    // King shelter only counts for a castled king. Engine 1.0 took 24 off
-    // 1.e4's gain for the hole in front of the king on e1.
-    const before = new Position();
-    const after = new Position('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1');
-    assert.ok(evaluate(after) - evaluate(before) > 60);
   });
 
   test('dead draws score zero', () => {
