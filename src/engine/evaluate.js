@@ -88,7 +88,25 @@ const rooks = new Int32Array(2);
 const nonPawnMaterial = new Int32Array(2);
 const unstoppable = new Int8Array(2);
 
+// The search evaluates many positions more than once, so recent results
+// are kept, keyed by the position's hash (both halves, so a hit is exact).
+const CACHE_MASK = (1 << 16) - 1;
+const cacheHashLo = new Int32Array(CACHE_MASK + 1);
+const cacheHashHi = new Int32Array(CACHE_MASK + 1);
+const cacheScores = new Int16Array(CACHE_MASK + 1);
+
 export function evaluate(pos) {
+  const slot = pos.hashLo & CACHE_MASK;
+  if (cacheHashHi[slot] === pos.hashHi && cacheHashLo[slot] === pos.hashLo) return cacheScores[slot];
+  // Clamped well short of mate scores (and of what the cache can hold).
+  const score = Math.max(-20000, Math.min(20000, evaluateUncached(pos)));
+  cacheHashLo[slot] = pos.hashLo;
+  cacheHashHi[slot] = pos.hashHi;
+  cacheScores[slot] = score;
+  return score;
+}
+
+function evaluateUncached(pos) {
   const b = pos.board;
   let mg = 0;
   let eg = 0;
