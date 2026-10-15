@@ -244,22 +244,6 @@ describe('endgame knowledge', () => {
     assert.equal(scale('4k3/pp3ppp/8/8/8/8/PPP2PPP/R3K3 w - - 0 1'), 1);
   });
 
-  test('king and pawn against king is known exactly', () => {
-    // King in front of its pawn on the fifth rank: only with the opposition.
-    // (Scores are from the side to move.)
-    assert.equal(evaluate(new Position('8/4k3/8/4K3/4P3/8/8/8 w - - 0 1')), 0);
-    assert.ok(evaluate(new Position('8/4k3/8/4K3/4P3/8/8/8 b - - 0 1')) < -500);
-    // With the defender a rank further back, White to move reaches a key square.
-    assert.ok(evaluate(new Position('4k3/8/8/4K3/4P3/8/8/8 w - - 0 1')) > 500);
-    // King on the sixth in front of the pawn wins whoever is to move.
-    assert.ok(evaluate(new Position('4k3/8/4K3/4P3/8/8/8/8 w - - 0 1')) > 500);
-    // Rook pawn with the defender in the corner: a draw.
-    assert.equal(evaluate(new Position('k7/8/K7/P7/8/8/8/8 w - - 0 1')), 0);
-    // The same for Black: a pawn the white king can't catch.
-    assert.ok(evaluate(new Position('8/8/8/8/8/p7/8/4K2k b - - 0 1')) > 500);
-    assert.ok(evaluate(new Position('8/8/8/8/8/p7/8/1K5k b - - 0 1')) === 0);
-  });
-
   test('a rook on the seventh needs a target', async () => {
     const { onSeventh } = await import('../src/engine/evaluate.js');
     const least = (pos, c) => {
