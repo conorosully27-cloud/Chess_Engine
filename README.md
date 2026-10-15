@@ -33,10 +33,18 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.1.** Engine 1.0 is kept as-is on the
-`engine-1.0` branch; to measure a new version against either, check out the
-older one with `git worktree add`, e.g. `git worktree add ../engine-1.0
-engine-1.0`.
+**Current version: Engine 1.2.** Engine 1.0 is kept as-is on the
+`engine-1.0` branch; to measure a new version against an older one, check
+that out with `git worktree add`, e.g. `git worktree add ../engine-1.0
+engine-1.0`. Every version's measured gain is in `ENGINE_CHANGELOG.md`.
+
+*Changes in 1.2 over 1.1:* new endgame evaluation terms, Texel-tuned
+together with all the other weights: own and enemy king distance to each
+passed pawn, blocked passed pawns, rooks behind passed pawns (ours and the
+enemy's, Tarrasch's rule), a rook on the seventh rank confining the king or
+hitting pawns, and the rule of the square for passers in pawn endings. The
+search is unchanged. Estimated **+44 Elo** over 1.1 (95% +22 to +68), SPRT
+H1 accepted after 637 games at 100 ms a move.
 
 *Changes in 1.1 over 1.0:* all evaluation weights (material, piece-square
 tables, pawn structure, mobility, rook files, king shelter, tempo) were
@@ -118,9 +126,10 @@ of `app/ui.js`.
 first.*
 
 **Status (Oct 2026).** Rules, board UI, style picker, analysis, play vs
-engine, resign and PGN export are done and tested (`npm test`, 98 tests).
-The engine is **Engine 1.1** (Engine 1.0 with Texel-tuned evaluation
-weights, about +18 Elo). Engine 1.0 is frozen on the `engine-1.0` branch.
+engine, resign and PGN export are done and tested (`npm test`, 101 tests).
+The engine is **Engine 1.2**: 1.0 with Texel-tuned weights (1.1, about +18
+Elo) plus tuned endgame terms (1.2, about +44 Elo over 1.1). Engine 1.0 is
+frozen on the `engine-1.0` branch.
 
 **Next: improve the evaluation** (`src/engine/evaluate.js`). In a gambit game
 1.0 judged White about 1.5 pawns worse than a reference engine. Fix in this
@@ -136,12 +145,16 @@ order:
    the piece-square tables already score.
 5. Search speed: the evaluation rescans the whole board each call; updating
    it incrementally in make/unmake should give more depth.
+6. **Done in 1.2:** endgame terms (passed pawns, rooks, rule of the square).
+   Tried and left out: drawish-ending scaling and an exact KPK table, both
+   neutral (see `FAILED_EXPERIMENTS.md`; code in history, commits `6701735`
+   and `c3ca513`). Not encoded yet: Lucena/Philidor, two weaknesses.
 
 **How to test a change:**
 1. Run `npm test`. The evaluation must stay colour-symmetric; a test checks it.
-2. Check out the current baseline once: `git worktree add ../engine-1.1
-   19aa147` (the "Engine 1.1" commit).
-3. Run `npm run match -- --b ../engine-1.1 --sprt 0,10 --games 2000`.
+2. Check out the current baseline once: `git worktree add ../engine-1.2
+   <the "Engine 1.2" commit>`.
+3. Run `npm run match -- --b ../engine-1.2 --sprt 0,10 --games 2000`.
    Accept the change only on "H1 accepted". The book has 24 openings (48
    games before they repeat); a bigger opening set would help long matches.
 

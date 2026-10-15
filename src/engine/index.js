@@ -1,11 +1,14 @@
-// Engine 1.1 (Engine 1.0 is kept on the engine-1.0 branch). Later
+// Engine 1.2 (Engine 1.0 is kept on the engine-1.0 branch). Later
 // versions are measured against it with engine-vs-engine matches.
 //
-// Changes over 1.0: every evaluation weight (material, piece-square tables,
-// pawn structure, mobility, rook files, king shelter, tempo) Texel-tuned on
-// 1.4 million labelled positions; search unchanged. About +18 Elo over 1.0
-// (95% +5 to +31) in a 2154-game SPRT match at 100 ms a move.
-export const ENGINE_VERSION = '1.1';
+// Changes over 1.1: endgame evaluation terms, Texel-tuned with the rest:
+// king distance (ours and theirs) to passed pawns, blocked passers, rooks
+// behind passed pawns (Tarrasch), rook on the seventh, and the rule of the
+// square in pawn endings; search unchanged. About +44 Elo over 1.1 (95% +22
+// to +68) in a 637-game SPRT match at 100 ms a move.
+//
+// 1.1 over 1.0: all evaluation weights Texel-tuned, about +18 Elo.
+export const ENGINE_VERSION = '1.2';
 
 export { Engine, MATE, INFINITY, isMateScore } from './search.js';
 export { evaluate } from './evaluate.js';

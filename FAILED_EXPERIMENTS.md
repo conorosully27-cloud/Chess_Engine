@@ -7,6 +7,46 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Drawish-ending scaling and an exact KPK table, on top of 1.2's endgame terms (Oct 2026)
+
+**Change ("candidate B"):** two pieces of endgame knowledge added to the
+endgame terms that became Engine 1.2:
+- `endgameScale()`: keep only part of the score in usually-drawn endings:
+  opposite-colored bishops with only pawns (1/2), no pawns for the stronger
+  side and at most a minor piece more (1/8), two knights against a bare king
+  and the wrong rook pawn with the defending king in the corner (0).
+- `kpk.js`: every king-and-pawn-v-king position solved by retrograde
+  analysis at engine start (about 0.3 s); drawn ones score 0, won ones get
+  a fixed bonus. Checked against textbook positions (opposition, key
+  squares, the square, rook-pawn draws).
+Weights retuned with both in the model (held-back error 0.0605 -> 0.0592).
+Commits `6701735` and `c3ca513` (reverted on the main line), tuned version
+`4cb5f71` on local branch `exp-endgame-draws`.
+
+**Results:**
+- Head to head vs the endgame-terms engine (A), normal openings: stopped at
+  1479 games, +489 -484 =506, Elo +1 (95% -13 to +16), LLR -0.71.
+- Same, 400 games from the endgame suite: +99 -107 =194, Elo -7 (-31 to
+  +17).
+- KPK table alone ("candidate C", A's weights, no scaling), endgame suite:
+  +98 -97 =205, Elo +1 (-23 to +25).
+- Full test vs Engine 1.1, run side by side with A's: stopped at 712 games
+  when A was accepted, +280 -217 =215, Elo +31 (+10 to +52), LLR 2.20. A
+  reached H1 first at +44, so B was dropped.
+
+**Prior:** 6/10. Both are textbook endgame knowledge that strong engines
+carry.
+
+**Commentary:** correct but too rare to measure. The positions they change
+come up in a small share of games, and when they do, the search often finds
+the same draw or win by itself; the tuner's error dropped because these
+endings are frequent among the labelled positions, but that didn't turn
+into won games. The 1/8 rule for "no pawns, at most a minor up" is the
+bluntest part and the likeliest to cost points (it also scales rook v rook
+and similar). Worth reviving once matches can isolate endgames better, or
+if the owner notices the engine misplaying these endings: the KPK table at
+least is exact and can't misjudge a position.
+
 ## Development: undeveloped minors and early queen moves (Oct 2026)
 
 **Change:** a middlegame penalty of 12 centipawns per knight or bishop
