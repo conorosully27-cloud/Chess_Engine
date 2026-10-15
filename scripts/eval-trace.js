@@ -16,8 +16,9 @@ import {
 } from '../src/board.js';
 import {
   mobility, MOBILITY_TYPICAL, distance, rookBehind, outsideSquare, onSeventh,
-  endgameScale, SCALE_FULL, SCALE_MAX_PHASE,
+  endgameScale, SCALE_FULL, SCALE_MAX_PHASE, KPK_WIN,
 } from '../src/engine/evaluate.js';
+import { kpkWin } from '../src/engine/kpk.js';
 
 const PHASE_WEIGHT = [0, 0, 1, 1, 2, 4, 0];
 const MAX_PHASE = 24;
@@ -136,6 +137,12 @@ export function trace(pos, lay) {
   }
 
   if (pawns[0].length + pawns[1].length === 0 && phase <= 2 && pos.isInsufficientMaterial()) return null;
+  let known = 0; // fixed endgame score from White's side, outside the weights
+  if (phase === 0 && pawns[0].length + pawns[1].length === 1) {
+    const c = pawns[0].length ? 0 : 1;
+    if (!kpkWin(pos.kingSquare[0], pos.kingSquare[1], pawns[c][0], c === 0, pos.turn === WHITE)) return null;
+    known = (c === 0 ? 1 : -1) * KPK_WIN;
+  }
 
   for (let c = 0; c < 2; c++) {
     const sign = c === 0 ? 1 : -1;
@@ -211,7 +218,7 @@ export function trace(pos, lay) {
     }
   }
 
-  let mopup = 0;
+  let mopup = known;
   for (let c = 0; c < 2; c++) {
     const them = 1 - c;
     if (pawns[them].length === 0 && nonPawnMaterial[them] === 0 && nonPawnMaterial[c] >= MOPUP_VALUE[ROOK]) {

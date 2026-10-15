@@ -12,6 +12,7 @@ import {
 } from '../board.js';
 
 import { WEIGHTS } from './weights.js';
+import { kpkWin } from './kpk.js';
 
 const W = WEIGHTS;
 
@@ -60,6 +61,8 @@ const ROOK_BEHIND_PASSER = W.rookBehindPasser;
 const ROOK_BEHIND_ENEMY_PASSER = W.rookBehindEnemyPasser;
 const ROOK_ON_SEVENTH = W.rookOnSeventh;
 const UNSTOPPABLE_PASSER = W.unstoppablePasser;
+// Added for a won king-and-pawn-v-king position (drawn ones score zero).
+export const KPK_WIN = 600;
 
 // Mobility: per square a piece can move to, measured from a typical count
 // so an average piece scores about zero. [mg, eg, typical count]
@@ -129,6 +132,12 @@ export function evaluate(pos) {
 
   // Bare kings and lone minor pieces can't win.
   if (pawns[0] + pawns[1] === 0 && phase <= 2 && pos.isInsufficientMaterial()) return 0;
+  // King and pawn against king: known exactly (kpk.js).
+  if (phase === 0 && pawns[0] + pawns[1] === 1) {
+    const c = pawns[0] ? 0 : 1;
+    if (!kpkWin(pos.kingSquare[0], pos.kingSquare[1], pawnSquares[c][0], c === 0, pos.turn === WHITE)) return 0;
+    eg += (c === 0 ? 1 : -1) * KPK_WIN;
+  }
 
   for (let c = 0; c < 2; c++) {
     const sign = c === 0 ? 1 : -1;

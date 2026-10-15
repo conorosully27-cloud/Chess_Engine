@@ -14,6 +14,7 @@
 //     reverse futility pruning, futility pruning and late move reductions.
 
 import { evaluate } from './evaluate.js';
+import { initKpk } from './kpk.js';
 import {
   EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN,
   FLAG_CAPTURE, FLAG_EN_PASSANT, moveFrom, moveTo, movePromotion,
@@ -53,6 +54,7 @@ class TranspositionTable {
 export class Engine {
   // `ttBits` sets the transposition table at 2^ttBits entries (12 bytes each).
   constructor({ ttBits = 19 } = {}) {
+    initKpk(); // build the king-and-pawn table now, not in the middle of a search
     this.tt = new TranspositionTable(ttBits);
     this.killers = new Int32Array(MAX_PLY * 2);
     this.history = new Int32Array(16 * 128);
