@@ -4,10 +4,11 @@
 //   node scripts/make-openings.js [--count 1000] [--plies 6] [--out test/openings.epd]
 //
 // Each position is reached by random legal moves from the start (6 plies =
-// 3 moves each by default). Every White first move gets an equal share, the
-// positions are all different, and positions where a short search already
-// sees one side clearly ahead (a hung piece, say) are skipped, since games
-// from them would be one-sided. Seeded, so the output is repeatable.
+// 3 moves each by default). Every White first move gets an equal share and
+// the positions are all different. Imbalances up to about two pawns are
+// kept on purpose (gambits, and small edges the engine should convert);
+// only positions a short search already sees as clearly lost for one side
+// (a hung piece, say) are skipped. Seeded, so the output is repeatable.
 
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -20,7 +21,7 @@ const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i += 2) options[args[i].replace(/^--/, '')] = args[i + 1];
 const count = Number(options.count ?? 1000);
 const plies = Number(options.plies ?? 6);
-const maxScore = Number(options['max-score'] ?? 80); // centipawns
+const maxScore = Number(options['max-score'] ?? 200); // centipawns: up to about two pawns
 const out = resolve(options.out ?? `${fileURLToPath(new URL('..', import.meta.url))}/test/openings.epd`);
 
 let seed = 20261015;
