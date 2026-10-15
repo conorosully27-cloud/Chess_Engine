@@ -4,12 +4,14 @@
 //   npm run match -- --b ../engine-1.0                     # this checkout vs Engine 1.0
 //   npm run match -- --b ../engine-1.0 --sprt 0,10         # stop once SPRT decides
 //   npm run match -- --a ../new --b ../old --games 400 --time 100
+//   npm run match -- --b ../engine-1.1 --fens test/endgames.epd   # endgames only
 //
 // --a / --b are checkouts of this repository (A defaults to this one). Set
 // one up with: git worktree add ../engine-1.0 engine-1.0
 //
-// Each game starts from an opening-book line, and every opening is played
-// twice with colors swapped, so neither side profits from a lucky opening.
+// Each game starts from an opening-book line (or, with --fens, from a position
+// in a file of FENs), and every start is played twice with colors swapped, so
+// neither side profits from a lucky opening.
 // Both engines get the same thinking time per move (or --time-a / --time-b
 // for deliberate time odds). Games run in parallel on worker threads.
 //
@@ -25,6 +27,7 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { eloEstimate, parseSprt, sprtLlr } from './sprt.js';
 
@@ -53,6 +56,8 @@ async function main() {
   --time-a <ms>      thinking time for A only (time odds)
   --time-b <ms>      thinking time for B only
   --nodes <n>        search a fixed number of positions per move instead of time
+  --fens <file>      start games from these positions (one FEN or EPD per line)
+                     instead of the opening book, e.g. to test endgame play
   --sprt <e0>,<e1>   run an SPRT: H0 "A is at most e0 Elo better" vs H1 "at least e1"
   --alpha <p>        SPRT false-positive rate (default 0.05)
   --beta <p>         SPRT false-negative rate (default 0.05)
@@ -70,10 +75,25 @@ async function main() {
   const threads = Math.max(1, Number(options.threads ?? Math.max(1, availableParallelism() - 1)));
   const sprt = options.sprt ? parseSprt(options.sprt, Number(options.alpha ?? 0.05), Number(options.beta ?? 0.05)) : null;
 
-  const { BOOK_LINES } = await import(pathToFileURL(`${a}/src/engine/index.js`).href);
-  const openings = BOOK_LINES.map((line) => line.slice(0, OPENING_PLIES));
+  let openings;
+  if (options.fens) {
+    // FEN or EPD lines; '#' starts a comment.
+    openings = readFileSync(resolve(options.fens), 'utf8').split('\n')
+      .map((line) => line.replace(/#.*/, '').trim())
+      .filter(Boolean)
+      .map((line) => {
+        const fields = line.split(/\s+/);
+        const counters = /^\d+$/.test(fields[4] ?? '') && /^\d+$/.test(fields[5] ?? '') ? fields.slice(4, 6) : ['0', '1'];
+        return { fen: [...fields.slice(0, 4), ...counters].join(' ') };
+      });
+    if (openings.length === 0) throw new Error(`no positions in ${options.fens}`);
+  } else {
+    const { BOOK_LINES } = await import(pathToFileURL(`${a}/src/engine/index.js`).href);
+    openings = BOOK_LINES.map((line) => line.slice(0, OPENING_PLIES));
+  }
 
   console.log(`A: ${a}\nB: ${b}`);
+  if (options.fens) console.log(`Starting positions: ${openings.length} from ${options.fens}`);
   console.log(`${nodes ? `${nodes} nodes` : `A ${timeA} ms, B ${timeB} ms`} per move, up to ${pairs * 2} games, ${threads} at a time`);
   if (sprt) console.log(`SPRT: H0 elo <= ${sprt.elo0}, H1 elo >= ${sprt.elo1}, alpha ${sprt.alpha}, beta ${sprt.beta} (LLR bounds ${sprt.lower.toFixed(2)}, ${sprt.upper.toFixed(2)})`);
 
@@ -161,15 +181,24 @@ async function playGames() {
   });
   const [A, B] = [await load(a), await load(b)];
   const players = [
-    { api: A.engine, engine: new A.engine.Engine({ ttBits: 18 }), limits: nodes ? { nodes } : { timeMs: timeA } },
-    { api: B.engine, engine: new B.engine.Engine({ ttBits: 18 }), limits: nodes ? { nodes } : { timeMs: timeB } },
+    { api: A.engine, rules: A.rules, engine: new A.engine.Engine({ ttBits: 18 }), limits: nodes ? { nodes } : { timeMs: timeA } },
+    { api: B.engine, rules: B.rules, engine: new B.engine.Engine({ ttBits: 18 }), limits: nodes ? { nodes } : { timeMs: timeB } },
   ];
+  // The position after `history`, built with that player's own rules code.
+  const positionFor = (player, start, history) => {
+    if (!start) return player.api.positionFromHistory(history);
+    const pos = new player.rules.Position(start);
+    for (const uci of history) pos.play(uci);
+    return pos;
+  };
 
   parentPort.on('message', ({ opening, aIsWhite }) => {
     for (const p of players) p.engine.newGame?.();
     // The referee uses A's rules code; both engines see the same moves.
-    const referee = new A.rules.Position();
-    const history = [...opening];
+    // `opening` is a list of book moves or { fen } for a set position.
+    const start = Array.isArray(opening) ? null : opening.fen;
+    const referee = start ? new A.rules.Position(start) : new A.rules.Position();
+    const history = start ? [] : [...opening];
     for (const uci of history) referee.play(uci);
 
     let result = null;
@@ -183,7 +212,7 @@ async function playGames() {
       }
       const whiteToMove = referee.turn === 0;
       const player = players[whiteToMove === aIsWhite ? 0 : 1];
-      const pos = player.api.positionFromHistory(history);
+      const pos = positionFor(player, start, history);
       const { bestMove, score } = player.engine.search(pos, player.limits);
       referee.play(bestMove);
       history.push(bestMove);
