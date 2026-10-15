@@ -150,8 +150,10 @@ order:
   `FAILED_EXPERIMENTS.md`. Check it before retrying an idea.
 - The starting piece-square tables in 1.0 were Tomasz Michniewski's
   "Simplified Evaluation Function" tables (Chess Programming Wiki); 1.1
-  tuned them from there. The tuning data, the Zurichess "quiet-labeled.v7"
-  EPD set, is not stored in the repo; download it before tuning.
+  tuned them from there. The tuning data is the "quiet-labeled.v7" EPD set
+  by The Zurichess Authors (BSD 3-Clause), from
+  https://bitbucket.org/zurichess/tuner/downloads/. It is not stored in the
+  repo; download it before tuning.
 - Earlier trials: a capture-exchange (SEE) pruning attempt showed no gain and
   was reverted; mobility was kept.
 - The phone build is a claude.ai artifact made from `index.html` (with the
