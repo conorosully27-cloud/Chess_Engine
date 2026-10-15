@@ -216,8 +216,76 @@ export function evaluate(pos) {
   }
 
   if (phase > MAX_PHASE) phase = MAX_PHASE;
-  const score = ((mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE) | 0;
+  let score = (mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE;
+  // Known drawish endings: pull the score toward zero.
+  if (phase <= SCALE_MAX_PHASE) score = (score * endgameScale(pos)) / SCALE_FULL;
+  score |= 0;
   return (pos.turn === WHITE ? score : -score) + TEMPO;
+}
+
+// ------------------------------------------------------- drawish endings
+
+// endgameScale() returns how much of the score to keep, out of SCALE_FULL,
+// in endings that are often drawn however the material looks: "trade pawns
+// when behind" and the classic drawing patterns. Only endings with at most
+// SCALE_MAX_PHASE worth of pieces are checked. Not tuned: fixed knowledge.
+export const SCALE_FULL = 64;
+export const SCALE_MAX_PHASE = 8;
+const SCALE_OPPOSITE_BISHOPS = 32; // bishops of opposite colors, only pawns besides
+const SCALE_NO_PAWNS = 8; // the stronger side has no pawns and at most a minor piece more
+const SCALE_VALUE = [0, 90, 320, 330, 480, 950, 0]; // fixed piece values for these rules
+
+const scaleCount = [new Int8Array(7), new Int8Array(7)]; // [color][type]
+const scaleMaterial = new Int32Array(2); // pieces and pawns, by SCALE_VALUE
+const bishopColors = new Int8Array(2); // bit 0: light-squared, bit 1: dark-squared
+const pawnFiles = new Uint8Array(2); // bit per file with a pawn
+
+export function endgameScale(pos) {
+  const b = pos.board;
+  for (let c = 0; c < 2; c++) scaleCount[c].fill(0);
+  scaleMaterial.fill(0);
+  bishopColors.fill(0);
+  pawnFiles.fill(0);
+  for (let sq = 0; sq < 120; sq++) {
+    if (sq & 0x88) { sq += 7; continue; }
+    const piece = b[sq];
+    if (piece === EMPTY) continue;
+    const type = piece & 7;
+    const c = piece >> 3;
+    scaleCount[c][type]++;
+    scaleMaterial[c] += SCALE_VALUE[type];
+    if (type === BISHOP) bishopColors[c] |= ((sq & 7) + (sq >> 4)) & 1 ? 1 : 2;
+    else if (type === PAWN) pawnFiles[c] |= 1 << (sq & 7);
+  }
+  const [w, k] = scaleCount;
+  const onlyBishopAndPawns = (n) => n[BISHOP] === 1 && n[KNIGHT] + n[ROOK] + n[QUEEN] === 0;
+
+  // Opposite-colored bishops with nothing else but pawns.
+  if (onlyBishopAndPawns(w) && onlyBishopAndPawns(k) && (bishopColors[0] | bishopColors[1]) === 3) {
+    return SCALE_OPPOSITE_BISHOPS;
+  }
+
+  const strong = scaleMaterial[0] >= scaleMaterial[1] ? 0 : 1;
+  const weak = 1 - strong;
+  const s = scaleCount[strong], x = scaleCount[weak];
+  if (s[PAWN] === 0) {
+    const pieces = scaleMaterial[strong];
+    const theirs = scaleMaterial[weak] - x[PAWN] * SCALE_VALUE[PAWN];
+    // Two knights can't force mate against a bare king.
+    if (s[KNIGHT] === 2 && pieces === 2 * SCALE_VALUE[KNIGHT] && scaleMaterial[weak] === 0) return 0;
+    // Without pawns, an extra minor piece (rook v minor, rook and minor v
+    // rook...) is rarely enough to win.
+    if (pieces - theirs <= SCALE_VALUE[BISHOP]) return SCALE_NO_PAWNS;
+  }
+
+  // Wrong rook pawn: bishop and rook pawns against a bare king that has
+  // reached the queening corner, when the bishop can't cover that corner.
+  if (onlyBishopAndPawns(s) && scaleMaterial[weak] === 0 && (pawnFiles[strong] === 1 || pawnFiles[strong] === 128)) {
+    const corner = (pawnFiles[strong] === 1 ? 0 : 7) | (strong === 0 ? 0x70 : 0);
+    const cornerColor = ((corner & 7) + (corner >> 4)) & 1 ? 1 : 2;
+    if (bishopColors[strong] !== cornerColor && distance(pos.kingSquare[weak], corner) <= 1) return 0;
+  }
+  return SCALE_FULL;
 }
 
 // King steps between two squares (Chebyshev distance).

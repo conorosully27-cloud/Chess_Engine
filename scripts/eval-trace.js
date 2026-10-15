@@ -16,6 +16,7 @@ import {
 } from '../src/board.js';
 import {
   mobility, MOBILITY_TYPICAL, distance, rookBehind, outsideSquare, onSeventh,
+  endgameScale, SCALE_FULL, SCALE_MAX_PHASE,
 } from '../src/engine/evaluate.js';
 
 const PHASE_WEIGHT = [0, 0, 1, 1, 2, 4, 0];
@@ -87,7 +88,8 @@ const pawnLeastAdvanced = [new Int8Array(8), new Int8Array(8)];
 
 // Returns null for positions evaluate() scores as dead draws. Otherwise
 // { coef: Map(index -> count, White's point of view), phase (0-24),
-//   mopup: constant endgame term from White's side, stm: +1/-1 }.
+//   mopup: constant endgame term from White's side, stm: +1/-1,
+//   scale: share of the score kept in drawish endings (0-1, tempo exempt) }.
 export function trace(pos, lay) {
   const o = lay.offset;
   const coef = new Map();
@@ -225,16 +227,21 @@ export function trace(pos, lay) {
   const stm = pos.turn === WHITE ? 1 : -1;
   add(o.tempo, stm);
   for (const [index, n] of coef) if (n === 0) coef.delete(index);
-  return { coef, phase: Math.min(phase, MAX_PHASE), mopup, stm };
+  phase = Math.min(phase, MAX_PHASE);
+  const scale = phase <= SCALE_MAX_PHASE ? endgameScale(pos) / SCALE_FULL : 1;
+  return { coef, phase, mopup, stm, scale };
 }
 
 // The linear model's evaluation from White's side, before rounding.
 export function linearEval(t, values, kinds) {
   const mgShare = t.phase / MAX_PHASE;
-  let score = t.mopup * (1 - mgShare);
-  for (const [index, n] of t.coef) {
-    const kind = kinds[index];
-    score += values[index] * n * (kind === 'mg' ? mgShare : kind === 'eg' ? 1 - mgShare : 1);
-  }
+  let score = t.mopup * (1 - mgShare) * t.scale;
+  for (const [index, n] of t.coef) score += values[index] * n * share(kinds[index], mgShare, t.scale);
   return score;
+}
+
+// How much a weight of this kind counts in a position: by game phase, and
+// scaled down in drawish endings (tempo is added after scaling).
+export function share(kind, mgShare, scale) {
+  return kind === 'mg' ? mgShare * scale : kind === 'eg' ? (1 - mgShare) * scale : 1;
 }
