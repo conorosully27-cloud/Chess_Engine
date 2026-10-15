@@ -70,6 +70,12 @@ describe('evaluation', () => {
     assert.ok(evaluate(new Position('4k3/8/8/8/8/8/8/R3K3 b - - 0 1')) < -400);
   });
 
+  test('a king stuck in the centre with queens on is a liability', () => {
+    const canCastle = evaluate(new Position('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4'));
+    const cannot = evaluate(new Position('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w kq - 4 4'));
+    assert.ok(cannot < canCastle);
+  });
+
   test('pushing a central pawn does not weaken an uncastled king', () => {
     // King shelter only counts for a castled king. Engine 1.0 took 24 off
     // 1.e4's gain for the hole in front of the king on e1.
