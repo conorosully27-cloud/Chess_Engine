@@ -7,6 +7,29 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Castled-only shelter plus a smaller central-king penalty of 5/20 (Oct 2026)
+
+**Change:** the 15/40 version below with the penalty cut to 5 centipawns
+(can still castle) and 20 (can't). Commit `60f8d12` on local branch
+`exp-central-king-small` (not pushed).
+
+**Result:** stopped at 622 games: +210 -218 =194, Elo -4 (95% -27 to +18),
+LLR -0.71 and falling. It led by about +20 Elo for the first 250 games,
+then faded to even and below.
+
+**Prior:** 5/10. Smaller weights were the obvious fix if the 15/40 version
+was double counting with the king table, but a smaller version of a
+harmful term is at best neutral.
+
+**Commentary:** shrinking the penalty took it from -10 Elo to roughly 0,
+which fits the double-counting theory: the king table already does this
+job, and the extra term only adds noise. Together with the shelter-only
+result, this suggests "which file is the king on" is not where Engine 1.0
+loses strength. Real king danger (attackers near the king, open files
+toward it, a pawn storm) would be a different idea, not a retune of this
+one. The early lead is a reminder not to read anything into the first few
+hundred games.
+
 ## Shelter only for a castled king (Oct 2026)
 
 **Change:** king shelter (`kingShelter` in `src/engine/evaluate.js`) scored
