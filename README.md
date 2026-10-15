@@ -131,6 +131,8 @@ order:
    games before they repeat); a bigger opening set would help long matches.
 
 **Notes:**
+- Changes that didn't gain strength are logged, with commentary, in
+  `FAILED_EXPERIMENTS.md`. Check it before retrying an idea.
 - Earlier trials: a capture-exchange (SEE) pruning attempt showed no gain and
   was reverted; mobility was kept.
 - The phone build is a claude.ai artifact made from `index.html` (with the
