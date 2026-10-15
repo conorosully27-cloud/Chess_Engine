@@ -146,8 +146,9 @@ order:
    games before they repeat); a bigger opening set would help long matches.
 
 **Notes:**
-- Changes that didn't gain strength are logged, with commentary, in
-  `FAILED_EXPERIMENTS.md`. Check it before retrying an idea.
+- Changes that passed, with their measured Elo gain, are in
+  `ENGINE_CHANGELOG.md`; changes that didn't gain strength are logged, with
+  commentary, in `FAILED_EXPERIMENTS.md`. Check both before retrying an idea.
 - The starting piece-square tables in 1.0 were Tomasz Michniewski's
   "Simplified Evaluation Function" tables (Chess Programming Wiki); 1.1
   tuned them from there. The tuning data is the "quiet-labeled.v7" EPD set
