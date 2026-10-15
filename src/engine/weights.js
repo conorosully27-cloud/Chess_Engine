@@ -167,5 +167,16 @@ export const WEIGHTS = {
   // Middlegame only: a pawn right in front of the king, one square further,
   // and no pawn on that file near the king.
   kingShelter: [4, 1, -17],
+  // Endgame, per rank of a passed pawn (0-7): per step of distance from our
+  // king and from theirs to the square in front of it, and when that square
+  // is occupied.
+  passedOwnKing: [0, 0, -2, -4, -6, -8, -10, 0],
+  passedEnemyKing: [0, 0, 3, 6, 9, 12, 15, 0],
+  passedBlocked: [0, 0, -5, -10, -15, -20, -25, 0],
+  rookBehindPasser: [5, 15],
+  rookBehindEnemyPasser: [5, 15],
+  rookOnSeventh: [10, 20],
+  // A pawn ending passer the enemy king can no longer catch.
+  unstoppablePasser: 300,
   tempo: 30, // having the move is worth a little
 };

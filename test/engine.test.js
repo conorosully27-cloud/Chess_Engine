@@ -199,3 +199,46 @@ describe('playing a game', () => {
     assert.ok(!result.book && result.depth >= 1);
   });
 });
+
+describe('endgame knowledge', () => {
+  test('rule of the square', async () => {
+    const { outsideSquare } = await import('../src/engine/evaluate.js');
+    // White pawn a5, Black king e5: with White to move the king is too far.
+    assert.equal(outsideSquare(new Position('8/8/8/P3k3/8/8/8/K7 w - - 0 1'), 0x40, 0), true);
+    // With Black to move the king steps into the square (d6).
+    assert.equal(outsideSquare(new Position('8/8/8/P3k3/8/8/8/K7 b - - 0 1'), 0x40, 0), false);
+    // A pawn on its starting rank can move two squares, so a2 has the same
+    // square as a3 (a3-f8): a king on f5 is inside it, one on g5 isn't.
+    assert.equal(outsideSquare(new Position('8/8/8/5k2/8/8/P7/7K w - - 0 1'), 0x10, 0), false);
+    assert.equal(outsideSquare(new Position('8/8/8/6k1/8/8/P7/7K w - - 0 1'), 0x10, 0), true);
+  });
+
+  test('rook behind a passed pawn', async () => {
+    const { rookBehind } = await import('../src/engine/evaluate.js');
+    // White pawn a6 (0x50): White rook a1 behind it, or a Black rook a1.
+    assert.equal(rookBehind(new Position('4k3/8/P7/8/8/8/8/R3K3 w - - 0 1').board, 0x50, 0), 0);
+    assert.equal(rookBehind(new Position('4k3/8/P7/8/8/8/8/r3K3 w - - 0 1').board, 0x50, 0), 1);
+    // A rook in front of the pawn doesn't count, nor one with a piece between.
+    assert.equal(rookBehind(new Position('R7/4k3/P7/8/8/8/8/4K3 w - - 0 1').board, 0x50, 0), -1);
+    assert.equal(rookBehind(new Position('4k3/8/P7/8/N7/8/8/R3K3 w - - 0 1').board, 0x50, 0), -1);
+  });
+
+  test('a rook on the seventh needs a target', async () => {
+    const { onSeventh } = await import('../src/engine/evaluate.js');
+    const least = (pos, c) => {
+      const out = new Int8Array(8).fill(8);
+      for (let sq = 0; sq < 120; sq++) {
+        if (sq & 0x88 || pos.board[sq] !== ((c << 3) | 1)) continue;
+        const r = c === 0 ? sq >> 4 : 7 - (sq >> 4);
+        out[sq & 7] = Math.min(out[sq & 7], r);
+      }
+      return out;
+    };
+    const kingCutOff = new Position('6k1/R7/8/8/8/8/8/4K3 w - - 0 1');
+    assert.equal(onSeventh(kingCutOff, 0x60, 0, least(kingCutOff, 1)), true);
+    const nothing = new Position('8/R7/5k2/8/8/8/8/4K3 w - - 0 1');
+    assert.equal(onSeventh(nothing, 0x60, 0, least(nothing, 1)), false);
+    const pawns = new Position('8/R5pp/5k2/8/8/8/8/4K3 w - - 0 1');
+    assert.equal(onSeventh(pawns, 0x60, 0, least(pawns, 1)), true);
+  });
+});

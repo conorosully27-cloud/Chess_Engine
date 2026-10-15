@@ -14,7 +14,9 @@
 import {
   WHITE, EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
 } from '../src/board.js';
-import { mobility, MOBILITY_TYPICAL } from '../src/engine/evaluate.js';
+import {
+  mobility, MOBILITY_TYPICAL, distance, rookBehind, outsideSquare, onSeventh,
+} from '../src/engine/evaluate.js';
 
 const PHASE_WEIGHT = [0, 0, 1, 1, 2, 4, 0];
 const MAX_PHASE = 24;
@@ -22,6 +24,16 @@ const MOPUP_VALUE = [0, 90, 320, 330, 480, 950, 0];
 const TYPE_NAMES = [null, 'pawn', 'knight', 'bishop', 'rook', 'queen', 'king'];
 
 // ------------------------------------------------------------ weight layout
+
+// Weights that aren't { mg, eg } or an [mg, eg] pair: the phase they apply in.
+const KIND_BY_KEY = {
+  kingShelter: 'mg',
+  passedOwnKing: 'eg',
+  passedEnemyKing: 'eg',
+  passedBlocked: 'eg',
+  unstoppablePasser: 'eg',
+  tempo: 'tempo',
+};
 
 // Flattens WEIGHTS into one list of numbers, remembering where each array
 // starts and whether each entry is a middlegame, endgame or tempo weight.
@@ -51,10 +63,7 @@ export function layout(weights) {
       }
     }
   };
-  for (const key of Object.keys(weights)) {
-    const kind = key === 'kingShelter' ? 'mg' : key === 'tempo' ? 'tempo' : undefined;
-    walk(weights[key], key, kind);
-  }
+  for (const key of Object.keys(weights)) walk(weights[key], key, KIND_BY_KEY[key]);
   return { values, kinds, names, offset };
 }
 
@@ -139,6 +148,7 @@ export function trace(pos, lay) {
         add(o.doubledPawn + 1, sign * (pawnCount[c][file] - 1));
       }
     }
+    let unstoppable = false;
     for (const sq of pawns[c]) {
       const file = sq & 7;
       const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);
@@ -155,14 +165,32 @@ export function trace(pos, lay) {
       if (passed) {
         add(o['passedPawn.mg'] + relRank, sign);
         add(o['passedPawn.eg'] + relRank, sign);
+        const front = sq + (c === 0 ? 16 : -16);
+        add(o.passedOwnKing + relRank, sign * distance(pos.kingSquare[c], front));
+        add(o.passedEnemyKing + relRank, sign * distance(pos.kingSquare[them], front));
+        if (b[front] !== EMPTY) add(o.passedBlocked + relRank, sign);
+        const behind = rookBehind(b, sq, c);
+        if (behind === c) {
+          add(o.rookBehindPasser, sign);
+          add(o.rookBehindPasser + 1, sign);
+        } else if (behind === them) {
+          add(o.rookBehindEnemyPasser, -sign);
+          add(o.rookBehindEnemyPasser + 1, -sign);
+        }
+        if (!unstoppable && nonPawnMaterial[them] === 0 && outsideSquare(pos, sq, c)) unstoppable = true;
       }
     }
+    if (unstoppable) add(o.unstoppablePasser, sign);
     for (const sq of rooks[c]) {
       const file = sq & 7;
       if (pawnCount[c][file] === 0) {
         const at = pawnCount[them][file] === 0 ? o.rookOpenFile : o.rookSemiOpenFile;
         add(at, sign);
         add(at + 1, sign);
+      }
+      if (onSeventh(pos, sq, c, pawnLeastAdvanced[them])) {
+        add(o.rookOnSeventh, sign);
+        add(o.rookOnSeventh + 1, sign);
       }
     }
     // King shelter: [pawn in front, pawn one further, no pawn].

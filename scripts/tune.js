@@ -285,6 +285,17 @@ ${['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'].map(pst).join('\n')}
   // Middlegame only: a pawn right in front of the king, one square further,
   // and no pawn on that file near the king.
   kingShelter: ${list(w.kingShelter)},
+  // Endgame, per rank of a passed pawn (0-7): per step of distance from our
+  // king and from theirs to the square in front of it, and when that square
+  // is occupied.
+  passedOwnKing: ${list(w.passedOwnKing)},
+  passedEnemyKing: ${list(w.passedEnemyKing)},
+  passedBlocked: ${list(w.passedBlocked)},
+  rookBehindPasser: ${pair(w.rookBehindPasser)},
+  rookBehindEnemyPasser: ${pair(w.rookBehindEnemyPasser)},
+  rookOnSeventh: ${pair(w.rookOnSeventh)},
+  // A pawn ending passer the enemy king can no longer catch.
+  unstoppablePasser: ${w.unstoppablePasser},
   tempo: ${w.tempo}, // having the move is worth a little
 };
 `;

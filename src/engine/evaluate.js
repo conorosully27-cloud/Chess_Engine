@@ -52,6 +52,14 @@ const ROOK_OPEN_FILE = W.rookOpenFile;
 const ROOK_SEMI_OPEN_FILE = W.rookSemiOpenFile;
 const [SHELTER_NEAR, SHELTER_FAR, SHELTER_NONE] = W.kingShelter;
 const TEMPO = W.tempo;
+// Endgame terms (applied in full only once material is off; see weights.js).
+const PASSED_OWN_KING = W.passedOwnKing;
+const PASSED_ENEMY_KING = W.passedEnemyKing;
+const PASSED_BLOCKED = W.passedBlocked;
+const ROOK_BEHIND_PASSER = W.rookBehindPasser;
+const ROOK_BEHIND_ENEMY_PASSER = W.rookBehindEnemyPasser;
+const ROOK_ON_SEVENTH = W.rookOnSeventh;
+const UNSTOPPABLE_PASSER = W.unstoppablePasser;
 
 // Mobility: per square a piece can move to, measured from a typical count
 // so an average piece scores about zero. [mg, eg, typical count]
@@ -73,6 +81,7 @@ const bishops = new Int32Array(2); // [color]
 const pawns = new Int32Array(2);
 const rooks = new Int32Array(2);
 const nonPawnMaterial = new Int32Array(2);
+const unstoppable = new Int8Array(2);
 
 export function evaluate(pos) {
   const b = pos.board;
@@ -83,6 +92,7 @@ export function evaluate(pos) {
   pawns.fill(0);
   rooks.fill(0);
   nonPawnMaterial.fill(0);
+  unstoppable.fill(0);
   for (let c = 0; c < 2; c++) {
     pawnCount[c].fill(0);
     pawnMostAdvanced[c].fill(-1);
@@ -156,8 +166,24 @@ export function evaluate(pos) {
       if (passed) {
         mg += sign * PASSED_PAWN_MG[relRank];
         eg += sign * PASSED_PAWN_EG[relRank];
+        // Kings matter around a passer: ours escorting it, theirs stopping it.
+        const front = sq + (c === 0 ? 16 : -16);
+        eg += sign * PASSED_OWN_KING[relRank] * distance(pos.kingSquare[c], front);
+        eg += sign * PASSED_ENEMY_KING[relRank] * distance(pos.kingSquare[them], front);
+        if (b[front] !== EMPTY) eg += sign * PASSED_BLOCKED[relRank];
+        // Tarrasch: rooks belong behind passed pawns, ours and theirs.
+        const behind = rookBehind(b, sq, c);
+        if (behind === c) {
+          mg += sign * ROOK_BEHIND_PASSER[0];
+          eg += sign * ROOK_BEHIND_PASSER[1];
+        } else if (behind === them) {
+          mg -= sign * ROOK_BEHIND_ENEMY_PASSER[0];
+          eg -= sign * ROOK_BEHIND_ENEMY_PASSER[1];
+        }
+        if (!unstoppable[c] && nonPawnMaterial[them] === 0 && outsideSquare(pos, sq, c)) unstoppable[c] = 1;
       }
     }
+    if (unstoppable[c]) eg += sign * UNSTOPPABLE_PASSER;
 
     for (let i = 0; i < rooks[c]; i++) {
       const file = rookSquares[c][i] & 7;
@@ -165,6 +191,10 @@ export function evaluate(pos) {
         const open = pawnCount[them][file] === 0;
         mg += sign * (open ? ROOK_OPEN_FILE[0] : ROOK_SEMI_OPEN_FILE[0]);
         eg += sign * (open ? ROOK_OPEN_FILE[1] : ROOK_SEMI_OPEN_FILE[1]);
+      }
+      if (onSeventh(pos, rookSquares[c][i], c, pawnLeastAdvanced[them])) {
+        mg += sign * ROOK_ON_SEVENTH[0];
+        eg += sign * ROOK_ON_SEVENTH[1];
       }
     }
 
@@ -188,6 +218,49 @@ export function evaluate(pos) {
   if (phase > MAX_PHASE) phase = MAX_PHASE;
   const score = ((mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE) | 0;
   return (pos.turn === WHITE ? score : -score) + TEMPO;
+}
+
+// King steps between two squares (Chebyshev distance).
+export function distance(a, b) {
+  return Math.max(Math.abs((a & 7) - (b & 7)), Math.abs((a >> 4) - (b >> 4)));
+}
+
+// Whose rook, if any, stands behind the pawn of color `c` on `sq` on its
+// file with nothing in between: 0 = White, 1 = Black, -1 = none.
+export function rookBehind(b, sq, c) {
+  const back = c === 0 ? -16 : 16;
+  for (let to = sq + back; (to & 0x88) === 0; to += back) {
+    if (b[to] === EMPTY) continue;
+    return (b[to] & 7) === ROOK ? b[to] >> 3 : -1;
+  }
+  return -1;
+}
+
+// Rule of the square: in a pawn ending, can the enemy king no longer catch
+// the passer of color `c` on `sq`? Its path must also be clear.
+export function outsideSquare(pos, sq, c) {
+  const b = pos.board;
+  const forward = c === 0 ? 16 : -16;
+  const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);
+  const promotion = (sq & 7) | (c === 0 ? 0x70 : 0);
+  for (let to = sq + forward; ; to += forward) {
+    if (b[to] !== EMPTY) return false;
+    if (to === promotion) break;
+  }
+  const steps = relRank === 1 ? 5 : 7 - relRank; // a pawn's first move can be two squares
+  const theirMove = (pos.turn === WHITE ? 0 : 1) !== c;
+  return distance(pos.kingSquare[1 - c], promotion) - (theirMove ? 1 : 0) > steps;
+}
+
+// A rook on the seventh rank (relative) that confines the enemy king to its
+// back rank or attacks pawns still on their starting rank.
+export function onSeventh(pos, sq, c, enemyLeastAdvanced) {
+  const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);
+  if (relRank !== 6) return false;
+  const king = pos.kingSquare[1 - c];
+  if ((c === 0 ? king >> 4 : 7 - (king >> 4)) === 7) return true;
+  for (let f = 0; f < 8; f++) if (enemyLeastAdvanced[f] === 1) return true;
+  return false;
 }
 
 // How many squares the piece on `sq` can move to (empty or enemy-occupied).
