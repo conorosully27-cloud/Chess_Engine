@@ -10,13 +10,14 @@ roughly, since each is measured against the version before it.
 
 | Version / change | Measured against | Games | W-L-D | Elo (95% range) | Commit |
 |---|---|---|---|---|---|
+| Engine 1.5: late move pruning | Engine 1.4 | 353 | 161-88-104 | **+73** (+43 to +104) | `648648e` |
 | Engine 1.4: speed | Engine 1.3 | 572 | 230-154-188 | **+46** (+23 to +70) | `9d16dc3` |
 | Engine 1.3: king safety | Engine 1.2 | 1151 | 483-389-279 | **+28** (+11 to +46) | `b902214` |
 | Engine 1.2: tuned endgame terms | Engine 1.1 | 637 | 267-186-184 | **+44** (+22 to +68) | `5a42226` |
 | Engine 1.1: Texel-tuned weights | Engine 1.0 | 2154 | 897-786-471 | **+18** (+5 to +31) | `19aa147` |
 | Engine 1.0: baseline | - | - | - | - | `engine-1.0` branch |
 
-Running total over Engine 1.0: about **+136 Elo** (rough, see above).
+Running total over Engine 1.0: about **+209 Elo** (rough, see above).
 
 ## External results
 
@@ -29,6 +30,21 @@ bot and this app. Not a rating, but the only outside measure so far.
 | 2026-10-15 | 1.2 | analysis mode | chess.com 2600 bot ("Grandmaster", level 22) | Win | chess.com accuracy 95.6 vs the bot's 88.7 |
 | 2026-10-15 | 1.2 | 2 s a move | chess.com 2900 bot | Loss | lost the exchange to the repetition bug (24.Rf4, see `HANDOFF.md`), then ground down |
 | 2026-10-15 | 1.2 | 10 s a move | chess.com 2900 bot | Loss | no single blunder; queen went pawn-hunting (Qa7, Qa6, Qxa5) and Black's kingside attack crept in: king safety |
+
+## Engine 1.5: late move pruning
+
+In the last 3 plies of the search, off the main line and not in check,
+once 4, 7 or 12 quiet moves have been tried (at depth 1, 2, 3), the
+remaining quiet moves that don't give check are skipped. About half the
+nodes to depth 9 on the benchmark (3.16M -> 1.48M).
+
+- SPRT vs 1.4 (one game at a time): H1 accepted after 353 games,
+  +161 -88 =104, **+73 Elo** (+43 to +104). The owner accepted this run
+  as the final test.
+- Logarithmic late move reductions were tested alongside and left out
+  (neutral, see `FAILED_EXPERIMENTS.md`).
+- For fun: a 1000-game match of 1.4 vs 1.0 was cut short by a machine
+  restart at 527 games: +349 -95 =83, Elo +183 (+154 to +214).
 
 ## Engine 1.4: speed
 

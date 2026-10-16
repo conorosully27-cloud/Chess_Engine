@@ -33,10 +33,16 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.4.** Engine 1.0 is kept as-is on the
+**Current version: Engine 1.5.** Engine 1.0 is kept as-is on the
 `engine-1.0` branch; to measure a new version against an older one, check
 that out with `git worktree add`, e.g. `git worktree add ../engine-1.0
 engine-1.0`. Every version's measured gain is in `ENGINE_CHANGELOG.md`.
+
+*Changes in 1.5 over 1.4:* late move pruning. Near the end of the search,
+once the first few quiet moves have been tried (4, 7 or 12 at the last 1,
+2 or 3 plies), the rest are skipped, except moves that give check: moves
+ordered that late almost never matter there. Estimated **+73 Elo** over
+1.4 (95% +43 to +104), SPRT H1 accepted after 353 games at 100 ms a move.
 
 *Changes in 1.4 over 1.3:* speed. Positions keep running totals of the
 material and piece-square scores as moves are made, a cheaper test for
@@ -82,10 +88,10 @@ method Stockfish uses to accept changes: it stops as soon as the results
 decide, with 5% error rates.
 
 ```sh
-git worktree add ../engine-1.4 9d16dc3                    # once: the Engine 1.4 commit
-npm run match -- --b ../engine-1.4 --fens test/openings.epd --sprt 0,10 --games 2000
-npm run match -- --b ../engine-1.4 --games 200 --time 100    # fixed-length match, book openings
-npm run match -- --b ../engine-1.4 --fens test/endgames.epd --games 400   # endgames only
+git worktree add ../engine-1.5 648648e                    # once: the Engine 1.5 commit
+npm run match -- --b ../engine-1.5 --fens test/openings.epd --sprt 0,10 --games 2000
+npm run match -- --b ../engine-1.5 --games 200 --time 100    # fixed-length match, book openings
+npm run match -- --b ../engine-1.5 --fens test/endgames.epd --games 400   # endgames only
 ```
 
 `--fens test/openings.epd` starts each game pair from one of 1000 different
@@ -117,7 +123,7 @@ passers, the seventh rank and the rule of the square, and king safety: king
 danger, pawn storms and open files at the king), with every weight in
 `weights.js` Texel-tuned by `scripts/tune.js`, and an alpha-beta search with iterative deepening,
 quiescence search, a transposition table, null-move pruning, late move
-reductions and killer/history move ordering. It runs in a Web Worker so the
+reductions, late move pruning and killer/history move ordering. It runs in a Web Worker so the
 board stays responsive.
 
 ### Board and pieces
@@ -217,7 +223,7 @@ most chess apps.
 npm test                    # ~7 seconds, 105 tests
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
-npm run match -- --b ../engine-1.4 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
+npm run match -- --b ../engine-1.5 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
 npm run tune -- --data quiet-labeled.v7.epd.gz     # Texel tuning (see HANDOFF.md)
 ```
 

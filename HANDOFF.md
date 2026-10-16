@@ -2,7 +2,7 @@
 
 Start here when picking up this project in a new session. It covers where
 things stand, how to set up, how the owner likes to work, and what to do
-next. Last updated 2026-10-16, at Engine 1.4.
+next. Last updated 2026-10-16, at Engine 1.5.
 
 Companion files: `ENGINE_CHANGELOG.md` (every accepted change and its Elo
 gain, plus results against chess.com bots), `FAILED_EXPERIMENTS.md` (every
@@ -11,8 +11,8 @@ rejected change, with how promising it looked and why it failed), `README.md`
 
 ## Where things stand
 
-- **Engine 1.4** is current, on `main` (commit `9d16dc3` is the 1.4
-  release; `ENGINE_VERSION` in `src/engine/index.js`). About +136 Elo over
+- **Engine 1.5** is current, on `main` (commit `648648e` is the 1.5
+  release; `ENGINE_VERSION` in `src/engine/index.js`). About +209 Elo over
   1.0:
   - 1.1 (`19aa147`): all evaluation weights Texel-tuned, +18 Elo over 1.0.
   - 1.2 (`5a42226`): tuned endgame terms (king distance to passed pawns,
@@ -22,10 +22,11 @@ rejected change, with how promising it looked and why it failed), `README.md`
     the king) and an evaluation cache, +28 Elo over 1.2.
   - 1.4 (`9d16dc3`): speed (incremental piece-square sums, cheaper legality
     test, lazy evaluation, bad-capture skip in quiescence), +46 Elo over 1.3.
+  - 1.5 (`648648e`): late move pruning, +73 Elo over 1.4.
 - **Engine 1.0** is frozen on the `engine-1.0` branch (on GitHub). 1.1 to
-  1.4 have no branches of their own; use their commits.
+  1.5 have no branches of their own; use their commits.
 - **The phone app** is a private claude.ai artifact the owner plays on:
-  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.4).
+  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.5).
 - **Tests:** `npm test`, 105 tests, about 7 seconds, all passing.
 - **Outside results:** beat the chess.com 2200 and 2600 bots; lost twice to
   the 2900 bot (details in `ENGINE_CHANGELOG.md`, games in `games/`).
@@ -33,8 +34,8 @@ rejected change, with how promising it looked and why it failed), `README.md`
 ## Setting up a new session
 
 ```sh
-npm test                                       # should pass 101 tests
-git worktree add ../engine-1.4 9d16dc3         # baseline to measure against
+npm test                                       # should pass 105 tests
+git worktree add ../engine-1.5 648648e         # baseline to measure against
 git worktree add ../engine-1.0 engine-1.0      # optional, the original
 
 # Tuning data (25 MB, not in the repo; BSD 3-Clause, The Zurichess Authors)
@@ -57,7 +58,7 @@ starved and results skew.
   changes by how they play in those games.
 - **Testing a change:** SPRT against the current version, from the varied
   openings:
-  `npm run match -- --b ../engine-1.4 --fens test/openings.epd --sprt 0,10 --games 2000`.
+  `npm run match -- --b ../engine-1.5 --fens test/openings.epd --sprt 0,10 --games 2000`.
   Accept only on "H1 accepted". Use `--fens test/endgames.epd` (400 games,
   fixed length) as an extra check for endgame changes.
 - **The owner starts the final full test** of a release candidate against
@@ -81,11 +82,25 @@ starved and results skew.
   `index.html` with the document skeleton stripped (`<!doctype>`, `<html>`,
   `<head>`, the charset and viewport metas, `</head>`, `<body>`, `</body>`,
   `</html>`); compare the published files with the repo and send only the
-  changed ones in `files` (unchanged ones are kept). The 1.4 update
-  republished `src/position.js`, `src/engine/evaluate.js`, `search.js` and
-  `index.js`.
+  changed ones in `files` (unchanged ones are kept). The 1.5 update
+  republished `src/engine/search.js` and `index.js`.
 
 ## What to do next, in order
+
+### 0. Engine 1.5's scope, and what is left of it
+
+1.5 was planned as "smarter search", each change tested alone against 1.4:
+1. Logarithmic late move reductions: neutral (+2 at 772 games). Barely
+   differs from the old rule at the depths 100 ms reaches; worth a retry
+   with more aggressive reductions (only ~1% of reduced moves fail high),
+   ideally also at a longer time control (`FAILED_EXPERIMENTS.md`).
+2. Late move pruning: +73, became 1.5.
+3. Still to do: better move ordering (countermove heuristic, capture
+   history).
+4. Still to do: tune 1.4's knobs (lazy evaluation margin of 3 pawns; widen
+   the bad-capture skip to any cheaper defender).
+Test new ones against 1.5. The machine has restarted mid-match twice;
+matches die with it and can't be resumed, so report where a test stood.
 
 ### 1. Where 1.3 left off
 
@@ -168,3 +183,5 @@ fixed depth: it must not change.
    self-play and was reverted.
 8. Speed work gave Engine 1.4 (+46 Elo); ablation tests showed both lazy
    evaluation and the bad-capture skip pull their weight.
+9. Search work for 1.5: late move pruning gave +73 Elo; logarithmic late
+   move reductions were neutral at 100 ms (see `FAILED_EXPERIMENTS.md`).
