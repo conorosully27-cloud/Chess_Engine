@@ -84,7 +84,8 @@ Known weaknesses of 1.2, from games against chess.com bots (it beat the
 `ENGINE_CHANGELOG.md`): king safety is little more than pawn shelter, so it
 grabs material with its queen while the enemy attack builds; it is often
 over-optimistic (about +1 in balanced openings); and a search bug treats any
-position seen once before in the game as a draw (see `HANDOFF.md`).
+position seen once before in the game as a draw (a fix lost Elo in
+self-play; see `FAILED_EXPERIMENTS.md`).
 
 - **Analysis**: switch it on to see the evaluation (from White's side, in
   pawns; `#3` means mate in 3), the engine's main line, and an arrow for its

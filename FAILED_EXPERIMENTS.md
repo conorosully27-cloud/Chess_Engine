@@ -7,6 +7,36 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Repetition fix: a twofold from before the root needs a threefold (Oct 2026)
+
+**Change:** the search scored any position seen once before in the game as
+a draw (`repetitionCount() >= 2` in `negamax`), so a repeat of a position
+from before the search was scored 0 without searching the alternatives.
+The fix (`Position.isSearchDraw(rootPly)`) counts a twofold as a draw only
+when the earlier occurrence is inside the search; a repeat of an earlier
+game position needs a true threefold. Commit `8aa90bc`, reverted in
+`21ae938`.
+
+**Results:**
+- Alone vs Engine 1.2, from the varied openings: stopped by the owner at
+  438 games, +133 -161 =144, Elo -22 (95% -49 to +4), LLR -1.48.
+- On top of king safety vs 1.2: stopped at 1424 games, +570 -502 =352,
+  Elo +17 (+1 to +32), LLR 1.82, while the same king safety without it
+  reached H1 at +28 (+11 to +46) after 1151 games.
+
+**Prior:** 7/10. It is how engines handle repetitions, and it decided a
+game against the chess.com 2900 bot (24.Rf4 scored 0.00).
+
+**Commentary:** correct but costs Elo in self-play, and the two runs agree
+on roughly -10 to -20. Likely causes: treating every twofold as a draw is
+a cheap cut-off that prunes whole subtrees, and it also acts like
+contempt, steering the side that thinks it is better away from any
+repetition, which in engine-vs-engine play keeps games going and wins
+more than it loses. The fixed engine is happier to shuffle into
+repeated positions. The bug is real in human games (the Rf4 game), so a
+variant may be worth a retry: e.g. a draw at twofold only for the side
+that isn't better, or a small contempt score instead of 0.
+
 ## Drawish-ending scaling and an exact KPK table, on top of 1.2's endgame terms (Oct 2026)
 
 **Change ("candidate B"):** two pieces of endgame knowledge added to the

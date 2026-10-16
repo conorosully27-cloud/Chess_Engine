@@ -2,7 +2,7 @@
 
 Start here when picking up this project in a new session. It covers where
 things stand, how to set up, how the owner likes to work, and what to do
-next. Last updated 2026-10-15, at Engine 1.2.
+next. Last updated 2026-10-16, at Engine 1.2 with a 1.3 candidate.
 
 Companion files: `ENGINE_CHANGELOG.md` (every accepted change and its Elo
 gain, plus results against chess.com bots), `FAILED_EXPERIMENTS.md` (every
@@ -21,7 +21,9 @@ rejected change, with how promising it looked and why it failed), `README.md`
   1.2 have no branches on GitHub; use their commits.
 - **The phone app** is a private claude.ai artifact the owner plays on:
   https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.2).
-- **Tests:** `npm test`, 101 tests, about 7 seconds, all passing.
+- **Engine 1.3 candidate** (king safety, +28 Elo over 1.2 in development)
+  is waiting on the owner's final test; see "What to do next".
+- **Tests:** `npm test`, 102 tests, about 7 seconds, all passing.
 - **Outside results:** beat the chess.com 2200 and 2600 bots; lost twice to
   the 2900 bot (details in `ENGINE_CHANGELOG.md`, games in `games/`).
 
@@ -81,67 +83,37 @@ starved and results skew.
 
 ## What to do next, in order
 
-### 1. Fix the repetition bug (small, do first)
+### 1. Engine 1.3 candidate: king safety (waiting on the owner's final test)
 
-`src/engine/search.js`, in `negamax`:
+On the session branch (`ccr-03db2313-9y425m`), commit `21ae938`; frozen
+copy on local branch `exp-ks-norep`. New tuned terms in `evaluate.js`:
+- king danger, the classic non-linear model: attack units (enemy pieces
+  bearing on the king zone by type, zone squares hit, weak zone squares,
+  safe checks by type, no enemy queen, a constant) cost units² / 720 in the
+  middlegame and units / 20 in the endgame. `attackScan()` makes one pass
+  over every piece's attacks for the attack maps, mobility and these
+  features. The tuner fits the square directly (chain rule, `kind:
+  'danger'` in `eval-trace.js`); `test/tune.test.js` checks its gradient;
+- pawn storms (the enemy pawn nearest the king on each of its three
+  files, by rank, free or blocked) and half-open/open files at the king;
+- an evaluation cache (64K entries, keyed by the full hash): identical
+  search, about 12% faster, which wins back part of the ~26% the attack
+  scan costs.
+Held-back tuning error 0.0606 -> 0.0598. Development SPRT vs 1.2: H1
+accepted after 1151 games, +483 -389 =279, **+28 Elo** (+11 to +46).
 
-```js
-if (pos.halfmoveClock >= 100 || pos.repetitionCount() >= 2) return 0;
-```
+Next: the owner starts the final test vs 1.2. If it passes, release as
+1.3 (version, README, changelog, app).
 
-`repetitionCount()` counts earlier occurrences across the whole game, so
-any position that occurred once before in the game is scored as a draw on
-the spot, and the side to move's alternatives are never searched. Engines
-treat a twofold repetition as a draw only when the earlier occurrence is
-inside the current search (after the root); a repeat of a position from
-before the root needs a true threefold.
+The repetition fix the previous handoff put first cost Elo in self-play
+and was reverted (see `FAILED_EXPERIMENTS.md`).
 
-It decided a game: against the 2900 bot the engine played 24.Rf4, scoring
-it 0.00 because it recreated the position after 22.Rf4, and the bot simply
-took the exchange with 24...Bxf4. Reproduce it with the game history:
+### 2. More king safety
 
-```
-g1f3 f7f5 g2g3 g8f6 f1g2 g7g6 c2c4 f8g7 d2d4 e8g8 b1c3 d7d6 e1g1 d8e8 c1e3
-e7e6 d4d5 b8a6 f3g5 e6e5 c3b5 c8d7 a2a4 h7h6 g5f3 f6g4 d1d2 g4e3 f2e3 e5e4
-f3d4 g7e5 d4b3 e8e7 b5c3 h6h5 d2e1 a8e8 a4a5 a6b4 a1d1 e7g5 f1f4 g5e7 f4f1
-e7g5
-```
-
-`positionFromHistory(those moves)` then `engine.search(pos, { timeMs: 2000 })`
-currently returns `f1f4` with score 0 (FEN before the move:
-`4rrk1/pppb4/3p2p1/P2Pbpqp/1nP1p3/1NN1P1P1/1P2P1BP/3RQRK1 w - - 7 24`).
-After the fix it should not play Rf4. Make that a test. The fix needs the
-search to know the root ply (e.g. store `pos.ply` at the start of
-`search()`) and a repetition check that tells "seen since the root" from
-"seen before the root". Then SPRT against 1.2. Self-play matches will
-under-measure it, since both sides share the bug; the fix is worth keeping
-as a correctness fix even if the SPRT is neutral (ask the owner).
-
-### 2. King safety (Engine 1.3's main feature)
-
-The clearest weakness in play: in the 10-second loss to the 2900 bot the
-engine went pawn-hunting with its queen (Qa7, Qa6, Qxa5) while Black's
-pieces gathered round its king, and it only noticed once the attack was
-concrete. King safety today is just three pawn-shelter weights. Add, as
-tuned terms:
-- attacks on the king zone (squares around the king), weighted by attacker
-  type; this is the core of king safety in most engines;
-- open and half-open files on or next to the king;
-- enemy pawn storms (advanced pawns near our king);
-- safe checks available to the enemy.
-
-Recipe that worked for 1.2: add the terms to `src/engine/evaluate.js`,
-their weights to `src/engine/weights.js` (with starting guesses), mirror
-them in `scripts/eval-trace.js` (and in `KIND_BY_KEY` there if they aren't
-`{ mg, eg }` or `[mg, eg]` pairs) and in `formatWeights()` in
-`scripts/tune.js`; keep `test/tune.test.js` passing (it checks the trace
-matches `evaluate()` exactly); tune (`node --max-old-space-size=8000
-scripts/tune.js --data ~/data/quiet-labeled.v7.epd.gz --epochs 400 --out
-<file>`, about 4 minutes; held-back error is now about 0.0605); put the
-tuned weights in a worktree and SPRT. Hand-set weights failed four times
-(see `FAILED_EXPERIMENTS.md`): always tune. Note the classic king-safety
-formula is non-linear (attack units squared); the tuner needs linear
-terms, so either keep the terms linear or extend the tuner.
+Ideas not yet in: x-ray attacks (a queen behind a bishop, doubled rooks),
+counting our own defenders in the zone, a king-danger term for the
+attacker's piece count beyond the zone, tuning `DANGER_MG_DIVISOR`.
+Always tune; always SPRT against the current best.
 
 ### 3. Search speed (a natural 1.4)
 
@@ -189,5 +161,6 @@ speed: about 200,000-600,000 nodes a second, depth 6 at 100 ms and 8-11 at
    and the KPK table were neutral and left out.
 5. Infrastructure: `--fens` match starts, an endgame suite, 1000 varied
    openings, the changelog and the failure log.
-6. Owner's chess.com tests found the repetition bug and the king-safety gap
-   above.
+6. Owner's chess.com tests found the repetition bug and the king-safety gap.
+7. King safety: +28 Elo over 1.2 in development (1.3 candidate); the
+   repetition fix lost Elo in self-play and was reverted.
