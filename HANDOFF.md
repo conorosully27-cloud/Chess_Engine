@@ -87,9 +87,10 @@ starved and results skew.
 
 ## What to do next, in order
 
-### 0. Engine 1.5's scope, and what is left of it
+### 0. Engine 1.6's scope: what was left of 1.5's
 
-1.5 was planned as "smarter search", each change tested alone against 1.4:
+1.5 was planned as "smarter search", each change tested alone against 1.4;
+what it didn't finish (items 1, 3 and 4 below) is now 1.6's scope:
 1. Logarithmic late move reductions: neutral (+2 at 772 games). Barely
    differs from the old rule at the depths 100 ms reaches; worth a retry
    with more aggressive reductions (only ~1% of reduced moves fail high),
