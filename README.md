@@ -33,10 +33,20 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.2.** Engine 1.0 is kept as-is on the
+**Current version: Engine 1.3.** Engine 1.0 is kept as-is on the
 `engine-1.0` branch; to measure a new version against an older one, check
 that out with `git worktree add`, e.g. `git worktree add ../engine-1.0
 engine-1.0`. Every version's measured gain is in `ENGINE_CHANGELOG.md`.
+
+*Changes in 1.3 over 1.2:* king safety, Texel-tuned together with all the
+other weights. The main term is "king danger": attack units for enemy
+pieces bearing on the squares around the king (by piece type), weak
+squares there, and safe checks the enemy has, charged as units² in the
+middlegame, so one attacker is a nuisance but three are a crisis. Also
+pawn storms against the king and open files next to it, and a cache of
+evaluations that makes the search faster without changing it. Estimated
+**+28 Elo** over 1.2 (95% +11 to +46), SPRT H1 accepted after 1151 games
+at 100 ms a move.
 
 *Changes in 1.2 over 1.1:* new endgame evaluation terms, Texel-tuned
 together with all the other weights: own and enemy king distance to each
@@ -63,10 +73,10 @@ method Stockfish uses to accept changes: it stops as soon as the results
 decide, with 5% error rates.
 
 ```sh
-git worktree add ../engine-1.2 5a42226                    # once: the Engine 1.2 commit
-npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10 --games 2000
-npm run match -- --b ../engine-1.2 --games 200 --time 100    # fixed-length match, book openings
-npm run match -- --b ../engine-1.2 --fens test/endgames.epd --games 400   # endgames only
+git worktree add ../engine-1.3 b902214                    # once: the Engine 1.3 commit
+npm run match -- --b ../engine-1.3 --fens test/openings.epd --sprt 0,10 --games 2000
+npm run match -- --b ../engine-1.3 --games 200 --time 100    # fixed-length match, book openings
+npm run match -- --b ../engine-1.3 --fens test/endgames.epd --games 400   # endgames only
 ```
 
 `--fens test/openings.epd` starts each game pair from one of 1000 different
@@ -79,13 +89,10 @@ better by the margin tested. Small gains need many games (about ±45 Elo of
 uncertainty at 200 games), so use SPRT rather than reading too much into a
 short match. `npm run match -- --help` lists all options.
 
-Known weaknesses of 1.2, from games against chess.com bots (it beat the
-2200 and 2600 bots and lost twice to the 2900 bot; see
-`ENGINE_CHANGELOG.md`): king safety is little more than pawn shelter, so it
-grabs material with its queen while the enemy attack builds; it is often
-over-optimistic (about +1 in balanced openings); and a search bug treats any
-position seen once before in the game as a draw (a fix lost Elo in
-self-play; see `FAILED_EXPERIMENTS.md`).
+Known weaknesses: it is often over-optimistic (about +1 in balanced
+openings), and the search treats any position seen once before in the game
+as a draw (a fix lost Elo in self-play; see `FAILED_EXPERIMENTS.md`).
+Results against chess.com bots (with 1.2) are in `ENGINE_CHANGELOG.md`.
 
 - **Analysis**: switch it on to see the evaluation (from White's side, in
   pawns; `#3` means mate in 3), the engine's main line, and an arrow for its
@@ -97,7 +104,8 @@ self-play; see `FAILED_EXPERIMENTS.md`).
 How it works (`src/engine/`): a tapered evaluation (material, piece-square
 tables, mobility, pawn structure, passed pawns, rooks on open files, king
 shelter, bishop pair, and endgame terms for passed pawns, rooks behind
-passers, the seventh rank and the rule of the square), with every weight in
+passers, the seventh rank and the rule of the square, and king safety: king
+danger, pawn storms and open files at the king), with every weight in
 `weights.js` Texel-tuned by `scripts/tune.js`, and an alpha-beta search with iterative deepening,
 quiescence search, a transposition table, null-move pruning, late move
 reductions and killer/history move ordering. It runs in a Web Worker so the
@@ -197,10 +205,10 @@ most chess apps.
 ## Testing
 
 ```sh
-npm test                    # ~7 seconds, 101 tests
+npm test                    # ~7 seconds, 102 tests
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
-npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
+npm run match -- --b ../engine-1.3 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
 npm run tune -- --data quiet-labeled.v7.epd.gz     # Texel tuning (see HANDOFF.md)
 ```
 

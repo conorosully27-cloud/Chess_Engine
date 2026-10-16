@@ -2,7 +2,7 @@
 
 Start here when picking up this project in a new session. It covers where
 things stand, how to set up, how the owner likes to work, and what to do
-next. Last updated 2026-10-16, at Engine 1.2 with a 1.3 candidate.
+next. Last updated 2026-10-16, at Engine 1.3.
 
 Companion files: `ENGINE_CHANGELOG.md` (every accepted change and its Elo
 gain, plus results against chess.com bots), `FAILED_EXPERIMENTS.md` (every
@@ -11,18 +11,20 @@ rejected change, with how promising it looked and why it failed), `README.md`
 
 ## Where things stand
 
-- **Engine 1.2** is current, on `main` (commit `5a42226` is the 1.2 release;
-  `ENGINE_VERSION` in `src/engine/index.js`). About +62 Elo over 1.0:
+- **Engine 1.3** is current, on the session branch `ccr-03db2313-9y425m`
+  (commit `b902214` is the 1.3 release; `ENGINE_VERSION` in
+  `src/engine/index.js`); `main` is still at 1.2 until the owner asks for
+  the merge. About +90 Elo over 1.0:
   - 1.1 (`19aa147`): all evaluation weights Texel-tuned, +18 Elo over 1.0.
   - 1.2 (`5a42226`): tuned endgame terms (king distance to passed pawns,
     blocked passers, rooks behind passers, rook on the seventh, rule of the
     square), +44 Elo over 1.1.
-- **Engine 1.0** is frozen on the `engine-1.0` branch (on GitHub). 1.1 and
-  1.2 have no branches on GitHub; use their commits.
+  - 1.3 (`b902214`): king safety (king danger, pawn storms, open files at
+    the king) and an evaluation cache, +28 Elo over 1.2.
+- **Engine 1.0** is frozen on the `engine-1.0` branch (on GitHub). 1.1 to
+  1.3 have no branches of their own; use their commits.
 - **The phone app** is a private claude.ai artifact the owner plays on:
-  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.2).
-- **Engine 1.3 candidate** (king safety, +28 Elo over 1.2 in development)
-  is waiting on the owner's final test; see "What to do next".
+  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.3).
 - **Tests:** `npm test`, 102 tests, about 7 seconds, all passing.
 - **Outside results:** beat the chess.com 2200 and 2600 bots; lost twice to
   the 2900 bot (details in `ENGINE_CHANGELOG.md`, games in `games/`).
@@ -31,7 +33,7 @@ rejected change, with how promising it looked and why it failed), `README.md`
 
 ```sh
 npm test                                       # should pass 101 tests
-git worktree add ../engine-1.2 5a42226         # baseline to measure against
+git worktree add ../engine-1.3 b902214         # baseline to measure against
 git worktree add ../engine-1.0 engine-1.0      # optional, the original
 
 # Tuning data (25 MB, not in the repo; BSD 3-Clause, The Zurichess Authors)
@@ -54,7 +56,7 @@ starved and results skew.
   changes by how they play in those games.
 - **Testing a change:** SPRT against the current version, from the varied
   openings:
-  `npm run match -- --b ../engine-1.2 --fens test/openings.epd --sprt 0,10 --games 2000`.
+  `npm run match -- --b ../engine-1.3 --fens test/openings.epd --sprt 0,10 --games 2000`.
   Accept only on "H1 accepted". Use `--fens test/endgames.epd` (400 games,
   fixed length) as an extra check for endgame changes.
 - **The owner starts the final full test** of a release candidate against
@@ -78,32 +80,24 @@ starved and results skew.
   `index.html` with the document skeleton stripped (`<!doctype>`, `<html>`,
   `<head>`, the charset and viewport metas, `</head>`, `<body>`, `</body>`,
   `</html>`); compare the published files with the repo and send only the
-  changed ones in `files` (unchanged ones are kept). Last update republished
-  `src/engine/evaluate.js`, `index.js` and the new `weights.js`.
+  changed ones in `files` (unchanged ones are kept). The 1.3 update
+  republished `src/engine/evaluate.js`, `index.js` and `weights.js`.
 
 ## What to do next, in order
 
-### 1. Engine 1.3 candidate: king safety (waiting on the owner's final test)
+### 1. Where 1.3 left off
 
-On the session branch (`ccr-03db2313-9y425m`), commit `21ae938`; frozen
-copy on local branch `exp-ks-norep`. New tuned terms in `evaluate.js`:
-- king danger, the classic non-linear model: attack units (enemy pieces
-  bearing on the king zone by type, zone squares hit, weak zone squares,
-  safe checks by type, no enemy queen, a constant) cost units² / 720 in the
-  middlegame and units / 20 in the endgame. `attackScan()` makes one pass
-  over every piece's attacks for the attack maps, mobility and these
-  features. The tuner fits the square directly (chain rule, `kind:
-  'danger'` in `eval-trace.js`); `test/tune.test.js` checks its gradient;
-- pawn storms (the enemy pawn nearest the king on each of its three
-  files, by rank, free or blocked) and half-open/open files at the king;
-- an evaluation cache (64K entries, keyed by the full hash): identical
-  search, about 12% faster, which wins back part of the ~26% the attack
-  scan costs.
-Held-back tuning error 0.0606 -> 0.0598. Development SPRT vs 1.2: H1
-accepted after 1151 games, +483 -389 =279, **+28 Elo** (+11 to +46).
+How the king safety works, for whoever builds on it: `attackScan()` in
+`evaluate.js` makes one pass over every piece's attacks for the attack
+maps, mobility and the king-danger features (`DANGER`). Units are summed
+with the `kingDanger` weights and cost units² / 720 (middlegame) and
+units / 20 (endgame). The tuner fits the square directly (`kind:
+'danger'` in `eval-trace.js`, the chain rule in `tune.js`), and
+`test/tune.test.js` checks its gradient against finite differences. The
+evaluation cache in `evaluate()` is keyed by the full hash.
 
-Next: the owner starts the final test vs 1.2. If it passes, release as
-1.3 (version, README, changelog, app).
+The attack scan made the evaluation about 26% slower; the cache won back
+about 12%. Speed is now the cheapest source of Elo (see 3).
 
 The repetition fix the previous handoff put first cost Elo in self-play
 and was reverted (see `FAILED_EXPERIMENTS.md`).
@@ -162,5 +156,5 @@ speed: about 200,000-600,000 nodes a second, depth 6 at 100 ms and 8-11 at
 5. Infrastructure: `--fens` match starts, an endgame suite, 1000 varied
    openings, the changelog and the failure log.
 6. Owner's chess.com tests found the repetition bug and the king-safety gap.
-7. King safety: +28 Elo over 1.2 in development (1.3 candidate); the
-   repetition fix lost Elo in self-play and was reverted.
+7. King safety gave Engine 1.3 (+28 Elo); the repetition fix lost Elo in
+   self-play and was reverted.
