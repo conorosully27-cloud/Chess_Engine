@@ -7,6 +7,26 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Countermove heuristic (Oct 2026)
+
+**Change:** for the opponent's last move (piece and square it landed on),
+remember the quiet reply that last caused a cut-off, and try it right
+after the killer moves. Built on Engine 1.5; never committed (needs a
+`Position.lastMove()` and a 16 x 128 table in the engine).
+
+**Result:** dropped before any match, on ordering statistics over 600
+searches to depth 8 from 20 openings (tables kept between moves): quiet
+cut-offs on the first move fell from 45.2% to 43.8%, and the search took
+5% more nodes (33.1M -> 34.8M).
+
+**Prior:** 5/10. A standard ordering gain in many engines, usually small.
+
+**Commentary:** it ranks above history, so when its stored reply is stale
+it pushes aside a better history move. The history penalty (failed quiet
+moves lose history) did better on the same statistics and was tested
+instead; a countermove could be retried below the history scores, or
+only once history is better maintained.
+
 ## PARKED: steeper late move reductions, retry on top of 1.5 (Oct 2026)
 
 **Status:** parked by the owner, not rejected: undecided at two time
