@@ -7,6 +7,56 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## PARKED: steeper late move reductions, retry on top of 1.5 (Oct 2026)
+
+**Status:** parked by the owner, not rejected: undecided at two time
+controls, worth rechecking later (see the commentary).
+
+**Change:** a retry of the logarithmic reductions below, made to bite at
+the depths a fast search reaches. Built on Engine 1.5 (local branch
+`exp-lmr2`, commit `e6bda98`, not pushed), in `src/engine/search.js`:
+
+```js
+// next to LMP_QUIETS:
+const LMR = new Int8Array(64 * 64);
+for (let d = 1; d < 64; d++) {
+  for (let m = 1; m < 64; m++) LMR[d * 64 + m] = Math.floor(1 + (Math.log(d) * Math.log(m)) / 1.75);
+}
+
+// replacing the late move reduction block in negamax():
+let reduction = 0;
+if (depth >= 3 && legal > 2 && quiet && !inCheck && !givesCheck && ply > 0) {
+  reduction = LMR[Math.min(depth, 63) * 64 + Math.min(legal, 63)];
+  if (pvNode) reduction--; // less on the main line
+  if (move === killer1 || move === killer2) reduction--; // less for moves that refuted others
+  else if (this.history[piece * 128 + moveTo(move)] === 0) reduction++; // more for moves that never have
+  reduction = Math.max(0, Math.min(reduction, depth - 2));
+}
+```
+
+Not at the root: reducing there made the engine settle for a mate in 3
+in the mate-in-2 test (it reduced the mating king move Kc7). Checked at
+match speed before testing: at 100 ms a move about a quarter of
+reductions are 3+ plies (1.5 never goes past 2), and the average depth
+reached rises from 7.2 to 7.7.
+
+**Results** (both vs Engine 1.5, stopped when the cloud session slept):
+- 100 ms a move, 1 thread: 738 games, +239 -261 =238, Elo -10 (95% -31
+  to +10), LLR -1.39.
+- 300 ms a move, 3 threads: 765 games, +275 -247 =243, Elo +13 (-8 to
+  +33), LLR 0.72.
+(Earlier runs at 100/500/1000 ms died within 60 games in machine
+restarts.)
+
+**Prior:** 6/10.
+
+**Commentary:** leaning the way you would expect if bigger reductions
+only pay off with more thinking time: slightly worse at 100 ms, slightly
+better at 300 ms, but neither is significant. The app thinks 2-20 s a
+move, so a gain at longer time controls would matter there even if it
+doesn't show at 100 ms. To recheck: run the 300 ms (or 1 s) test alone on
+all threads, inside a session that stays awake (see HANDOFF, long matches).
+
 ## Logarithmic late move reductions (Oct 2026)
 
 **Change:** late quiet moves were reduced by 1 ply (2 after the tenth

@@ -72,6 +72,14 @@ starved and results skew.
   it failed. Newest at the top.
 - **Git:** work on the session's assigned branch and push there; merge to
   `main` only when the owner asks (it has always been a fast-forward).
+- **Keep the session awake during matches:** the cloud session sleeps a
+  while after Claude's turn ends unless a tracked background task is
+  running, and sleeping kills detached matches (this killed five tests).
+  Run a watcher beside every match: a Bash `run_in_background` loop that
+  waits until the log says "accepted" or the match process is gone. It
+  keeps the session awake for up to 2 hours and can't be re-armed after,
+  so plan tests to decide within about 2 hours (more threads, fewer time
+  controls at once), or expect the owner's messages to keep it awake.
 - **Long matches:** start them detached (`setsid nohup node scripts/match.js
   ... > log 2>&1 < /dev/null &`), since tracked background tasks stop after
   2 hours, and watch the process ID. Label which experiment each log
@@ -91,10 +99,10 @@ starved and results skew.
 
 1.5 was planned as "smarter search", each change tested alone against 1.4;
 what it didn't finish (items 1, 3 and 4 below) is now 1.6's scope:
-1. Logarithmic late move reductions: neutral (+2 at 772 games). Barely
-   differs from the old rule at the depths 100 ms reaches; worth a retry
-   with more aggressive reductions (only ~1% of reduced moves fail high),
-   ideally also at a longer time control (`FAILED_EXPERIMENTS.md`).
+1. Late move reductions: the textbook version was neutral (+2 at 772
+   games); a steeper retry on 1.5 was undecided (100 ms: -10, 300 ms: +13)
+   and is PARKED for a later recheck at longer time controls. The code is
+   written out in `FAILED_EXPERIMENTS.md`.
 2. Late move pruning: +73, became 1.5.
 3. Still to do: better move ordering (countermove heuristic, capture
    history).
