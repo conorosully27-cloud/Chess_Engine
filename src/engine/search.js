@@ -15,7 +15,7 @@
 
 import { evaluate, evaluateLazy } from './evaluate.js';
 import {
-  EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN,
+  WHITE, EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN,
   FLAG_CAPTURE, FLAG_EN_PASSANT, moveFrom, moveTo, movePromotion,
 } from '../board.js';
 import { moveToUci } from '../notation.js';
@@ -341,6 +341,16 @@ export class Engine {
       if (!inCheck && !movePromotion(move)) {
         const victim = move & FLAG_EN_PASSANT ? PAWN : pos.board[moveTo(move)] & 7;
         if (bestScore + ORDER_VALUE[victim] + 200 < alpha) continue;
+        // Bad captures: a piece taking something cheaper that an enemy pawn
+        // guards loses material (the pawn recaptures), so skip it.
+        const to = moveTo(move);
+        const attacker = pos.board[moveFrom(move)] & 7;
+        if (ORDER_VALUE[attacker] > ORDER_VALUE[victim] + 50) {
+          const enemyPawn = (pos.turn ^ 8) | PAWN;
+          const ahead = pos.turn === WHITE ? to + 16 : to - 16;
+          if ((((ahead - 1) & 0x88) === 0 && pos.board[ahead - 1] === enemyPawn) ||
+              (((ahead + 1) & 0x88) === 0 && pos.board[ahead + 1] === enemyPawn)) continue;
+        }
       }
       if (!pos.makeMove(move, !inCheck)) continue;
       legal++;
