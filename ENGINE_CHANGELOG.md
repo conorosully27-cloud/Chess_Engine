@@ -10,12 +10,13 @@ roughly, since each is measured against the version before it.
 
 | Version / change | Measured against | Games | W-L-D | Elo (95% range) | Commit |
 |---|---|---|---|---|---|
+| Engine 1.4: speed | Engine 1.3 | 572 | 230-154-188 | **+46** (+23 to +70) | `9d16dc3` |
 | Engine 1.3: king safety | Engine 1.2 | 1151 | 483-389-279 | **+28** (+11 to +46) | `b902214` |
 | Engine 1.2: tuned endgame terms | Engine 1.1 | 637 | 267-186-184 | **+44** (+22 to +68) | `5a42226` |
 | Engine 1.1: Texel-tuned weights | Engine 1.0 | 2154 | 897-786-471 | **+18** (+5 to +31) | `19aa147` |
 | Engine 1.0: baseline | - | - | - | - | `engine-1.0` branch |
 
-Running total over Engine 1.0: about **+90 Elo** (rough, see above).
+Running total over Engine 1.0: about **+136 Elo** (rough, see above).
 
 ## External results
 
@@ -28,6 +29,33 @@ bot and this app. Not a rating, but the only outside measure so far.
 | 2026-10-15 | 1.2 | analysis mode | chess.com 2600 bot ("Grandmaster", level 22) | Win | chess.com accuracy 95.6 vs the bot's 88.7 |
 | 2026-10-15 | 1.2 | 2 s a move | chess.com 2900 bot | Loss | lost the exchange to the repetition bug (24.Rf4, see `HANDOFF.md`), then ground down |
 | 2026-10-15 | 1.2 | 10 s a move | chess.com 2900 bot | Loss | no single blunder; queen went pawn-hunting (Qa7, Qa6, Qxa5) and Black's kingside attack crept in: king safety |
+
+## Engine 1.4: speed
+
+Faster search, plus two changes that let it skip work:
+- Positions keep running sums of material + piece-square scores and game
+  phase, updated in make/unmake (`setPieceSquareTables`), so evaluate()
+  no longer adds them up. Identical search.
+- `makeMove(move, notInCheck)`: when not in check, a non-king move from a
+  square not in line with the king can't expose it, so the attack test is
+  skipped. Identical search.
+- Flat evaluation scratch arrays, cleared without fill(). Identical search.
+- Lazy evaluation: the quiescence search's stand-pat uses material and
+  tables alone when they are more than 3 pawns outside the window (the
+  rest of the evaluation is under 1.9 pawns 99% of the time there).
+- The quiescence search skips captures by a piece worth more than its
+  victim onto a square an enemy pawn guards.
+
+About 20-25% less time to depth 9 on the benchmark positions.
+
+- SPRT vs 1.3, everything above: H1 accepted after 572 games, +230 -154 =188,
+  **+46 Elo** (+23 to +70). The owner accepted this run as the final test.
+- Without the last two (only the first two items plus lazy evaluation)
+  vs 1.3: +17 Elo (-4 to +39) at 699 games, stopped.
+- Full 1.4 vs 1.4 without lazy evaluation: H1 accepted after 590 games,
+  +44 Elo (+22 to +67).
+- Full 1.4 vs 1.4 without the bad-capture skip: +27 Elo (+8 to +47) at 856
+  games, LLR 2.27; cut short by a machine restart, accepted by the owner.
 
 ## Engine 1.3: king safety
 

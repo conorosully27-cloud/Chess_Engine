@@ -33,10 +33,19 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.3.** Engine 1.0 is kept as-is on the
+**Current version: Engine 1.4.** Engine 1.0 is kept as-is on the
 `engine-1.0` branch; to measure a new version against an older one, check
 that out with `git worktree add`, e.g. `git worktree add ../engine-1.0
 engine-1.0`. Every version's measured gain is in `ENGINE_CHANGELOG.md`.
+
+*Changes in 1.4 over 1.3:* speed. Positions keep running totals of the
+material and piece-square scores as moves are made, a cheaper test for
+moves that leave the king in check, lazy evaluation (in the capture search,
+when material alone is far outside the window, the full evaluation is
+skipped), and the capture search skips captures of cheaper pieces that a
+pawn guards. About 20-25% faster to the same depth. Estimated **+46 Elo**
+over 1.3 (95% +23 to +70), SPRT H1 accepted after 572 games at 100 ms a
+move.
 
 *Changes in 1.3 over 1.2:* king safety, Texel-tuned together with all the
 other weights. The main term is "king danger": attack units for enemy
@@ -73,10 +82,10 @@ method Stockfish uses to accept changes: it stops as soon as the results
 decide, with 5% error rates.
 
 ```sh
-git worktree add ../engine-1.3 b902214                    # once: the Engine 1.3 commit
-npm run match -- --b ../engine-1.3 --fens test/openings.epd --sprt 0,10 --games 2000
-npm run match -- --b ../engine-1.3 --games 200 --time 100    # fixed-length match, book openings
-npm run match -- --b ../engine-1.3 --fens test/endgames.epd --games 400   # endgames only
+git worktree add ../engine-1.4 9d16dc3                    # once: the Engine 1.4 commit
+npm run match -- --b ../engine-1.4 --fens test/openings.epd --sprt 0,10 --games 2000
+npm run match -- --b ../engine-1.4 --games 200 --time 100    # fixed-length match, book openings
+npm run match -- --b ../engine-1.4 --fens test/endgames.epd --games 400   # endgames only
 ```
 
 `--fens test/openings.epd` starts each game pair from one of 1000 different
@@ -205,10 +214,10 @@ most chess apps.
 ## Testing
 
 ```sh
-npm test                    # ~7 seconds, 102 tests
+npm test                    # ~7 seconds, 105 tests
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
-npm run match -- --b ../engine-1.3 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
+npm run match -- --b ../engine-1.4 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
 npm run tune -- --data quiet-labeled.v7.epd.gz     # Texel tuning (see HANDOFF.md)
 ```
 

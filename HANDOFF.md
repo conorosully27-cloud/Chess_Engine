@@ -2,7 +2,7 @@
 
 Start here when picking up this project in a new session. It covers where
 things stand, how to set up, how the owner likes to work, and what to do
-next. Last updated 2026-10-16, at Engine 1.3.
+next. Last updated 2026-10-16, at Engine 1.4.
 
 Companion files: `ENGINE_CHANGELOG.md` (every accepted change and its Elo
 gain, plus results against chess.com bots), `FAILED_EXPERIMENTS.md` (every
@@ -11,20 +11,23 @@ rejected change, with how promising it looked and why it failed), `README.md`
 
 ## Where things stand
 
-- **Engine 1.3** is current, on `main` (commit `b902214` is the 1.3
-  release; `ENGINE_VERSION` in `src/engine/index.js`). About +90 Elo over
-  1.0:
+- **Engine 1.4** is current, on the session branch `ccr-03db2313-9y425m`
+  (commit `9d16dc3` is the 1.4 release; `ENGINE_VERSION` in
+  `src/engine/index.js`); `main` stays at 1.3 until the owner asks for the
+  merge. About +136 Elo over 1.0:
   - 1.1 (`19aa147`): all evaluation weights Texel-tuned, +18 Elo over 1.0.
   - 1.2 (`5a42226`): tuned endgame terms (king distance to passed pawns,
     blocked passers, rooks behind passers, rook on the seventh, rule of the
     square), +44 Elo over 1.1.
   - 1.3 (`b902214`): king safety (king danger, pawn storms, open files at
     the king) and an evaluation cache, +28 Elo over 1.2.
+  - 1.4 (`9d16dc3`): speed (incremental piece-square sums, cheaper legality
+    test, lazy evaluation, bad-capture skip in quiescence), +46 Elo over 1.3.
 - **Engine 1.0** is frozen on the `engine-1.0` branch (on GitHub). 1.1 to
-  1.3 have no branches of their own; use their commits.
+  1.4 have no branches of their own; use their commits.
 - **The phone app** is a private claude.ai artifact the owner plays on:
-  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.3).
-- **Tests:** `npm test`, 102 tests, about 7 seconds, all passing.
+  https://claude.ai/artifact/PT7svYxyEeGvaDLofYkmBL (runs Engine 1.4).
+- **Tests:** `npm test`, 105 tests, about 7 seconds, all passing.
 - **Outside results:** beat the chess.com 2200 and 2600 bots; lost twice to
   the 2900 bot (details in `ENGINE_CHANGELOG.md`, games in `games/`).
 
@@ -32,7 +35,7 @@ rejected change, with how promising it looked and why it failed), `README.md`
 
 ```sh
 npm test                                       # should pass 101 tests
-git worktree add ../engine-1.3 b902214         # baseline to measure against
+git worktree add ../engine-1.4 9d16dc3         # baseline to measure against
 git worktree add ../engine-1.0 engine-1.0      # optional, the original
 
 # Tuning data (25 MB, not in the repo; BSD 3-Clause, The Zurichess Authors)
@@ -55,7 +58,7 @@ starved and results skew.
   changes by how they play in those games.
 - **Testing a change:** SPRT against the current version, from the varied
   openings:
-  `npm run match -- --b ../engine-1.3 --fens test/openings.epd --sprt 0,10 --games 2000`.
+  `npm run match -- --b ../engine-1.4 --fens test/openings.epd --sprt 0,10 --games 2000`.
   Accept only on "H1 accepted". Use `--fens test/endgames.epd` (400 games,
   fixed length) as an extra check for endgame changes.
 - **The owner starts the final full test** of a release candidate against
@@ -79,8 +82,9 @@ starved and results skew.
   `index.html` with the document skeleton stripped (`<!doctype>`, `<html>`,
   `<head>`, the charset and viewport metas, `</head>`, `<body>`, `</body>`,
   `</html>`); compare the published files with the repo and send only the
-  changed ones in `files` (unchanged ones are kept). The 1.3 update
-  republished `src/engine/evaluate.js`, `index.js` and `weights.js`.
+  changed ones in `files` (unchanged ones are kept). The 1.4 update
+  republished `src/position.js`, `src/engine/evaluate.js`, `search.js` and
+  `index.js`.
 
 ## What to do next, in order
 
@@ -96,7 +100,7 @@ units / 20 (endgame). The tuner fits the square directly (`kind:
 evaluation cache in `evaluate()` is keyed by the full hash.
 
 The attack scan made the evaluation about 26% slower; the cache won back
-about 12%. Speed is now the cheapest source of Elo (see 3).
+about 12%, and 1.4's speed work more (see 3).
 
 The repetition fix the previous handoff put first cost Elo in self-play
 and was reverted (see `FAILED_EXPERIMENTS.md`).
@@ -108,13 +112,19 @@ counting our own defenders in the zone, a king-danger term for the
 attacker's piece count beyond the zone, tuning `DANGER_MG_DIVISOR`.
 Always tune; always SPRT against the current best.
 
-### 3. Search speed (a natural 1.4)
+### 3. After 1.4's speed work
 
-`evaluate()` rescans the whole board on every call. Updating material and
-piece-square scores incrementally in make/unmake, and generating captures
-first with early cut-offs, should give noticeably more depth. Measured
-speed: about 200,000-600,000 nodes a second, depth 6 at 100 ms and 8-11 at
-1 s on this machine; phones are slower.
+1.4 (see `ENGINE_CHANGELOG.md`) made the search about 20-25% faster to the
+same depth. Where the time goes now, at depth 9 on the benchmark: the
+evaluation about 45% (`attackScan` alone about 25%), move generation about
+11%, the legality test about 10%. Ideas not yet tried:
+- tune lazy evaluation's margin (3 pawns, a first guess) and widen the
+  bad-capture rule (any cheaper defender, not only pawns), each by SPRT;
+- a pawn hash table for the pawn-structure terms;
+- trying the stored best move before generating the other moves (measured:
+  saves only about 12% of main-search move generations, so low value).
+Changes that keep the search identical can be checked by node count at a
+fixed depth: it must not change.
 
 ### 4. Smaller items
 
@@ -157,3 +167,5 @@ speed: about 200,000-600,000 nodes a second, depth 6 at 100 ms and 8-11 at
 6. Owner's chess.com tests found the repetition bug and the king-safety gap.
 7. King safety gave Engine 1.3 (+28 Elo); the repetition fix lost Elo in
    self-play and was reverted.
+8. Speed work gave Engine 1.4 (+46 Elo); ablation tests showed both lazy
+   evaluation and the bad-capture skip pull their weight.
