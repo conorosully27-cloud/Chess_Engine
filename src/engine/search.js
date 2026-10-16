@@ -65,6 +65,7 @@ export class Engine {
     // Per-ply scratch lists, so the search doesn't allocate.
     this.moveLists = Array.from({ length: MAX_PLY }, () => []);
     this.scoreLists = Array.from({ length: MAX_PLY }, () => []);
+    this.quietLists = Array.from({ length: MAX_PLY }, () => []); // quiet moves tried, as history slots
     this.nodes = 0;
     this.stopped = false;
   }
@@ -231,6 +232,8 @@ export class Engine {
     const futile = !pvNode && !inCheck && depth <= 2 && staticEval + 150 * depth <= alpha;
     const pruneLate = !pvNode && !inCheck && depth <= 3;
     let quietsTried = 0;
+    const quietsSearched = this.quietLists[ply];
+    quietsSearched.length = 0;
 
     const moves = this.moveLists[ply];
     const scores = this.scoreLists[ply];
@@ -298,11 +301,17 @@ export class Engine {
               }
               const h = piece * 128 + moveTo(move);
               this.history[h] = Math.min(this.history[h] + depth * depth, 500000);
+              // The quiet moves tried before it failed here: count against them.
+              for (let q = 0; q < quietsSearched.length; q++) {
+                const slot = quietsSearched[q];
+                this.history[slot] = Math.max(this.history[slot] - depth * depth, -500000);
+              }
             }
             break;
           }
         }
       }
+      if (quiet) quietsSearched.push(piece * 128 + moveTo(move));
     }
 
     if (legal === 0) return inCheck ? -MATE + ply : 0; // checkmate or stalemate
