@@ -111,6 +111,20 @@ what it didn't finish (items 1, 3 and 4 below) is now 1.6's scope:
 Test new ones against 1.5. The machine has restarted mid-match twice;
 matches die with it and can't be resumed, so report where a test stood.
 
+### After 1.6: Engine 2.0 is NNUE (owner's plan)
+
+Once 1.6 ships, the owner wants to switch the evaluation to an NNUE
+network as Engine 2.0. What carries over: rules, move generation, the
+whole search, the app, the match/SPRT tooling and opening sets. The
+incremental piece-square sums in `Position` (1.4) are a template for the
+network's accumulator; 1.5's evaluation can label self-play positions to
+train the first network and stays as a fallback behind a switch. What
+retires: the handcrafted terms and the Texel tuner. To revisit: lazy
+evaluation (assumes material approximates the evaluation) and search
+margins tuned to this evaluation's scale. New work: training data,
+a trainer (likely Python), fast quantised inference in plain JavaScript
+(the phone's speed is the main risk), then SPRT against the best 1.x.
+
 ### 1. Where 1.3 left off
 
 How the king safety works, for whoever builds on it: `attackScan()` in
