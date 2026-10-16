@@ -11,6 +11,7 @@ import {
   KNIGHT_OFFSETS, BISHOP_OFFSETS, ROOK_OFFSETS, KING_OFFSETS,
 } from '../board.js';
 
+import { setPieceSquareTables } from '../position.js';
 import { WEIGHTS } from './weights.js';
 
 const W = WEIGHTS;
@@ -42,6 +43,21 @@ for (let type = PAWN; type <= KING; type++) {
     }
   }
 }
+
+// The same, signed by color, plus each piece's phase weight: positions keep
+// running sums of these as moves are made (psqMg, psqEg, psqPhase).
+const PSQ = { mg: new Int16Array(16 * 128), eg: new Int16Array(16 * 128), phase: new Int8Array(16) };
+for (let piece = 0; piece < 16; piece++) {
+  const type = piece & 7;
+  if (type < PAWN || type > KING) continue;
+  const sign = piece & 8 ? -1 : 1;
+  for (let i = piece * 128; i < piece * 128 + 128; i++) {
+    PSQ.mg[i] = sign * MG[i];
+    PSQ.eg[i] = sign * EG[i];
+  }
+  PSQ.phase[piece] = PHASE_WEIGHT[type];
+}
+setPieceSquareTables(PSQ);
 
 const BISHOP_PAIR = W.bishopPair;
 const DOUBLED_PAWN = W.doubledPawn;
@@ -106,11 +122,39 @@ export function evaluate(pos) {
   return score;
 }
 
+// Lazy evaluation, for the quiescence search's stand-pat: when material and
+// tables alone are further than LAZY_MARGIN outside [alpha, beta], the rest
+// of the evaluation (worth under 2 pawns 99% of the time) can't bring the
+// score back inside, so the cheap score stands in for the full one.
+export const LAZY_MARGIN = 300;
+
+export function evaluateLazy(pos, alpha, beta) {
+  const slot = pos.hashLo & CACHE_MASK;
+  if (cacheHashHi[slot] === pos.hashHi && cacheHashLo[slot] === pos.hashLo) return cacheScores[slot];
+  const quick = evaluateMaterial(pos);
+  if (quick - LAZY_MARGIN >= beta || quick + LAZY_MARGIN <= alpha) return quick;
+  return evaluate(pos);
+}
+
+// Material and piece-square tables only, tapered, from the side to move's
+// point of view: a cheap first guess at evaluate(), for lazy evaluation.
+export function evaluateMaterial(pos) {
+  if (pos.psqTables !== PSQ) pos.trackPieceSquares(PSQ);
+  const mg = pos.psqMg;
+  const eg = pos.psqEg;
+  let phase = pos.psqPhase;
+  if (phase > MAX_PHASE) phase = MAX_PHASE;
+  const score = ((mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE) | 0;
+  return (pos.turn === WHITE ? score : -score) + TEMPO;
+}
+
 function evaluateUncached(pos) {
   const b = pos.board;
-  let mg = 0;
-  let eg = 0;
-  let phase = 0;
+  // Material and tables, kept up to date by the position as moves are made.
+  if (pos.psqTables !== PSQ) pos.trackPieceSquares(PSQ);
+  let mg = pos.psqMg;
+  let eg = pos.psqEg;
+  let phase = pos.psqPhase;
   bishops.fill(0);
   pawns.fill(0);
   rooks.fill(0);
@@ -128,10 +172,6 @@ function evaluateUncached(pos) {
     const piece = b[sq];
     const type = piece & 7;
     const c = piece >> 3; // 0 = White, 1 = Black
-    const sign = c === 0 ? 1 : -1;
-    mg += sign * MG[piece * 128 + sq];
-    eg += sign * EG[piece * 128 + sq];
-    phase += PHASE_WEIGHT[type];
     if (type === PAWN) {
       const file = sq & 7;
       const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);

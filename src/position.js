@@ -28,7 +28,26 @@ CASTLING_MASK[E8] = 15 & ~(CASTLE_BK | CASTLE_BQ);
 // allocate nothing. Each record holds what the move destroys plus the hash of
 // the position before it (used by the repetition rule).
 const U_MOVE = 0, U_CAPTURED = 1, U_CASTLING = 2, U_EP = 3, U_HALFMOVE = 4, U_HASH_LO = 5, U_HASH_HI = 6;
-const UNDO_SIZE = 8;
+const U_PSQ_MG = 7, U_PSQ_EG = 8, U_PHASE = 9;
+const UNDO_SIZE = 10;
+
+// ALIGNED[a - b + 119] is 1 when squares a and b share a rank, file or
+// diagonal (0x88 square differences identify the direction uniquely).
+const ALIGNED = new Uint8Array(239);
+for (let a = 0; a < 120; a++) {
+  for (let b = 0; b < 120; b++) {
+    if ((a | b) & 0x88 || a === b) continue;
+    const df = (a & 7) - (b & 7), dr = (a >> 4) - (b >> 4);
+    if (df === 0 || dr === 0 || Math.abs(df) === Math.abs(dr)) ALIGNED[a - b + 119] = 1;
+  }
+}
+
+// The tables new positions keep running sums of (see trackPieceSquares).
+// The engine's evaluation registers its own when it loads.
+let defaultPieceSquareTables = null;
+export function setPieceSquareTables(tables) {
+  defaultPieceSquareTables = tables;
+}
 
 export class Position {
   constructor(fen = START_FEN) {
@@ -46,7 +65,40 @@ export class Position {
     this.hashHi = 0;
     this.ply = 0; // moves made since the FEN was loaded
     this.undoStack = new Int32Array(256 * UNDO_SIZE);
+    // Running sums of a (piece, square) table pair and a per-piece weight,
+    // kept up to date move by move for the engine's evaluation, which
+    // supplies the tables with trackPieceSquares(). Zero until then.
+    this.psqTables = defaultPieceSquareTables;
+    this.psqMg = 0;
+    this.psqEg = 0;
+    this.psqPhase = 0;
     this._loadFen(fen);
+  }
+
+  // Starts keeping psqMg, psqEg and psqPhase: the sums over every piece of
+  // tables.mg[piece * 128 + sq], tables.eg[...] and tables.phase[piece]
+  // (signed tables, so White's and Black's pieces can count oppositely).
+  trackPieceSquares(tables) {
+    this.psqTables = tables;
+    this._computePieceSquares();
+  }
+
+  _computePieceSquares() {
+    const t = this.psqTables;
+    let mg = 0, eg = 0, phase = 0;
+    if (t) {
+      for (let sq = 0; sq < 120; sq++) {
+        if (sq & 0x88) { sq += 7; continue; }
+        const piece = this.board[sq];
+        if (piece === EMPTY) continue;
+        mg += t.mg[piece * 128 + sq];
+        eg += t.eg[piece * 128 + sq];
+        phase += t.phase[piece];
+      }
+    }
+    this.psqMg = mg;
+    this.psqEg = eg;
+    this.psqPhase = phase;
   }
 
   // ---------------------------------------------------------------- FEN
@@ -128,6 +180,7 @@ export class Position {
     if (this.epSquare >= 0 && !this._enPassantCapturable(this.epSquare)) this.epSquare = -1;
 
     this._computeHash();
+    this._computePieceSquares();
   }
 
   fen() {
@@ -420,9 +473,15 @@ export class Position {
 
   // Plays a pseudo-legal move. If it would leave the mover's king in check it
   // is taken back and false is returned; otherwise returns true.
-  makeMove(move) {
+  makeMove(move, notInCheck = false) {
     const us = this.turn;
+    const king = this.kingSquare[us >> 3];
+    const from = move & 0x7f;
     this._doMove(move);
+    // Known not in check (the search passes this): a move that isn't by the
+    // king or en passant, from a square not in line with our king, can't
+    // expose it, so the attack test can be skipped.
+    if (notInCheck && from !== king && !(move & FLAG_EN_PASSANT) && !ALIGNED[from - king + 119]) return true;
     if (this.isAttacked(this.kingSquare[us >> 3], us ^ 8)) {
       this.unmakeMove();
       return false;
@@ -453,6 +512,9 @@ export class Position {
     u[base + U_HALFMOVE] = this.halfmoveClock;
     u[base + U_HASH_LO] = lo;
     u[base + U_HASH_HI] = hi;
+    u[base + U_PSQ_MG] = this.psqMg;
+    u[base + U_PSQ_EG] = this.psqEg;
+    u[base + U_PHASE] = this.psqPhase;
     this.ply++;
 
     if (this.epSquare >= 0) {
@@ -484,6 +546,19 @@ export class Position {
     lo ^= Z_PIECE_LO[placed * 128 + to];
     hi ^= Z_PIECE_HI[placed * 128 + to];
 
+    const t = this.psqTables;
+    if (t) {
+      const victimSq = move & FLAG_EN_PASSANT ? (us === WHITE ? to - 16 : to + 16) : to;
+      this.psqMg += t.mg[placed * 128 + to] - t.mg[piece * 128 + from];
+      this.psqEg += t.eg[placed * 128 + to] - t.eg[piece * 128 + from];
+      this.psqPhase += t.phase[placed] - t.phase[piece];
+      if (captured !== EMPTY) {
+        this.psqMg -= t.mg[captured * 128 + victimSq];
+        this.psqEg -= t.eg[captured * 128 + victimSq];
+        this.psqPhase -= t.phase[captured];
+      }
+    }
+
     if (move & FLAG_CASTLE) {
       // King goes e->g with rook h->f, or e->c with rook a->d.
       const rookFrom = to > from ? to + 1 : to - 2;
@@ -493,6 +568,10 @@ export class Position {
       b[rookTo] = rook;
       lo ^= Z_PIECE_LO[rook * 128 + rookFrom] ^ Z_PIECE_LO[rook * 128 + rookTo];
       hi ^= Z_PIECE_HI[rook * 128 + rookFrom] ^ Z_PIECE_HI[rook * 128 + rookTo];
+      if (t) {
+        this.psqMg += t.mg[rook * 128 + rookTo] - t.mg[rook * 128 + rookFrom];
+        this.psqEg += t.eg[rook * 128 + rookTo] - t.eg[rook * 128 + rookFrom];
+      }
     }
 
     if ((piece & 7) === KING) this.kingSquare[us >> 3] = to;
@@ -577,6 +656,9 @@ export class Position {
     this.halfmoveClock = u[base + U_HALFMOVE];
     this.hashLo = u[base + U_HASH_LO];
     this.hashHi = u[base + U_HASH_HI];
+    this.psqMg = u[base + U_PSQ_MG];
+    this.psqEg = u[base + U_PSQ_EG];
+    this.psqPhase = u[base + U_PHASE];
 
     this.turn ^= 8;
     const us = this.turn;

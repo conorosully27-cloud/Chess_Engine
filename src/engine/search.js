@@ -243,7 +243,7 @@ export class Engine {
       const move = pickNext(moves, scores, i);
       const quiet = !(move & FLAG_CAPTURE) && !movePromotion(move);
       const piece = pos.board[moveFrom(move)];
-      if (!pos.makeMove(move)) continue;
+      if (!pos.makeMove(move, !inCheck)) continue;
       legal++;
       const givesCheck = pos.inCheck();
 
@@ -341,7 +341,7 @@ export class Engine {
         const victim = move & FLAG_EN_PASSANT ? PAWN : pos.board[moveTo(move)] & 7;
         if (bestScore + ORDER_VALUE[victim] + 200 < alpha) continue;
       }
-      if (!pos.makeMove(move)) continue;
+      if (!pos.makeMove(move, !inCheck)) continue;
       legal++;
       const score = -this.quiesce(-beta, -alpha, ply + 1);
       pos.unmakeMove();

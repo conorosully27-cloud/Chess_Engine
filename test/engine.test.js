@@ -2,8 +2,9 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { Position, START_FEN, FLAG_CAPTURE, movePromotion, QUEEN } from '../src/index.js';
 import {
-  Engine, MATE, evaluate, BOOK_LINES, bookMove, chooseMove, positionFromHistory,
+  Engine, MATE, INFINITY, evaluate, BOOK_LINES, bookMove, chooseMove, positionFromHistory,
 } from '../src/engine/index.js';
+import { evaluateLazy } from '../src/engine/evaluate.js';
 
 const engine = new Engine({ ttBits: 16 });
 
@@ -71,6 +72,64 @@ describe('evaluation', () => {
 
   test('dead draws score zero', () => {
     assert.equal(evaluate(new Position('8/8/8/4k3/8/8/8/2B1K3 w - - 0 1')), 0);
+  });
+});
+
+describe('speed-ups that must not change results', () => {
+  test('match a recount through random moves and take-backs', () => {
+    let seed = 11;
+    const random = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32);
+    for (const fen of [START_FEN, ...POSITIONS]) {
+      const pos = new Position(fen);
+      const recount = () => {
+        const fresh = new Position(pos.fen());
+        return [fresh.psqMg, fresh.psqEg, fresh.psqPhase];
+      };
+      const start = recount();
+      assert.deepEqual([pos.psqMg, pos.psqEg, pos.psqPhase], start);
+      let made = 0;
+      for (let i = 0; i < 400 && pos.hasLegalMove(); i++) {
+        if (made > 0 && random() < 0.3) {
+          pos.unmakeMove();
+          made--;
+        } else {
+          const moves = pos.legalMoves();
+          pos.makeMove(moves[Math.floor(random() * moves.length)]);
+          made++;
+        }
+        assert.deepEqual([pos.psqMg, pos.psqEg, pos.psqPhase], recount(), pos.fen());
+      }
+      while (made-- > 0) pos.unmakeMove();
+      assert.deepEqual([pos.psqMg, pos.psqEg, pos.psqPhase], start);
+    }
+  });
+
+  test("makeMove's shortcut for positions not in check accepts exactly the legal moves", () => {
+    let seed = 5;
+    const random = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32);
+    for (const fen of [START_FEN, ...POSITIONS, '4k3/8/8/q7/3P4/8/8/4K2R w K - 0 1', '8/8/8/KPp4r/8/8/8/4k3 w - c6 0 2']) {
+      const pos = new Position(fen);
+      for (let i = 0; i < 150 && pos.hasLegalMove(); i++) {
+        const notInCheck = !pos.inCheck();
+        const accepted = [];
+        for (const move of pos.generatePseudoLegalMoves([])) {
+          if (pos.makeMove(move, notInCheck)) {
+            accepted.push(move);
+            pos.unmakeMove();
+          }
+        }
+        assert.deepEqual(accepted.sort(), pos.legalMoves().sort(), pos.fen());
+        const moves = pos.legalMoves();
+        pos.makeMove(moves[Math.floor(random() * moves.length)]);
+      }
+    }
+  });
+
+  test('lazy evaluation agrees with the full one inside the window', () => {
+    for (const fen of POSITIONS) {
+      const pos = new Position(fen);
+      assert.equal(evaluateLazy(pos, -INFINITY, INFINITY), evaluate(pos), fen);
+    }
   });
 });
 
