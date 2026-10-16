@@ -29,6 +29,14 @@ const TT_EXACT = 1;
 const TT_LOWER = 2; // score is at least this (the search failed high)
 const TT_UPPER = 3; // score is at most this (failed low)
 
+// Late move reductions, by depth and by how late the move comes: the deeper
+// the search and the later the move, the more plies it loses (the usual
+// logarithmic formula). LMR[min(depth, 63) * 64 + min(moveNumber, 63)].
+const LMR = new Int8Array(64 * 64);
+for (let d = 1; d < 64; d++) {
+  for (let m = 1; m < 64; m++) LMR[d * 64 + m] = Math.floor(0.75 + (Math.log(d) * Math.log(m)) / 2.25);
+}
+
 // Piece values for move ordering only.
 const ORDER_VALUE = [0, 100, 320, 330, 500, 900, 2000];
 
@@ -259,10 +267,11 @@ export class Engine {
         // Late move reductions: moves ordered late are rarely best, so search
         // them shallower first and only re-search if they surprise us.
         let reduction = 0;
-        if (depth >= 3 && legal > 3 && quiet && !inCheck && !givesCheck && move !== killer1 && move !== killer2) {
-          reduction = legal > 10 ? 2 : 1;
-          if (pvNode && reduction > 0) reduction--;
-          reduction = Math.min(reduction, depth - 2);
+        if (depth >= 3 && legal > 3 && quiet && !inCheck && !givesCheck) {
+          reduction = LMR[Math.min(depth, 63) * 64 + Math.min(legal, 63)];
+          if (pvNode) reduction--; // less on the main line
+          if (move === killer1 || move === killer2) reduction--; // less for moves that refuted others
+          reduction = Math.max(0, Math.min(reduction, depth - 2));
         }
         // Principal variation search: prove the move is no better with a null
         // window, and only search it fully if it is.
