@@ -14,7 +14,21 @@ roughly, since each is measured against the version before it.
 | Engine 1.1: Texel-tuned weights | Engine 1.0 | 2154 | 897-786-471 | **+18** (+5 to +31) | `19aa147` |
 | Engine 1.0: baseline | - | - | - | - | `engine-1.0` branch |
 
-Running total over Engine 1.0: about **+62 Elo** (rough, see above).
+Running total over Engine 1.0: about **+62 Elo** adding up the steps above;
+measured directly, **+77 Elo** (see below).
+
+## Direct comparisons
+
+Fixed-length matches between non-adjacent versions, to check the running
+total.
+
+| Match | Openings | Games | W-L-D | Elo (95% range) |
+|---|---|---|---|---|
+| Engine 1.2 vs Engine 1.0 (2026-10-16) | `test/openings.epd` | 2500 | 1317-772-411 | **+77** (+64 to +90) |
+
+1.2 vs 1.0 came out a little above the sum of the steps (+62); each step's
+own estimate has a range of about ±13-25 Elo, and these openings are more
+varied than the 24-line book the steps were measured on.
 
 ## External results
 

@@ -12,7 +12,8 @@ rejected change, with how promising it looked and why it failed), `README.md`
 ## Where things stand
 
 - **Engine 1.2** is current, on `main` (commit `5a42226` is the 1.2 release;
-  `ENGINE_VERSION` in `src/engine/index.js`). About +62 Elo over 1.0:
+  `ENGINE_VERSION` in `src/engine/index.js`). +77 Elo over 1.0 measured
+  directly (2500 games from `test/openings.epd`, 95% +64 to +90):
   - 1.1 (`19aa147`): all evaluation weights Texel-tuned, +18 Elo over 1.0.
   - 1.2 (`5a42226`): tuned endgame terms (king distance to passed pawns,
     blocked passers, rooks behind passers, rook on the seventh, rule of the
