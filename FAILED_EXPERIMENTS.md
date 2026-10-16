@@ -7,6 +7,33 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Logarithmic late move reductions (Oct 2026)
+
+**Change:** late quiet moves were reduced by 1 ply (2 after the tenth
+move), killers exempt. Replaced by the usual table, 0.75 + ln(depth) *
+ln(move number) / 2.25, one ply less on the main line and for killers,
+at most depth - 2. Commit `769d0b8`, reverted in `6dc0579`. Tested
+against Engine 1.4.
+
+**Result:** stopped by the owner at 772 games, +267 -263 =242, Elo +2
+(95% -19 to +22), LLR -0.30.
+
+**Prior:** 8/10. Logarithmic reductions are standard and halved the nodes
+to depth 9 on the benchmark (3.16M -> 1.68M).
+
+**Commentary:** at match speed it barely changed anything. The table only
+departs from the old rule at higher depths and later moves; at 100 ms a
+move the search reaches about depth 7, where it mostly gives the same
+1 or 2 plies. Counted over 800 searches of 100 ms: the old rule made 2.65M
+1-ply and 0.82M 2-ply reductions, the new one 2.43M, 0.99M and 0.15M
+3-ply, so under a tenth of reductions differed. The benchmark's "half the
+nodes" was measured at depth 9-11, which matches don't reach. Two
+pointers for a retry: only about 1% of reduced moves fail high (turn out
+better than expected), so move ordering is good enough for bigger
+reductions, e.g. a smaller divisor or reducing from the third move; and
+reductions matter more at longer thinking times, so 100 ms matches
+under-measure them (the app thinks 2-20 s).
+
 ## Repetition fix: a twofold from before the root needs a threefold (Oct 2026)
 
 **Change:** the search scored any position seen once before in the game as
