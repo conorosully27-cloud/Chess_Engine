@@ -93,11 +93,12 @@ const MOBILITY = {
 };
 
 // Scratch space reused by every call, so evaluation never allocates.
-const pawnCount = [new Int8Array(8), new Int8Array(8)]; // [color][file]
-const pawnMostAdvanced = [new Int8Array(8), new Int8Array(8)]; // furthest rank reached, relative to that side
-const pawnLeastAdvanced = [new Int8Array(8), new Int8Array(8)];
-const pawnSquares = [new Int16Array(16), new Int16Array(16)];
-const rookSquares = [new Int16Array(16), new Int16Array(16)];
+// Per-file arrays are indexed [color * 8 + file], square lists [color * 16 + i].
+const pawnCount = new Int8Array(16);
+const pawnMostAdvanced = new Int8Array(16); // furthest rank reached, relative to that side
+const pawnLeastAdvanced = new Int8Array(16);
+const pawnSquares = new Int16Array(32);
+const rookSquares = new Int16Array(32);
 const bishops = new Int32Array(2); // [color]
 const pawns = new Int32Array(2);
 const rooks = new Int32Array(2);
@@ -155,17 +156,19 @@ function evaluateUncached(pos) {
   let mg = pos.psqMg;
   let eg = pos.psqEg;
   let phase = pos.psqPhase;
-  bishops.fill(0);
-  pawns.fill(0);
-  rooks.fill(0);
-  nonPawnMaterial.fill(0);
-  unstoppable.fill(0);
-  attackScan(pos);
   for (let c = 0; c < 2; c++) {
-    pawnCount[c].fill(0);
-    pawnMostAdvanced[c].fill(-1);
-    pawnLeastAdvanced[c].fill(8);
+    bishops[c] = 0;
+    pawns[c] = 0;
+    rooks[c] = 0;
+    nonPawnMaterial[c] = 0;
+    unstoppable[c] = 0;
   }
+  for (let i = 0; i < 16; i++) {
+    pawnCount[i] = 0;
+    pawnMostAdvanced[i] = -1;
+    pawnLeastAdvanced[i] = 8;
+  }
+  attackScan(pos);
 
   for (let i = 0; i < pieceCount; i++) {
     const sq = pieceList[i];
@@ -175,14 +178,15 @@ function evaluateUncached(pos) {
     if (type === PAWN) {
       const file = sq & 7;
       const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);
-      pawnCount[c][file]++;
-      if (relRank > pawnMostAdvanced[c][file]) pawnMostAdvanced[c][file] = relRank;
-      if (relRank < pawnLeastAdvanced[c][file]) pawnLeastAdvanced[c][file] = relRank;
-      pawnSquares[c][pawns[c]++] = sq;
+      const at = (c << 3) + file;
+      pawnCount[at]++;
+      if (relRank > pawnMostAdvanced[at]) pawnMostAdvanced[at] = relRank;
+      if (relRank < pawnLeastAdvanced[at]) pawnLeastAdvanced[at] = relRank;
+      pawnSquares[(c << 4) + pawns[c]++] = sq;
     } else if (type !== KING) {
       nonPawnMaterial[c] += MOPUP_VALUE[type];
       if (type === BISHOP) bishops[c]++;
-      else if (type === ROOK) rookSquares[c][rooks[c]++] = sq;
+      else if (type === ROOK) rookSquares[(c << 4) + rooks[c]++] = sq;
     }
   }
 
@@ -206,18 +210,19 @@ function evaluateUncached(pos) {
     }
 
     for (let file = 0; file < 8; file++) {
-      if (pawnCount[c][file] > 1) {
-        mg += sign * DOUBLED_PAWN[0] * (pawnCount[c][file] - 1);
-        eg += sign * DOUBLED_PAWN[1] * (pawnCount[c][file] - 1);
+      const count = pawnCount[(c << 3) + file];
+      if (count > 1) {
+        mg += sign * DOUBLED_PAWN[0] * (count - 1);
+        eg += sign * DOUBLED_PAWN[1] * (count - 1);
       }
     }
 
     for (let i = 0; i < pawns[c]; i++) {
-      const sq = pawnSquares[c][i];
+      const sq = pawnSquares[(c << 4) + i];
       const file = sq & 7;
       const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);
-      const left = file > 0 ? pawnCount[c][file - 1] : 0;
-      const right = file < 7 ? pawnCount[c][file + 1] : 0;
+      const left = file > 0 ? pawnCount[(c << 3) + file - 1] : 0;
+      const right = file < 7 ? pawnCount[(c << 3) + file + 1] : 0;
       if (left === 0 && right === 0) {
         mg += sign * ISOLATED_PAWN[0];
         eg += sign * ISOLATED_PAWN[1];
@@ -227,7 +232,7 @@ function evaluateUncached(pos) {
       // stands ahead of us when 7 - r > relRank.
       let passed = true;
       for (let f = Math.max(0, file - 1); f <= Math.min(7, file + 1) && passed; f++) {
-        if (pawnCount[them][f] && 7 - pawnLeastAdvanced[them][f] > relRank) passed = false;
+        if (pawnCount[(them << 3) + f] && 7 - pawnLeastAdvanced[(them << 3) + f] > relRank) passed = false;
       }
       if (passed) {
         mg += sign * PASSED_PAWN_MG[relRank];
@@ -252,13 +257,14 @@ function evaluateUncached(pos) {
     if (unstoppable[c]) eg += sign * UNSTOPPABLE_PASSER;
 
     for (let i = 0; i < rooks[c]; i++) {
-      const file = rookSquares[c][i] & 7;
-      if (pawnCount[c][file] === 0) {
-        const open = pawnCount[them][file] === 0;
+      const rookSq = rookSquares[(c << 4) + i];
+      const file = rookSq & 7;
+      if (pawnCount[(c << 3) + file] === 0) {
+        const open = pawnCount[(them << 3) + file] === 0;
         mg += sign * (open ? ROOK_OPEN_FILE[0] : ROOK_SEMI_OPEN_FILE[0]);
         eg += sign * (open ? ROOK_OPEN_FILE[1] : ROOK_SEMI_OPEN_FILE[1]);
       }
-      if (onSeventh(pos, rookSquares[c][i], c, pawnLeastAdvanced[them])) {
+      if (onSeventh(pos, rookSq, c, pawnLeastAdvanced, them << 3)) {
         mg += sign * ROOK_ON_SEVENTH[0];
         eg += sign * ROOK_ON_SEVENTH[1];
       }
@@ -269,8 +275,8 @@ function evaluateUncached(pos) {
     // Files around the king without our pawns, and enemy pawns storming it.
     const king = pos.kingSquare[c];
     for (let f = Math.max(0, (king & 7) - 1); f <= Math.min(7, (king & 7) + 1); f++) {
-      if (pawnCount[c][f] === 0) mg += sign * KING_OPEN_FILE[pawnCount[them][f] === 0 ? 1 : 0];
-      const storm = stormPawn(b, king, c, f, pawnMostAdvanced[them][f]);
+      if (pawnCount[(c << 3) + f] === 0) mg += sign * KING_OPEN_FILE[pawnCount[(them << 3) + f] === 0 ? 1 : 0];
+      const storm = stormPawn(b, king, c, f, pawnMostAdvanced[(them << 3) + f]);
       if (storm >= 0) mg += sign * (storm & 8 ? PAWN_STORM_BLOCKED[storm & 7] : PAWN_STORM[storm]);
     }
 
@@ -526,12 +532,13 @@ export function outsideSquare(pos, sq, c) {
 
 // A rook on the seventh rank (relative) that confines the enemy king to its
 // back rank or attacks pawns still on their starting rank.
-export function onSeventh(pos, sq, c, enemyLeastAdvanced) {
+// enemyLeastAdvanced[offset + file]: the enemy's least advanced pawn per file.
+export function onSeventh(pos, sq, c, enemyLeastAdvanced, offset = 0) {
   const relRank = c === 0 ? sq >> 4 : 7 - (sq >> 4);
   if (relRank !== 6) return false;
   const king = pos.kingSquare[1 - c];
   if ((c === 0 ? king >> 4 : 7 - (king >> 4)) === 7) return true;
-  for (let f = 0; f < 8; f++) if (enemyLeastAdvanced[f] === 1) return true;
+  for (let f = 0; f < 8; f++) if (enemyLeastAdvanced[offset + f] === 1) return true;
   return false;
 }
 
