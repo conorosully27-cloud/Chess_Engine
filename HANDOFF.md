@@ -11,10 +11,9 @@ rejected change, with how promising it looked and why it failed), `README.md`
 
 ## Where things stand
 
-- **Engine 1.4** is current, on the session branch `ccr-03db2313-9y425m`
-  (commit `9d16dc3` is the 1.4 release; `ENGINE_VERSION` in
-  `src/engine/index.js`); `main` stays at 1.3 until the owner asks for the
-  merge. About +136 Elo over 1.0:
+- **Engine 1.4** is current, on `main` (commit `9d16dc3` is the 1.4
+  release; `ENGINE_VERSION` in `src/engine/index.js`). About +136 Elo over
+  1.0:
   - 1.1 (`19aa147`): all evaluation weights Texel-tuned, +18 Elo over 1.0.
   - 1.2 (`5a42226`): tuned endgame terms (king distance to passed pawns,
     blocked passers, rooks behind passers, rook on the seventh, rule of the
