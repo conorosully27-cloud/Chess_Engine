@@ -13,7 +13,7 @@
 //   - pruning that skips moves very unlikely to matter: null-move pruning,
 //     reverse futility pruning, futility pruning and late move reductions.
 
-import { evaluate } from './evaluate.js';
+import { evaluate, evaluateLazy } from './evaluate.js';
 import {
   EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN,
   FLAG_CAPTURE, FLAG_EN_PASSANT, moveFrom, moveTo, movePromotion,
@@ -322,7 +322,8 @@ export class Engine {
     if (inCheck) {
       bestScore = -MATE + ply;
     } else {
-      bestScore = evaluate(pos);
+      // Lazy: far outside the window, material and tables are enough.
+      bestScore = evaluateLazy(pos, alpha, beta);
       if (bestScore >= beta) return bestScore;
       if (bestScore > alpha) alpha = bestScore;
     }
