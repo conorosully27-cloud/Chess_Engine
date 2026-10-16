@@ -29,6 +29,10 @@ const TT_EXACT = 1;
 const TT_LOWER = 2; // score is at least this (the search failed high)
 const TT_UPPER = 3; // score is at most this (failed low)
 
+// Late move pruning: near the leaves, after this many quiet moves have been
+// tried at a given depth, the remaining quiet moves are skipped.
+const LMP_QUIETS = [0, 4, 7, 12];
+
 // Piece values for move ordering only.
 const ORDER_VALUE = [0, 100, 320, 330, 500, 900, 2000];
 
@@ -225,6 +229,8 @@ export class Engine {
 
     // Futility: near the leaves, quiet moves can't lift a hopeless position.
     const futile = !pvNode && !inCheck && depth <= 2 && staticEval + 150 * depth <= alpha;
+    const pruneLate = !pvNode && !inCheck && depth <= 3;
+    let quietsTried = 0;
 
     const moves = this.moveLists[ply];
     const scores = this.scoreLists[ply];
@@ -248,6 +254,11 @@ export class Engine {
       const givesCheck = pos.inCheck();
 
       if (futile && legal > 1 && quiet && !givesCheck) {
+        pos.unmakeMove();
+        continue;
+      }
+      // Late move pruning: moves ordered this late almost never matter here.
+      if (quiet && !givesCheck && pruneLate && legal > 1 && ++quietsTried > LMP_QUIETS[depth]) {
         pos.unmakeMove();
         continue;
       }
