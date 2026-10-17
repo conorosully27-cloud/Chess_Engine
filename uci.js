@@ -42,13 +42,13 @@ function setPosition(tokens) {
 }
 
 function timeBudget(args, side) {
-  if (args.movetime !== undefined) return Math.max(1, args.movetime - 20);
+  if (args.movetime !== undefined) return Math.max(1, args.movetime - Math.max(100, args.movetime * 0.1));
   const left = args[side === 'w' ? 'wtime' : 'btime'];
   if (left === undefined) return args.depth !== undefined || args.nodes !== undefined ? Infinity : 1000;
   const inc = args[side === 'w' ? 'winc' : 'binc'] ?? 0;
   const togo = args.movestogo ?? 30;
   const budget = left / togo + inc * 0.8;
-  return Math.max(5, Math.min(budget, left - 50));
+  return Math.max(5, Math.min(budget, left - 100));
 }
 
 function go(tokens) {
