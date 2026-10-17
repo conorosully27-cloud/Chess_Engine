@@ -240,3 +240,9 @@ positions and 14 edge-case positions (illegal en passant, castling through check
 promotions with check, self-stalemate and more), about 30 million positions in all.
 Unit tests cover each rule directly, along with a fuzz test of make/unmake
 across random games.
+
+### Cute Chess / other UCI GUIs
+
+`uci.js` runs the engine over the UCI protocol (needs Node.js on your PATH).
+In Cute Chess: Tools → Settings → Engines → **+**, set Command to the full
+path of `engine.bat`, Working directory to this folder, Protocol to `UCI`.
