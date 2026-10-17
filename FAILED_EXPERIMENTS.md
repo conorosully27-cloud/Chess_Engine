@@ -7,6 +7,28 @@ noted. "Prior" is how promising the idea looked before testing, out of 10.
 
 Add new entries at the top.
 
+## Lazy margin of 2 pawns and the bad-capture skip for any guard (Oct 2026)
+
+**Change:** two of 1.4's settings, tried together on top of the history
+penalty (which became Engine 1.6): lazy evaluation's margin 3 -> 2 pawns,
+and the quiescence search skipping a capture by a piece worth more than
+its victim whenever the enemy guards the square (`pos.isAttacked`), not
+only when an enemy pawn does. Local branch `exp-16`, commit `587de88`.
+
+**Result:** vs Engine 1.5, 2000 games, +715 -692 =593, Elo +4 (95% -9 to
++17), LLR -0.24, inconclusive; the history penalty alone had +8 (-5 to
++21). 12% fewer nodes than 1.5 to depth 9.
+
+**Prior:** 5/10.
+
+**Commentary:** fewer nodes but no gain, so the pruning cost accuracy.
+The wider bad-capture rule is the likelier culprit: "the square is
+guarded" ignores our own second attacker and the defender's value (QxR
+guarded by a queen is fine), which a real exchange evaluation would see.
+The 2-pawn margin is close to the 99th percentile of the non-material
+evaluation (1.92 pawns) and may also bite. Each would need its own test
+to tell them apart.
+
 ## Countermove heuristic (Oct 2026)
 
 **Change:** for the opponent's last move (piece and square it landed on),

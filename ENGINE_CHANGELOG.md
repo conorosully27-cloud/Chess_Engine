@@ -10,6 +10,7 @@ roughly, since each is measured against the version before it.
 
 | Version / change | Measured against | Games | W-L-D | Elo (95% range) | Commit |
 |---|---|---|---|---|---|
+| Engine 1.6: history penalty | Engine 1.5 | 2000 | 708-662-630 | +8 (-5 to +21), not significant | `1576297` |
 | Engine 1.5: late move pruning | Engine 1.4 | 353 | 161-88-104 | **+73** (+43 to +104) | `648648e` |
 | Engine 1.4: speed | Engine 1.3 | 572 | 230-154-188 | **+46** (+23 to +70) | `9d16dc3` |
 | Engine 1.3: king safety | Engine 1.2 | 1151 | 483-389-279 | **+28** (+11 to +46) | `b902214` |
@@ -17,7 +18,7 @@ roughly, since each is measured against the version before it.
 | Engine 1.1: Texel-tuned weights | Engine 1.0 | 2154 | 897-786-471 | **+18** (+5 to +31) | `19aa147` |
 | Engine 1.0: baseline | - | - | - | - | `engine-1.0` branch |
 
-Running total over Engine 1.0: about **+209 Elo** (rough, see above).
+Running total over Engine 1.0: about **+217 Elo** (rough, see above).
 
 ## External results
 
@@ -30,6 +31,22 @@ bot and this app. Not a rating, but the only outside measure so far.
 | 2026-10-15 | 1.2 | analysis mode | chess.com 2600 bot ("Grandmaster", level 22) | Win | chess.com accuracy 95.6 vs the bot's 88.7 |
 | 2026-10-15 | 1.2 | 2 s a move | chess.com 2900 bot | Loss | lost the exchange to the repetition bug (24.Rf4, see `HANDOFF.md`), then ground down |
 | 2026-10-15 | 1.2 | 10 s a move | chess.com 2900 bot | Loss | no single blunder; queen went pawn-hunting (Qa7, Qa6, Qxa5) and Black's kingside attack crept in: king safety |
+
+## Engine 1.6: history penalty (move ordering)
+
+When a quiet move causes a cut-off, the quiet moves searched before it at
+that node lose the history bonus it gains (depth squared), so moves that
+keep failing sink in the ordering. Over 600 searches to depth 8: 11% fewer
+nodes, first-move cut-offs 81.8% -> 82.9%.
+
+- SPRT vs 1.5: 2000 games, +708 -662 =630, **+8 Elo** (-5 to +21), LLR
+  0.72, inconclusive at the game limit. Released on the owner's call as a
+  likely small gain, to close 1.6 before the NNUE work (Engine 2.0).
+- Tried with it and left out: a lazy margin of 2 pawns plus the bad-capture
+  skip for any guard (+4 together, see `FAILED_EXPERIMENTS.md`); the
+  countermove heuristic (worse ordering); steeper late move reductions
+  (parked). A Texel retune found nothing to gain (held-back error
+  0.059835 -> 0.059832).
 
 ## Engine 1.5: late move pruning
 

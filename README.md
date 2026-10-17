@@ -33,10 +33,17 @@ small server.)
 
 ### Engine
 
-**Current version: Engine 1.5.** Engine 1.0 is kept as-is on the
+**Current version: Engine 1.6.** Engine 1.0 is kept as-is on the
 `engine-1.0` branch; to measure a new version against an older one, check
 that out with `git worktree add`, e.g. `git worktree add ../engine-1.0
 engine-1.0`. Every version's measured gain is in `ENGINE_CHANGELOG.md`.
+
+*Changes in 1.6 over 1.5:* better move ordering. When a quiet move refutes
+a line, the quiet moves tried before it there count against themselves in
+the engine's move history, so moves that keep failing are tried later
+(11% fewer positions searched). Estimated **+8 Elo** over 1.5 (95% -5 to
++21) after 2000 games at 100 ms a move; too small to prove, released as a
+likely small gain.
 
 *Changes in 1.5 over 1.4:* late move pruning. Near the end of the search,
 once the first few quiet moves have been tried (4, 7 or 12 at the last 1,
@@ -88,10 +95,10 @@ method Stockfish uses to accept changes: it stops as soon as the results
 decide, with 5% error rates.
 
 ```sh
-git worktree add ../engine-1.5 648648e                    # once: the Engine 1.5 commit
-npm run match -- --b ../engine-1.5 --fens test/openings.epd --sprt 0,10 --games 2000
-npm run match -- --b ../engine-1.5 --games 200 --time 100    # fixed-length match, book openings
-npm run match -- --b ../engine-1.5 --fens test/endgames.epd --games 400   # endgames only
+git worktree add ../engine-1.6 1576297                    # once: the Engine 1.6 commit
+npm run match -- --b ../engine-1.6 --fens test/openings.epd --sprt 0,10 --games 2000
+npm run match -- --b ../engine-1.6 --games 200 --time 100    # fixed-length match, book openings
+npm run match -- --b ../engine-1.6 --fens test/endgames.epd --games 400   # endgames only
 ```
 
 `--fens test/openings.epd` starts each game pair from one of 1000 different
@@ -223,7 +230,7 @@ most chess apps.
 npm test                    # ~7 seconds, 105 tests
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
-npm run match -- --b ../engine-1.5 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
+npm run match -- --b ../engine-1.6 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)
 npm run tune -- --data quiet-labeled.v7.epd.gz     # Texel tuning (see HANDOFF.md)
 ```
 
