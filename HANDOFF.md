@@ -2,12 +2,13 @@
 
 Start here when picking up this project in a new session. It covers where
 things stand, how to set up, how the owner likes to work, and what to do
-next. Last updated 2026-10-17, at Engine 1.6.
+next. Last updated 2026-10-17, at Engine 1.6 (UCI front end added).
 
 Companion files: `ENGINE_CHANGELOG.md` (every accepted change and its Elo
 gain, plus results against chess.com bots), `FAILED_EXPERIMENTS.md` (every
 rejected change, with how promising it looked and why it failed), `README.md`
-(the app and tools), `games/` (PGNs of notable games).
+(the app and tools), `games/` (PGNs of notable games), `docs/cutechess-results.md` (Cute Chess
+results against Stockfish).
 
 ## Where things stand
 
@@ -33,6 +34,15 @@ rejected change, with how promising it looked and why it failed), `README.md`
 - **Tests:** `npm test`, 105 tests, about 7 seconds, all passing.
 - **Outside results:** beat the chess.com 2200 and 2600 bots; lost twice to
   the 2900 bot (details in `ENGINE_CHANGELOG.md`, games in `games/`).
+- **Cute Chess / UCI:** `uci.js` (with `engine.bat` for Windows) runs the
+  engine over UCI, so any UCI GUI can use it. Against Stockfish with
+  `UCI_Elo` 2550 at about 1 s per move, 200 games scored 92 - 86 - 22
+  (+10 +/- 46 Elo); with Stockfish's time losses removed that is about
+  -5 Elo, so **Engine 1.6 is about 2550 on Stockfish's `UCI_Elo` scale**
+  (not a rating-list Elo). Full output and a 2700 run in
+  `docs/cutechess-results.md`. Work is on branch
+  `claude/zen-hamilton-x7adgd`, PR
+  [conorosully27-cloud/Chess_Engine#1](https://github.com/conorosully27-cloud/Chess_Engine/pull/1).
 
 ## Setting up a new session
 
@@ -49,6 +59,31 @@ mkdir -p ~/data && curl -sSL -o ~/data/quiet-labeled.v7.epd.gz \
 The cloud machine has 4 cores. A match with `--threads 3` uses them; two
 matches side by side should use `--threads 2` each, or timed searches get
 starved and results skew.
+
+## Testing in Cute Chess (UCI)
+
+- **Wrapper:** `uci.js` handles `uci`, `isready`, `ucinewgame`,
+  `setoption` (`OwnBook`, default off), `position` and `go`
+  (`movetime`, `wtime`/`btime`/`winc`/`binc`/`movestogo`, `depth`, `nodes`).
+  The search is synchronous, so `stop` is only noticed after the current
+  search; `go infinite` is capped at 5 s. Time per move leaves at least
+  100 ms (or 10%) spare for `movetime`, and 100 ms spare on clock games.
+- **Setup on the owner's Windows PC:** clone the repo outside
+  `C:\Users\conor\ClaudeNShit` (that folder has a `.git` of its own that
+  also holds unrelated projects and `API KEY.txt`; never run `git add .`
+  there). In Cute Chess add the engine with Command `engine.bat`, working
+  directory the repo, protocol UCI. Node.js must be on the PATH.
+- **Tournament settings that worked:** Round Robin, 100 rounds, 2 games per
+  encounter, play each opening once, swap sides on, random opening order,
+  `test/openings.epd`, 1 s per move, Margin 250-300 ms, concurrency at most
+  half the cores, Stockfish `Move Overhead` about 100. PGN output to a file
+  outside the repo.
+- **Time losses:** the first run lost 33 of 200 games on time on both sides
+  (1 s per move with Margin 0). Raise Margin and cut concurrency rather than
+  trusting such a run; the 2550 run had 9, all Stockfish's.
+- **Not yet done:** nobody has looked through the PGNs. Run 1 (vs 2700)
+  had 6 fifty-move draws and 2 stalemates, worth checking for endgame
+  conversion problems.
 
 ## How the owner works (follow these)
 
@@ -73,8 +108,7 @@ starved and results skew.
 - **Every rejected change goes in `FAILED_EXPERIMENTS.md`:** what changed,
   the commit, the results, a prior rating out of 10, and commentary on why
   it failed. Newest at the top.
-- **Git:** work on the session's assigned branch and push there; merge to
-  `main` only when the owner asks (it has always been a fast-forward).
+- **Git:** work on the session's assigned branch and push there.
 - **Keep the session awake during matches:** the cloud session sleeps a
   while after Claude's turn ends unless a tracked background task is
   running, and sleeping kills detached matches (this killed five tests).
@@ -212,3 +246,5 @@ fixed depth: it must not change.
    move reductions were neutral at 100 ms (see `FAILED_EXPERIMENTS.md`).
 10. 1.6: the history penalty (+8, not significant) closed the 1.x series;
    the owner's next step is NNUE as Engine 2.0.
+11. UCI front end (`uci.js`, `engine.bat`) added so the engine runs in Cute
+   Chess; measured at about 2550 against Stockfish's `UCI_Elo` scale.
