@@ -108,8 +108,7 @@ starved and results skew.
 - **Every rejected change goes in `FAILED_EXPERIMENTS.md`:** what changed,
   the commit, the results, a prior rating out of 10, and commentary on why
   it failed. Newest at the top.
-- **Git:** work on the session's assigned branch and push there; merge to
-  `main` only when the owner asks (it has always been a fast-forward).
+- **Git:** work on the session's assigned branch and push there.
 - **Keep the session awake during matches:** the cloud session sleeps a
   while after Claude's turn ends unless a tracked background task is
   running, and sleeping kills detached matches (this killed five tests).
