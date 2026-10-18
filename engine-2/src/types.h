@@ -74,6 +74,11 @@ class Move {
   constexpr bool operator!=(Move o) const { return data_ != o.data_; }
   constexpr explicit operator bool() const { return data_ != 0; }
   constexpr std::uint16_t raw() const { return data_; }
+  static constexpr Move from_raw(std::uint16_t raw) {
+    Move m;
+    m.data_ = raw;
+    return m;
+  }
 
   std::string uci() const {
     if (!*this) return "0000";

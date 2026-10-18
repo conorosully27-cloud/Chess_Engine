@@ -6,6 +6,7 @@
 #include <mutex>
 #include <sstream>
 
+#include "evaluate.h"
 #include "movegen.h"
 #include "position.h"
 #include "search.h"
@@ -60,17 +61,22 @@ SearchLimits parse_go(std::istringstream& in) {
 }
 
 // "setoption name <name> value <value>"; names may contain spaces.
-void set_option(std::istringstream& in, int& move_overhead) {
+void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) {
   std::string token, name, value;
   in >> token;  // "name"
   while (in >> token && token != "value") name += (name.empty() ? "" : " ") + token;
   while (in >> token) value += (value.empty() ? "" : " ") + token;
+  int n = 0;
+  try {
+    n = std::stoi(value);
+  } catch (...) {
+    uci_send("info string bad value for " + name);
+    return;
+  }
   if (name == "Move Overhead") {
-    try {
-      move_overhead = std::clamp(std::stoi(value), 0, 5000);
-    } catch (...) {
-      uci_send("info string bad value for Move Overhead");
-    }
+    move_overhead = std::clamp(n, 0, 5000);
+  } else if (name == "Hash") {
+    searcher.set_hash_mb(std::size_t(std::clamp(n, 1, 65536)));
   } else {
     uci_send("info string unknown option " + name);
   }
@@ -112,6 +118,7 @@ void uci_send(const std::string& line) {
 void uci_loop() {
   Position pos;
   Searcher searcher;
+  searcher.set_hash_mb(64);
   int move_overhead = 50;
   std::string line;
 
@@ -123,6 +130,7 @@ void uci_loop() {
     if (cmd == "uci") {
       uci_send(std::string("id name ") + ENGINE_NAME);
       uci_send(std::string("id author ") + ENGINE_AUTHOR);
+      uci_send("option name Hash type spin default 64 min 1 max 65536");
       uci_send("option name Move Overhead type spin default 50 min 0 max 5000");
       uci_send("uciok");
     } else if (cmd == "isready") {
@@ -130,9 +138,12 @@ void uci_loop() {
     } else if (cmd == "ucinewgame") {
       searcher.stop();
       searcher.wait();
+      searcher.new_game();
       pos.set(START_FEN);
     } else if (cmd == "setoption") {
-      set_option(in, move_overhead);
+      searcher.stop();
+      searcher.wait();
+      set_option(in, move_overhead, searcher);
     } else if (cmd == "position") {
       searcher.stop();
       searcher.wait();
@@ -146,6 +157,14 @@ void uci_loop() {
       break;
     } else if (cmd == "d") {
       print_board(pos);
+    } else if (cmd == "eval") {
+      uci_send("Evaluation: " + std::to_string(evaluate(pos)) + " (side to move)");
+    } else if (cmd == "bench") {
+      searcher.stop();
+      searcher.wait();
+      int depth = 0;
+      in >> depth;
+      run_bench(depth);
     } else if (cmd == "perft") {
       int depth = 1;
       in >> depth;

@@ -22,7 +22,8 @@ struct MoveList {
   int count = 0;
 };
 
-void generate_pseudo_legal(const Position& pos, MoveList& list);
+// With tactical, only captures and queen promotions (for quiescence search).
+void generate_pseudo_legal(const Position& pos, MoveList& list, bool tactical = false);
 void generate_legal(const Position& pos, MoveList& list);
 
 // Finds the legal move written in UCI notation (e.g. "e2e4", "e7e8q"), or an

@@ -2,12 +2,15 @@
 // and other GUIs expect). With arguments it runs a tool:
 //   engine2 perft <depth> [fen]    node count
 //   engine2 divide <depth> [fen]   node count per root move
-//   engine2 bench                  perft speed on the start position
+//   engine2 bench [depth]          fixed-depth searches: node signature and speed
+//   engine2 perftbench             perft speed on the start position
+//   engine2 eval                   static evaluation of each FEN read from stdin
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include "evaluate.h"
 #include "movegen.h"
 #include "position.h"
 #include "uci.h"
@@ -23,7 +26,7 @@ std::string join_fen(int argc, char** argv, int first) {
 }
 
 int usage() {
-  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench\n";
+  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n";
   return 2;
 }
 
@@ -38,6 +41,25 @@ int main(int argc, char** argv) {
   const std::string cmd = argv[1];
 
   if (cmd == "bench") {
+    run_bench(argc >= 3 ? std::atoi(argv[2]) : 0);
+    return 0;
+  }
+
+  if (cmd == "eval") {
+    std::string line;
+    Position pos;
+    while (std::getline(std::cin, line)) {
+      if (line.empty()) continue;
+      if (!pos.set(line)) {
+        std::cout << "bad FEN\n";
+        continue;
+      }
+      std::cout << evaluate(pos) << "\n";
+    }
+    return 0;
+  }
+
+  if (cmd == "perftbench") {
     Position pos;
     auto t0 = std::chrono::steady_clock::now();
     std::uint64_t nodes = perft(pos, 6);

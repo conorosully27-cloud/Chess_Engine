@@ -24,10 +24,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 add_library(engine2_core STATIC
+  src/bench.cpp
   src/bitboard.cpp
   src/position.cpp
   src/movegen.cpp
+  src/evaluate.cpp
   src/search.cpp
+  src/tt.cpp
   src/uci.cpp)
 target_include_directories(engine2_core PUBLIC src)
 find_package(Threads REQUIRED)
@@ -47,7 +50,7 @@ add_test(NAME position COMMAND position_test)
 
 add_executable(search_test tests/search_test.cpp)
 target_link_libraries(search_test PRIVATE engine2_core)
-add_test(NAME search COMMAND search_test)
+add_test(NAME search COMMAND search_test ${CMAKE_CURRENT_SOURCE_DIR}/tests/eval_reference.tsv)
 
 # Drives the real binary over UCI the way a GUI does. Needs Python 3.
 find_package(Python3 COMPONENTS Interpreter)
