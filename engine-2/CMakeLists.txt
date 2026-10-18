@@ -30,6 +30,7 @@ add_library(engine2_core STATIC
   src/movegen.cpp
   src/evaluate.cpp
   src/search.cpp
+  src/tools.cpp
   src/tt.cpp
   src/uci.cpp)
 target_include_directories(engine2_core PUBLIC src)

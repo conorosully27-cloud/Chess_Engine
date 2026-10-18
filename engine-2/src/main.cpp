@@ -5,6 +5,8 @@
 //   engine2 bench [depth]          fixed-depth searches: node signature and speed
 //   engine2 perftbench             perft speed on the start position
 //   engine2 eval                   static evaluation of each FEN read from stdin
+//   engine2 genopenings ...        opening suite tools (see tools.cpp)
+//   engine2 scoreepd <depth>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -13,6 +15,7 @@
 #include "evaluate.h"
 #include "movegen.h"
 #include "position.h"
+#include "tools.h"
 #include "uci.h"
 
 using namespace chess;
@@ -26,7 +29,9 @@ std::string join_fen(int argc, char** argv, int first) {
 }
 
 int usage() {
-  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n";
+  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n"
+               "       engine2 genopenings <count> <plies> <seed> <depth> <max cp> < existing.epd\n"
+               "       engine2 scoreepd <depth> < suite.epd\n";
   return 2;
 }
 
@@ -58,6 +63,11 @@ int main(int argc, char** argv) {
     }
     return 0;
   }
+
+  if (cmd == "genopenings" && argc == 7)
+    return gen_openings(std::atoi(argv[2]), std::atoi(argv[3]), std::strtoull(argv[4], nullptr, 10),
+                        std::atoi(argv[5]), std::atoi(argv[6]));
+  if (cmd == "scoreepd" && argc == 3) return score_epd(std::atoi(argv[2]));
 
   if (cmd == "perftbench") {
     Position pos;
