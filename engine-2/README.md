@@ -65,6 +65,11 @@ from their git commits and runs a restartable SPRT (`start`, `resume`,
 progress are kept in `release-matches/` so it can continue even after the
 cloud machine is reset.
 
+The opening suite (`engine-1/test/openings.epd`, 1985 positions) was
+extended and filtered with `engine2 genopenings` (new random openings, no
+repeats) and `engine2 scoreepd <depth>` (search score of each position from
+White's point of view); see `src/tools.cpp`.
+
 fastchess is not in the repo; build it once with
 `git clone https://github.com/Disservin/fastchess ~/tools/fastchess && make -C ~/tools/fastchess -j`.
 Results and PGNs go to `matches/` (git-ignored); accepted changes and their

@@ -26,6 +26,9 @@ history behind the search and evaluation.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 1.8M nodes/s on bench. Cute Chess is set up
   for Engine 1.6 and not yet for Engine 2 (the owner will do that later).
+- **Opening suite:** `engine-1/test/openings.epd`, 1985 positions (988 of
+  the original 1000 plus 997 new), all within +/-2.00 by a depth-14 Engine
+  2.1 search. Earlier match results used the original 1000.
 - **Repository:** `engine-1/` (JavaScript, frozen at 1.6, the phone app) and
   `engine-2/` (C++), built and run separately.
 

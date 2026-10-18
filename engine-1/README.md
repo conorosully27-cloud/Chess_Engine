@@ -101,8 +101,9 @@ npm run match -- --b ../engine-1.6 --games 200 --time 100    # fixed-length matc
 npm run match -- --b ../engine-1.6 --fens test/endgames.epd --games 400   # endgames only
 ```
 
-`--fens test/openings.epd` starts each game pair from one of 1000 different
-positions (3 random moves each, made by `scripts/make-openings.js`), so long
+`--fens test/openings.epd` starts each game pair from one of 1985 different
+positions (3 random moves each, made by `scripts/make-openings.js` and Engine
+2's `genopenings`, all within 2 pawns by a depth-14 Engine 2.1 search), so long
 matches don't repeat openings; without it the match cycles through the 24
 book openings.
 
@@ -220,7 +221,7 @@ most chess apps.
 | `scripts/match.js`, `scripts/sprt.js` | Engine-vs-engine matches and the SPRT |
 | `scripts/tune.js`, `scripts/eval-trace.js` | Texel tuner and the evaluation as a linear model |
 | `scripts/make-openings.js` | Generates `test/openings.epd` |
-| `test/openings.epd`, `test/endgames.epd` | Match starting positions: 1000 openings, 270 endgames |
+| `test/openings.epd`, `test/endgames.epd` | Match starting positions: 1985 openings, 270 endgames |
 | `HANDOFF.md`, `ENGINE_CHANGELOG.md`, `FAILED_EXPERIMENTS.md` | Status and next steps, accepted changes, rejected ones |
 | `app/pieces/` | Piece images, one folder per set, generated from `scripts/pieces/` |
 
