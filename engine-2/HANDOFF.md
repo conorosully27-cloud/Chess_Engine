@@ -112,7 +112,12 @@ Each item is one or more SPRT-tested changes.
       LLR 0.42, still running.
    4. SEE pruning in the main search: non-PV, depth <= 6, skip quiets losing
       more than 25*depth^2 and captures losing more than 100*depth
-      (`9feb847`, bench 6533990). Under SPRT vs step 3 in the cloud.
+      (`9feb847`, bench 6533990). vs step 3 (cloud): +177 -149 =214 at
+      540 games, Elo +18 +/- 21, LLR 1.18, stopped to free the cores.
+   The whole package (step 4 build) vs 2.1 is the 2.2 test, running on
+   the owner's laptop (about +15 at 555 games). Version plan: **2.2 = SEE
+   steps 2-4**; 2.3 = further SEE enhancements (e.g. item 11); LMR, IIR
+   and the rest get later numbers.
 
 Outstanding, in priority order (owner's ranking, Oct 2026). Each its own
 SPRT against the best build at the time:
@@ -122,9 +127,11 @@ SPRT against the best build at the time:
    move, one ply less on the PV and for killers, one more for zero
    history, never at the root. **Built** on step 4 (bench 3617582, 45%
    fewer nodes); test binary from step 4 + this patch alone, vs step 4.
+   **Under SPRT** in the cloud (concurrency 2, `~/matches/lmr.out`).
 4. **Internal iterative reduction**: depth >= 4 with no TT move (not at
    the root) searches a ply shallower (`07cba28`, bench 5320123 on step
-   4). **Built**; test vs step 4.
+   4). **Under SPRT** vs step 4 in the cloud (concurrency 2,
+   `~/matches/iir.out`).
 5. **Stronger null move**: reduction 3 + depth/3, more when the static
    eval is well above beta (now a fixed 2-3).
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
