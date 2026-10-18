@@ -23,6 +23,13 @@ constexpr int BAD_CAPTURE_SCORE = -2000000;
 // tried at a given depth, the remaining quiet moves are skipped.
 constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
 
+// SEE pruning: near the leaves, moves that lose more than this much material
+// on their square (static exchange) are skipped. Quiet moves get a margin
+// growing with depth squared, captures one growing with depth.
+constexpr int SEE_PRUNE_DEPTH = 6;
+constexpr int SEE_QUIET_MARGIN = 25;
+constexpr int SEE_CAPTURE_MARGIN = 100;
+
 // Piece values for move ordering and quiescence pruning only.
 constexpr int ORDER_VALUE[6] = {100, 320, 330, 500, 900, 2000};
 
@@ -252,6 +259,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
   const bool futile = !pv_node && !in_check && depth <= 2 && static_eval + 150 * depth <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= 3;
+  const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
   int quiets_count = 0;
@@ -279,6 +287,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (futile && legal > 1 && quiet && !gives_check) continue;
     // Late move pruning: moves ordered this late almost never matter here.
     if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) continue;
+    // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
+    if (see_prune && legal > 1 && !gives_check &&
+        !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth))
+      continue;
 
     pos.make_move(move);
 
