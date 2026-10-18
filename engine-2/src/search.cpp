@@ -83,12 +83,16 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   const int inc = us == WHITE ? limits.winc : limits.binc;
   const std::int64_t remaining = std::max<std::int64_t>(1, time - move_overhead_ms);
   const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, 40) : 40;
-  // Never plan to use more than three quarters of what is left on the clock.
-  const std::int64_t cap = std::max<std::int64_t>(1, remaining * 3 / 4);
-  b.soft_ms = std::min(cap, remaining / moves_to_go + inc * 3 / 4);
-  b.hard_ms = std::min(cap, b.soft_ms * 4);
-  b.soft_ms = std::max<std::int64_t>(1, b.soft_ms);
-  b.hard_ms = std::max(b.hard_ms, b.soft_ms);
+  // Plan a share of the clock plus most of the increment, but never more
+  // than a fifth of what is left (half before the last move of a time
+  // control), and abort at three times the plan or half the clock. Searches
+  // often run past the plan, and with a short clock the increment alone
+  // would otherwise be overspent move after move until the clock ran out;
+  // these caps make it settle instead.
+  const std::int64_t soft_cap = moves_to_go == 1 ? remaining / 2 : remaining / 5;
+  const std::int64_t hard_cap = moves_to_go == 1 ? remaining * 3 / 4 : remaining / 2;
+  b.soft_ms = std::max<std::int64_t>(1, std::min(soft_cap, remaining / moves_to_go + inc * 3 / 4));
+  b.hard_ms = std::max<std::int64_t>(b.soft_ms, std::min(hard_cap, b.soft_ms * 3));
   return b;
 }
 
@@ -120,7 +124,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   stop_flag_ = stop;
   hard_ms_ = budget.hard_ms;
   max_nodes_ = limits.nodes;
-  start_ = std::chrono::steady_clock::now();
+  start_ = budget.start;
   for (auto& k : killers_) k[0] = k[1] = Move();
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
@@ -438,9 +442,9 @@ void Searcher::new_game() {
 void Searcher::start(const Position& pos, const SearchLimits& limits, int move_overhead_ms) {
   stop();
   wait();
+  budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms);  // starts the clock
   root_ = pos;
   limits_ = limits;
-  budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms);
   stop_ = false;
   thread_ = std::thread(&Searcher::run, this);
 }

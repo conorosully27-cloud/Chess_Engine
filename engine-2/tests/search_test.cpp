@@ -45,13 +45,35 @@ void test_time_allocation() {
   l.wtime = 10000;
   l.movestogo = 1;
   b = allocate_time(l, WHITE, 50);
-  CHECK(b.hard_ms <= 7500 && b.soft_ms > 5000);
+  CHECK(b.soft_ms >= 4000 && b.hard_ms <= 7500);
 
   // Almost out of time: still a positive budget below the clock.
   l = SearchLimits();
   l.wtime = 30;
   b = allocate_time(l, WHITE, 50);
   CHECK(b.soft_ms >= 1 && b.hard_ms >= 1 && b.hard_ms <= 30);
+}
+
+// Plays out the clock of a long game at fastchess's 8+0.08: even if every
+// move takes the full hard limit plus 30 ms of lag, the clock must never run
+// out, and with typical use (1.5x the plan) it should settle well clear of zero.
+void test_clock_never_runs_out() {
+  for (bool worst_case : {true, false}) {
+    std::int64_t clock = 8000, lowest = clock;
+    for (int move = 0; move < 300; move++) {
+      SearchLimits l;
+      l.wtime = int(clock);
+      l.winc = 80;
+      TimeBudget b = allocate_time(l, WHITE, 50);
+      std::int64_t used = worst_case ? b.hard_ms + 30 : std::min(b.hard_ms, b.soft_ms * 3 / 2);
+      clock = clock - used + 80;
+      lowest = std::min(lowest, clock);
+    }
+    std::printf("8+0.08 clock simulation (%s): lowest %lld ms\n", worst_case ? "worst case" : "typical",
+                (long long)lowest);
+    CHECK(lowest > 50);
+    if (!worst_case) CHECK(lowest > 200);
+  }
 }
 
 // Scores recorded from Engine 1.6's evaluate() on positions from random
@@ -127,6 +149,7 @@ void test_search_finds_mates_and_tactics() {
 int main(int argc, char** argv) {
   init_all();
   test_time_allocation();
+  test_clock_never_runs_out();
   test_eval_matches_engine1(argc > 1 ? argv[1] : "eval_reference.tsv");
   test_eval_symmetry();
   test_search_finds_mates_and_tactics();
