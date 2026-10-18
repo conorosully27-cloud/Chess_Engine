@@ -109,6 +109,10 @@ Each item is one or more SPRT-tested changes.
    3. Ordering: captures that lose material by SEE tried after the quiet
       moves instead of before them (SPRT).
    4. If those pass: SEE pruning in the main search at low depth.
+   5. Parked idea (owner's suggestion): SEE piece values from the tuned
+      evaluation (phase-blended middlegame/endgame material) instead of
+      the fixed 100/325/325/500/900. Main difference: the tuned middlegame
+      values rate a queen above two rooks. Its own SPRT.
 3. **Transposition table:** buckets, age-based replacement, store the
    static evaluation, use it in quiescence.
 4. **Reductions and ordering:** logarithmic LMR table (1.6's steeper LMR
