@@ -5,7 +5,7 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## 2.1: speed (release candidate)
+## 2.1: speed
 
 Search and evaluation unchanged; the same work done faster. **About 28%
 more nodes per second than 2.0** (median of 8 alternating `bench` runs:
@@ -14,7 +14,9 @@ node (callgrind, bench depth 8).
 
 **Release match against 2.0** (`scripts/release_match.sh`, 8+0.08, SPRT
 0/10): **H1 accepted after 430 games**, 158 wins, 94 losses, 178 draws,
-+52 Elo (+/- 24). Extended to 1,000 games for a firmer estimate: (running).
++52 Elo (+/- 24). Extended to 1,000 games for a firmer estimate: 354 wins,
+249 losses, 397 draws (55.3%), **+37 Elo (+/- 16)**, no time losses. The
+early-stopped SPRT overstated the gain, as expected.
 
 - Material and piece-square sums kept up to date in `Position` instead of
   recounted every evaluation (as Engine 1.4 did in JS): 12% fewer

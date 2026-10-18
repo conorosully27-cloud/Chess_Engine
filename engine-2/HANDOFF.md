@@ -16,9 +16,9 @@ history behind the search and evaluation.
   later version numbers.
 - 2.0 is merged to `main`
   ([conorosully27-cloud/Chess_Engine#2](https://github.com/conorosully27-cloud/Chess_Engine/pull/2)).
-- **2.1** (speed, +28% nodes/s over 2.0, same search) is the release
-  candidate on the session branch; its release match against 2.0 is for
-  the owner to start.
+- **Engine 2.1** (speed, +28% nodes/s over 2.0, same search) passed its
+  release SPRT against 2.0 and measured **+37 Elo (+/- 16)** over 1,000
+  games at 8+0.08. Its commit is `3a3f237`; keep it as the next baseline.
 - **Tests:** `ctest --test-dir build`, 4 suites (perft, position, search,
   UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
   2.0 was 9559579, see the 2.1 notes in `CHANGELOG.md`), the same on
@@ -90,7 +90,7 @@ Carried over from Engine 1:
 
 Each item is one or more SPRT-tested changes.
 
-1. **Speed: done as 2.1** (+28% nodes/s; see `CHANGELOG.md` for what was
+1. **Speed: done as 2.1** (+37 Elo) (+28% nodes/s; see `CHANGELOG.md` for what was
    done and what didn't help). Where the time goes now (callgrind,
    `valgrind --tool=callgrind ./engine2 bench 8` on a `-g` Release build):
    evaluation ~25%, move picking ~9%, ordering scores ~8%, move generation
