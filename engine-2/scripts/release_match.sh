@@ -5,6 +5,7 @@
 #   scripts/release_match.sh resume <name>       # continue after an interruption
 #   scripts/release_match.sh status <name>       # score so far
 #   scripts/release_match.sh checkpoint <name>   # copy the state into the repo
+#   scripts/release_match.sh extend <name> <total games>   # then resume
 #
 # Both commits are built from git (so they can always be rebuilt) into
 # ~/matches/<name>/, and fastchess plays an SPRT between them: H0 "no better"
@@ -20,6 +21,11 @@
 # If the cloud machine itself was reset, ~/matches is gone: "checkpoint"
 # copies the saved state to engine-2/release-matches/<name>/ (commit it), and
 # "resume" restores from there and rebuilds both engines from their commits.
+#
+# "extend" turns a stopped match (usually one whose SPRT has decided) into a
+# fixed-length one of <total games>, counting the games already played, for
+# a more precise Elo estimate: an SPRT that stops early tends to overstate
+# the difference. The SPRT verdict stands; resume to play the extra games.
 #
 # Run start/resume detached so the match survives the session's turns:
 #   setsid nohup scripts/release_match.sh resume <name> > /dev/null 2>&1 < /dev/null &
@@ -103,6 +109,25 @@ for pair, s in json.load(open(sys.argv[1]))["stats"].items():
     print(f"saved: {pair}: {n} games, +{s['wins']} -{s['losses']} ={s['draws']}")
 PY
     grep -E "^(Elo|LLR)|accepted|Finished match" "$work/match.log" | tail -3
+    ;;
+  extend)
+    total="${3:?total games}"
+    if pgrep -f "^$fastchess -config file=$work/config.json" > /dev/null ||
+       pgrep -f "^$fastchess -engine cmd=$work/" > /dev/null; then
+      echo "the match is still running; extend it once it stops" >&2
+      exit 1
+    fi
+    python3 - "$work/config.json" "$total" <<'PY'
+import json, sys
+path, total = sys.argv[1], int(sys.argv[2])
+c = json.load(open(path))
+c["sprt"]["enabled"] = False
+c["rounds"] = total // c["games"]
+json.dump(c, open(path, "w"), indent=4)
+PY
+    echo "EXTENDED_TO=$total" >> "$work/meta"
+    echo "=== extended to $total games, SPRT off $(date -u +%FT%TZ)" >> "$work/match.log"
+    echo "now: $0 resume $name"
     ;;
   checkpoint)
     mkdir -p "$saved"
