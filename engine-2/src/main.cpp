@@ -1,8 +1,8 @@
-// Engine 2 command line. For now this only has the move generator tools:
+// Engine 2. With no arguments it speaks UCI on stdin/stdout (what Cute Chess
+// and other GUIs expect). With arguments it runs a tool:
 //   engine2 perft <depth> [fen]    node count
 //   engine2 divide <depth> [fen]   node count per root move
 //   engine2 bench                  perft speed on the start position
-// The UCI front end comes later.
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -10,6 +10,7 @@
 
 #include "movegen.h"
 #include "position.h"
+#include "uci.h"
 
 using namespace chess;
 
@@ -30,7 +31,10 @@ int usage() {
 
 int main(int argc, char** argv) {
   init_all();
-  if (argc < 2) return usage();
+  if (argc < 2) {
+    uci_loop();
+    return 0;
+  }
   const std::string cmd = argv[1];
 
   if (cmd == "bench") {

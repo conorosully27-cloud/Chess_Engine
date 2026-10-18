@@ -26,9 +26,12 @@ endif()
 add_library(engine2_core STATIC
   src/bitboard.cpp
   src/position.cpp
-  src/movegen.cpp)
+  src/movegen.cpp
+  src/search.cpp
+  src/uci.cpp)
 target_include_directories(engine2_core PUBLIC src)
-target_link_libraries(engine2_core PUBLIC engine2_options)
+find_package(Threads REQUIRED)
+target_link_libraries(engine2_core PUBLIC engine2_options Threads::Threads)
 
 add_executable(engine2 src/main.cpp)
 target_link_libraries(engine2 PRIVATE engine2_core)
@@ -41,3 +44,13 @@ add_test(NAME perft COMMAND perft_test)
 add_executable(position_test tests/position_test.cpp)
 target_link_libraries(position_test PRIVATE engine2_core)
 add_test(NAME position COMMAND position_test)
+
+add_executable(search_test tests/search_test.cpp)
+target_link_libraries(search_test PRIVATE engine2_core)
+add_test(NAME search COMMAND search_test)
+
+# Drives the real binary over UCI the way a GUI does. Needs Python 3.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+  add_test(NAME uci COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_test.py $<TARGET_FILE:engine2>)
+endif()
