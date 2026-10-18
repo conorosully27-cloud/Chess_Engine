@@ -41,12 +41,14 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 sprt=()
 [ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0=0 elo1=5 alpha=0.05 beta=0.05)
 
+engine_a="$(engine_args "$a")"
+engine_b="$(engine_args "$b")"
 # fastchess writes its resume file (config.json) to the working directory.
 cd "$here/matches"
-# shellcheck disable=SC2046
+# shellcheck disable=SC2086
 "$fastchess" \
-  -engine $(engine_args "$a") \
-  -engine $(engine_args "$b") \
+  -engine $engine_a \
+  -engine $engine_b \
   -each tc="$tc" \
   -openings file="$book" format=epd order=random \
   -rounds $((games / 2)) -repeat -concurrency "$conc" -recover \
