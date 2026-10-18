@@ -5,7 +5,7 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## 2.0-dev: Engine 1.6 ported to C++ (step 3)
+## 2.0: Engine 1.6 ported to C++
 
 Same search and evaluation as Engine 1.6, term for term: the evaluation gives
 identical scores on 30,000 test positions. The only difference is speed:

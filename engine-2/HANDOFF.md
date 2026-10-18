@@ -8,11 +8,14 @@ history behind the search and evaluation.
 
 ## Where things stand
 
-- **Engine 2 is Engine 1.6 ported to C++** (`2.0-dev`): same search, same
+- **Engine 2.0 is Engine 1.6 ported to C++**: same search, same
   evaluation (identical scores on 30,000 positions), about 6x the speed.
   It beat Engine 1.6 by **+372 Elo (+/- 59)** over 200 games at 8+0.08.
-- **Plan agreed with the owner:** build up Engine 2.0 with search and speed
-  work first (list below), release it, and only then start NNUE.
+- **Plan agreed with the owner:** search and speed work first (list below),
+  NNUE after. **2.1 is 2.0 plus the speed work** (item 1); later items get
+  later version numbers.
+- 2.0 is merged to `main`
+  ([conorosully27-cloud/Chess_Engine#2](https://github.com/conorosully27-cloud/Chess_Engine/pull/2)).
 - **Tests:** `ctest --test-dir build`, 4 suites (perft, position, search,
   UCI), a few seconds. **Bench signature: 9559579** (`build/engine2 bench`),
   the same on Linux/gcc and the owner's Windows/MinGW build.
@@ -73,11 +76,11 @@ Carried over from Engine 1:
   "accepted") in the log. Tracked tasks stop after 2 hours, so plan tests to
   decide within that.
 
-## Plan for Engine 2.0, in order
+## Plan after 2.0, in order
 
 Each item is one or more SPRT-tested changes.
 
-1. **Speed** (bench must stay 9559579). Ideas: incremental material and
+1. **Speed, released as 2.1** (bench must stay 9559579). Ideas: incremental material and
    piece-square sums in `Position` (the evaluation recounts them every call,
    and `evaluate_material` for lazy eval too); a cheaper evaluation pass
    (pawn hash for the pawn terms, fewer per-square loops in `rook_behind`,
@@ -96,6 +99,6 @@ Each item is one or more SPRT-tested changes.
 6. **Lazy SMP (threads):** big gain on the owner's laptop in Cute Chess;
    hard to test here with 3 of 4 cores in use. Do last, confirm on the laptop.
 
-Then release 2.0: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
-and this file, and let the owner start the release match. NNUE after that
+For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
+and this file, and let the owner start the release match. NNUE after these
 (training data from Engine 2 self-play; the cloud machine has no GPU).

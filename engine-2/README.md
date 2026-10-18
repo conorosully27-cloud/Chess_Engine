@@ -12,9 +12,9 @@ goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 | --- | --- |
 | 1. Position: bitboards, legal move generation, make/unmake, Zobrist, FEN | done, perft matches the standard counts |
 | 2. UCI front end | done |
-| 3. Search and transposition table, evaluation ported from Engine 1 | done: same algorithms as 1.6, about 5x faster; see CHANGELOG.md |
-| 4. NNUE evaluation | next |
-| 5. Search refinements and tuning | |
+| 3. Search and transposition table, evaluation ported from Engine 1 | done: **Engine 2.0**, same algorithms as 1.6, about 6x faster, +372 Elo over 1.6 |
+| 4. Speed and search improvements (2.1: speed) | in progress; see HANDOFF.md |
+| 5. NNUE evaluation | after that |
 
 ## Build and test
 
