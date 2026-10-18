@@ -269,19 +269,15 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (!pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
-    pos.make_move(move);
     legal++;
-    const bool gives_check = pos.in_check();
+    const bool gives_check = pos.gives_check(move);
 
-    if (futile && legal > 1 && quiet && !gives_check) {
-      pos.unmake_move();
-      continue;
-    }
+    // Pruned moves are decided before making them, which is cheaper.
+    if (futile && legal > 1 && quiet && !gives_check) continue;
     // Late move pruning: moves ordered this late almost never matter here.
-    if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) {
-      pos.unmake_move();
-      continue;
-    }
+    if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) continue;
+
+    pos.make_move(move);
 
     int score;
     if (legal == 1) {

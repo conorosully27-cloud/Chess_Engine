@@ -74,6 +74,8 @@ class Position {
 
   // Full legality test for a pseudo-legal move (see movegen.h).
   bool legal(Move m) const;
+  // Whether a legal move checks the enemy king, without making it.
+  bool gives_check(Move m) const;
 
   // Rules of draw.
   int repetitions() const;  // earlier occurrences of the current position

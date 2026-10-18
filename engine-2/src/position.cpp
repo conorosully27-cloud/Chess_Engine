@@ -370,6 +370,38 @@ bool Position::legal(Move m) const {
   return true;
 }
 
+bool Position::gives_check(Move m) const {
+  const Color us = side_, them = ~us;
+  const Square from = m.from(), to = m.to();
+  const Square ksq = king_square(them);
+  const PieceType moved = type_of(board_[from]);
+  const PieceType lands = m.is_promotion() ? m.promotion_type() : moved;
+
+  // Our pieces and the occupancy as they will be after the move.
+  Bitboard occ = (occ_ ^ square_bb(from)) | square_bb(to);
+  Bitboard pawns = pieces(us, PAWN), knights = pieces(us, KNIGHT);
+  Bitboard diag = pieces(us, BISHOP, QUEEN), orth = pieces(us, ROOK, QUEEN);
+  auto remove = [&](Bitboard& set, Square s) { set &= ~square_bb(s); };
+  remove(pawns, from);
+  remove(knights, from);
+  remove(diag, from);
+  remove(orth, from);
+  if (lands == PAWN) pawns |= square_bb(to);
+  else if (lands == KNIGHT) knights |= square_bb(to);
+  if (lands == BISHOP || lands == QUEEN) diag |= square_bb(to);
+  if (lands == ROOK || lands == QUEEN) orth |= square_bb(to);
+  if (m.is_ep()) occ ^= square_bb(us == WHITE ? to - 8 : to + 8);
+  if (m.is_castle()) {
+    const Square rook_from = m.flags() == Move::KING_CASTLE ? from + 3 : from - 4;
+    const Square rook_to = m.flags() == Move::KING_CASTLE ? from + 1 : from - 1;
+    occ = (occ ^ square_bb(rook_from)) | square_bb(rook_to);
+    orth = (orth ^ square_bb(rook_from)) | square_bb(rook_to);
+  }
+
+  return (PawnAttacks[them][ksq] & pawns) || (KnightAttacks[ksq] & knights) || (bishop_attacks(ksq, occ) & diag) ||
+         (rook_attacks(ksq, occ) & orth);
+}
+
 int Position::repetitions() const {
   const int n = int(states_.size());
   const int limit = std::min(st().halfmove, n - 1);
