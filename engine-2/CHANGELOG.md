@@ -26,3 +26,7 @@ The time loss above: at 8+0.08 the clock drained below 100 ms over the last
 the planned time leaned on the increment. Now the plan is capped at a fifth of
 the clock and the hard limit at three times the plan or half the clock. A
 test plays out a 300-move game at 8+0.08 to check the clock can't run out.
+
+Checked with 200 games at 8+0.08 against the build above, on an otherwise
+idle machine: no time losses, 56 wins, 61 losses, 83 draws, -9 Elo (+/- 33),
+so no measurable change in strength.
