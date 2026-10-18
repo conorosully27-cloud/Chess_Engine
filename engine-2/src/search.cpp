@@ -15,10 +15,20 @@ constexpr int PROMOTION_SCORE = 1900000;
 constexpr int KILLER1_SCORE = 1800000;
 constexpr int KILLER2_SCORE = 1700000;
 constexpr int HISTORY_LIMIT = 500000;
+// Captures that lose material by SEE: after every quiet move (history stays
+// within +/-HISTORY_LIMIT).
+constexpr int BAD_CAPTURE_SCORE = -2000000;
 
 // Late move pruning: near the leaves, after this many quiet moves have been
 // tried at a given depth, the remaining quiet moves are skipped.
 constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
+
+// SEE pruning: near the leaves, moves that lose more than this much material
+// on their square (static exchange) are skipped. Quiet moves get a margin
+// growing with depth squared, captures one growing with depth.
+constexpr int SEE_PRUNE_DEPTH = 6;
+constexpr int SEE_QUIET_MARGIN = 25;
+constexpr int SEE_CAPTURE_MARGIN = 100;
 
 // Piece values for move ordering and quiescence pruning only.
 constexpr int ORDER_VALUE[6] = {100, 320, 330, 500, 900, 2000};
@@ -249,6 +259,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
   const bool futile = !pv_node && !in_check && depth <= 2 && static_eval + 150 * depth <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= 3;
+  const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
   int quiets_count = 0;
@@ -276,6 +287,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (futile && legal > 1 && quiet && !gives_check) continue;
     // Late move pruning: moves ordered this late almost never matter here.
     if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) continue;
+    // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
+    if (see_prune && legal > 1 && !gives_check &&
+        !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth))
+      continue;
 
     pos.make_move(move);
 
@@ -365,7 +380,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   int scores[MoveList::MAX_MOVES];
   score_moves(moves, scores, Move(), ply);
 
-  const Color us = pos.side_to_move();
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
     const Move move = pick_next(moves, scores, i);
@@ -373,11 +387,9 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       // Delta pruning: even winning this piece outright wouldn't reach alpha.
       const PieceType victim = captured_type(pos, move);
       if (best_score + ORDER_VALUE[victim] + 200 < alpha) continue;
-      // Bad captures: a piece taking something cheaper that an enemy pawn
-      // guards loses material (the pawn recaptures), so skip it.
-      const PieceType attacker = type_of(pos.piece_on(move.from()));
-      if (ORDER_VALUE[attacker] > ORDER_VALUE[victim] + 50 && (PawnAttacks[us][move.to()] & pos.pieces(~us, PAWN)))
-        continue;
+      // Bad captures: skip any that lose material once the recaptures on
+      // the square are played out (score_moves has already checked).
+      if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
     }
     if (!pos.legal(move)) continue;
     pos.make_move(move);
@@ -400,7 +412,8 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
 
 // Orders moves: the remembered best move, then captures by most valuable
 // victim / least valuable attacker, promotions, killer moves (quiet moves
-// that refuted another line at this ply), then by history.
+// that refuted another line at this ply), then by history, and last the
+// captures that lose material by SEE.
 void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, int ply) const {
   const Position& pos = *pos_;
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
@@ -410,7 +423,8 @@ void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, 
     int score;
     if (m == tt_move) score = TT_MOVE_SCORE;
     else if (m.is_capture())
-      score = CAPTURE_SCORE + ORDER_VALUE[captured_type(pos, m)] * 10 - ORDER_VALUE[type_of(pos.piece_on(m.from()))] + promo;
+      score = (pos.see_ge(m, 0) ? CAPTURE_SCORE : BAD_CAPTURE_SCORE) + ORDER_VALUE[captured_type(pos, m)] * 10 -
+              ORDER_VALUE[type_of(pos.piece_on(m.from()))] + promo;
     else if (m.is_promotion()) score = PROMOTION_SCORE + promo;
     else if (m == killer1) score = KILLER1_SCORE;
     else if (m == killer2) score = KILLER2_SCORE;

@@ -13,6 +13,11 @@ namespace chess {
 
 constexpr const char* START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+// Piece values for static exchange evaluation. Knight and bishop are equal
+// so that trading one for the other counts as even. The king's value is
+// never used: it can only take last, when nothing can take it back.
+constexpr int SEE_VALUE[PIECE_TYPE_NB] = {100, 325, 325, 500, 900, 0};
+
 // Everything that changes with a move and cannot be recomputed on unmake.
 struct StateInfo {
   Key key = 0;
@@ -76,6 +81,11 @@ class Position {
   bool legal(Move m) const;
   // Whether a legal move checks the enemy king, without making it.
   bool gives_check(Move m) const;
+  // Static exchange evaluation: whether m, followed by the best sequence of
+  // recaptures on its square (each side taking with its cheapest piece, and
+  // free to stop), wins at least threshold centipawns. Pins are ignored and
+  // only m itself can promote; castling counts as 0.
+  bool see_ge(Move m, int threshold) const;
 
   // Rules of draw.
   int repetitions() const;  // earlier occurrences of the current position

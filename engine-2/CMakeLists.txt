@@ -48,6 +48,10 @@ add_executable(position_test tests/position_test.cpp)
 target_link_libraries(position_test PRIVATE engine2_core)
 add_test(NAME position COMMAND position_test)
 
+add_executable(see_test tests/see_test.cpp)
+target_link_libraries(see_test PRIVATE engine2_core)
+add_test(NAME see COMMAND see_test)
+
 add_executable(search_test tests/search_test.cpp)
 target_link_libraries(search_test PRIVATE engine2_core)
 add_test(NAME search COMMAND search_test ${CMAKE_CURRENT_SOURCE_DIR}/tests/eval_reference.tsv)
