@@ -17,8 +17,9 @@ history behind the search and evaluation.
 - 2.0 is merged to `main`
   ([conorosully27-cloud/Chess_Engine#2](https://github.com/conorosully27-cloud/Chess_Engine/pull/2)).
 - **Tests:** `ctest --test-dir build`, 4 suites (perft, position, search,
-  UCI), a few seconds. **Bench signature: 9559579** (`build/engine2 bench`),
-  the same on Linux/gcc and the owner's Windows/MinGW build.
+  UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
+  2.0 was 9559579, see the 2.1 notes in `CHANGELOG.md`), the same on
+  Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 1.8M nodes/s on bench. Cute Chess is set up
   for Engine 1.6 and not yet for Engine 2 (the owner will do that later).
@@ -31,7 +32,7 @@ history behind the search and evaluation.
 cd engine-2
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
 ctest --test-dir build
-./build/engine2 bench            # must print 9559579 nodes until a search change
+./build/engine2 bench            # must print the signature above until a search change
 
 # fastchess, for matches (not in the repo)
 git clone https://github.com/Disservin/fastchess ~/tools/fastchess && make -C ~/tools/fastchess -j4
@@ -80,7 +81,8 @@ Carried over from Engine 1:
 
 Each item is one or more SPRT-tested changes.
 
-1. **Speed, released as 2.1** (bench must stay 9559579). Ideas: incremental material and
+1. **Speed, released as 2.1** (in progress; bench must not change except
+   where noted in `CHANGELOG.md`). Ideas: incremental material and
    piece-square sums in `Position` (the evaluation recounts them every call,
    and `evaluate_material` for lazy eval too); a cheaper evaluation pass
    (pawn hash for the pawn terms, fewer per-square loops in `rook_behind`,

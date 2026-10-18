@@ -12,6 +12,8 @@ Key psq[PIECE_NB][64];
 Key side;
 Key castling[16];
 Key ep_file[8];
+// Starting value of the pawn hash, so "no pawns" isn't 0 (an empty cache slot).
+constexpr Key NO_PAWNS = 0x5D588B656C078965ULL;
 }  // namespace Zobrist
 
 int CastlingMask[64];
@@ -51,6 +53,7 @@ void Position::put_piece(Piece pc, Square s) {
   psq_mg_ += psqt::PSQ.mg[pc][s];
   psq_eg_ += psqt::PSQ.eg[pc][s];
   phase_ += psqt::PHASE_WEIGHT[type_of(pc)];
+  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][s];
   by_type_[type_of(pc)] |= b;
   by_color_[color_of(pc)] |= b;
   occ_ |= b;
@@ -63,6 +66,7 @@ void Position::remove_piece(Square s) {
   psq_mg_ -= psqt::PSQ.mg[pc][s];
   psq_eg_ -= psqt::PSQ.eg[pc][s];
   phase_ -= psqt::PHASE_WEIGHT[type_of(pc)];
+  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][s];
   by_type_[type_of(pc)] &= ~b;
   by_color_[color_of(pc)] &= ~b;
   occ_ &= ~b;
@@ -75,6 +79,7 @@ void Position::move_piece(Square from, Square to) {
   board_[to] = pc;
   psq_mg_ += psqt::PSQ.mg[pc][to] - psqt::PSQ.mg[pc][from];
   psq_eg_ += psqt::PSQ.eg[pc][to] - psqt::PSQ.eg[pc][from];
+  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
   by_type_[type_of(pc)] ^= b;
   by_color_[color_of(pc)] ^= b;
   occ_ ^= b;
@@ -86,6 +91,7 @@ bool Position::set(const std::string& fen) {
   std::fill(std::begin(by_color_), std::end(by_color_), 0);
   occ_ = 0;
   psq_mg_ = psq_eg_ = phase_ = 0;
+  pawn_key_ = Zobrist::NO_PAWNS;
   side_ = WHITE;
   states_.clear();
   states_.reserve(1024);
@@ -201,6 +207,16 @@ Key Position::compute_key() const {
   if (side_ == BLACK) k ^= Zobrist::side;
   k ^= Zobrist::castling[st().castling];
   if (ep_capturable(st().ep, side_)) k ^= Zobrist::ep_file[file_of(st().ep)];
+  return k;
+}
+
+Key Position::compute_pawn_key() const {
+  Key k = Zobrist::NO_PAWNS;
+  Bitboard pawns = pieces(PAWN);
+  while (pawns) {
+    Square s = pop_lsb(pawns);
+    k ^= Zobrist::psq[board_[s]][s];
+  }
   return k;
 }
 
@@ -392,6 +408,7 @@ bool Position::is_consistent() const {
   }
   if (occ != occ_) return false;
   if (mg != psq_mg_ || eg != psq_eg_ || phase != phase_) return false;
+  if (pawn_key_ != compute_pawn_key()) return false;
   if (by_color_[WHITE] & by_color_[BLACK]) return false;
   if ((by_color_[WHITE] | by_color_[BLACK]) != occ_) return false;
   Bitboard types = 0;

@@ -41,8 +41,8 @@ enum Danger {
   NO_QUEEN, BASE, DANGER_TERMS,
 };
 constexpr int KING_DANGER[DANGER_TERMS] = {45, 21, 25, 12, 23, 33, 124, 90, 110, 38, -275, -8};
-constexpr double DANGER_MG_DIVISOR = 720;
-constexpr double DANGER_EG_DIVISOR = 20;
+constexpr std::int64_t DANGER_MG_DIVISOR = 720;
+constexpr std::int64_t DANGER_EG_DIVISOR = 20;
 
 // Fixed piece values for mop-up; not tuned.
 constexpr int MOPUP_VALUE[6] = {90, 320, 330, 480, 950, 0};
@@ -116,37 +116,92 @@ struct EvalCacheEntry {
 constexpr int CACHE_SIZE = 1 << 16;
 thread_local EvalCacheEntry eval_cache[CACHE_SIZE];
 
-int evaluate_uncached(const Position& pos) {
-  // Material and tables, kept up to date by the position as moves are made.
-  int phase = pos.phase();
-  // Doubles, because king danger adds fractions; the arithmetic follows the
-  // JavaScript order so both engines give identical scores.
-  double mg = pos.psq_mg(), eg = pos.psq_eg();
-  const Bitboard occ = pos.pieces();
+// Pawn structure, which depends only on where the pawns are, is cached by
+// the position's pawn hash: pawns move far less often than pieces.
+struct PawnEntry {
+  Key key = 0;
+  Bitboard passed[2] = {};
+  int mg = 0, eg = 0;  // doubled, isolated and passed-pawn rank terms, White minus Black
+  std::int8_t count[2][8] = {};
+  std::int8_t most_advanced[2][8] = {};   // relative rank of the most advanced pawn, -1 if none
+  std::int8_t least_advanced[2][8] = {};  // ... of the least advanced, 8 if none
+};
+constexpr int PAWN_TABLE_SIZE = 1 << 14;
+thread_local PawnEntry pawn_table[PAWN_TABLE_SIZE];
 
-  // Pawn structure per [color][file]: count and most/least advanced relative rank.
-  int pawn_count[2][8] = {};
-  int most_advanced[2][8], least_advanced[2][8];
-  int non_pawn_material[2] = {};
+const PawnEntry& probe_pawns(const Position& pos) {
+  PawnEntry& e = pawn_table[pos.pawn_key() & (PAWN_TABLE_SIZE - 1)];
+  if (e.key == pos.pawn_key()) return e;
+  e = PawnEntry();
+  e.key = pos.pawn_key();
   for (int c = 0; c < 2; c++) {
     for (int f = 0; f < 8; f++) {
-      most_advanced[c][f] = -1;
-      least_advanced[c][f] = 8;
+      e.most_advanced[c][f] = -1;
+      e.least_advanced[c][f] = 8;
     }
     Bitboard pawns = pos.pieces(Color(c), PAWN);
     while (pawns) {
-      Square s = pop_lsb(pawns);
-      int f = file_of(s), rr = rel_rank(Color(c), s);
-      pawn_count[c][f]++;
-      most_advanced[c][f] = std::max(most_advanced[c][f], rr);
-      least_advanced[c][f] = std::min(least_advanced[c][f], rr);
+      const Square s = pop_lsb(pawns);
+      const int f = file_of(s), rr = rel_rank(Color(c), s);
+      e.count[c][f]++;
+      e.most_advanced[c][f] = std::int8_t(std::max<int>(e.most_advanced[c][f], rr));
+      e.least_advanced[c][f] = std::int8_t(std::min<int>(e.least_advanced[c][f], rr));
     }
+  }
+  for (int ci = 0; ci < 2; ci++) {
+    const Color c = Color(ci), them = ~c;
+    const int sign = c == WHITE ? 1 : -1;
+    for (int f = 0; f < 8; f++) {
+      if (e.count[c][f] > 1) {
+        e.mg += sign * DOUBLED_PAWN[0] * (e.count[c][f] - 1);
+        e.eg += sign * DOUBLED_PAWN[1] * (e.count[c][f] - 1);
+      }
+    }
+    Bitboard pawns = pos.pieces(c, PAWN);
+    while (pawns) {
+      const Square sq = pop_lsb(pawns);
+      const int file = file_of(sq), rr = rel_rank(c, sq);
+      const int left = file > 0 ? e.count[c][file - 1] : 0;
+      const int right = file < 7 ? e.count[c][file + 1] : 0;
+      if (left == 0 && right == 0) {
+        e.mg += sign * ISOLATED_PAWN[0];
+        e.eg += sign * ISOLATED_PAWN[1];
+      }
+      // Passed: no enemy pawn ahead of it on its own or a neighboring file.
+      bool passed = true;
+      for (int f = std::max(0, file - 1); f <= std::min(7, file + 1) && passed; f++)
+        if (e.count[them][f] && 7 - e.least_advanced[them][f] > rr) passed = false;
+      if (passed) {
+        e.passed[c] |= square_bb(sq);
+        e.mg += sign * PASSED_PAWN_MG[rr];
+        e.eg += sign * PASSED_PAWN_EG[rr];
+      }
+    }
+  }
+  return e;
+}
+
+int evaluate_uncached(const Position& pos) {
+  // Material and tables, kept up to date by the position as moves are made.
+  int phase = pos.phase();
+  // Integer terms; king danger's fractional costs (units^2 / 720 middlegame,
+  // units / 20 endgame) are summed separately so the final score is computed
+  // exactly, with one division.
+  int mg = pos.psq_mg(), eg = pos.psq_eg();
+  std::int64_t danger_mg = 0, danger_eg = 0;  // sum of sign * units^2 and sign * units
+  const Bitboard occ = pos.pieces();
+
+  int non_pawn_material[2] = {};
+  for (int c = 0; c < 2; c++)
     for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN})
       non_pawn_material[c] += MOPUP_VALUE[pt] * popcount(pos.pieces(Color(c), pt));
-  }
 
   // Bare kings and lone minor pieces can't win.
   if (!pos.pieces(PAWN) && phase <= 2 && pos.insufficient_material()) return 0;
+
+  const PawnEntry& pawn_info = probe_pawns(pos);
+  mg += pawn_info.mg;
+  eg += pawn_info.eg;
 
   // Attack maps, mobility and king-danger features in one pass.
   Bitboard attacks[2][6] = {};
@@ -217,31 +272,12 @@ int evaluate_uncached(const Position& pos) {
       eg += sign * BISHOP_PAIR[1];
     }
 
-    for (int f = 0; f < 8; f++) {
-      int count = pawn_count[c][f];
-      if (count > 1) {
-        mg += sign * DOUBLED_PAWN[0] * (count - 1);
-        eg += sign * DOUBLED_PAWN[1] * (count - 1);
-      }
-    }
-
-    Bitboard pawns = pos.pieces(c, PAWN);
-    while (pawns) {
-      const Square sq = pop_lsb(pawns);
-      const int file = file_of(sq), rr = rel_rank(c, sq);
-      const int left = file > 0 ? pawn_count[c][file - 1] : 0;
-      const int right = file < 7 ? pawn_count[c][file + 1] : 0;
-      if (left == 0 && right == 0) {
-        mg += sign * ISOLATED_PAWN[0];
-        eg += sign * ISOLATED_PAWN[1];
-      }
-      // Passed: no enemy pawn ahead of it on its own or a neighboring file.
-      bool passed = true;
-      for (int f = std::max(0, file - 1); f <= std::min(7, file + 1) && passed; f++)
-        if (pawn_count[them][f] && 7 - least_advanced[them][f] > rr) passed = false;
-      if (!passed) continue;
-      mg += sign * PASSED_PAWN_MG[rr];
-      eg += sign * PASSED_PAWN_EG[rr];
+    // Passed pawns: kings matter around them, ours escorting, theirs
+    // stopping; rooks belong behind them (Tarrasch).
+    Bitboard passers = pawn_info.passed[c];
+    while (passers) {
+      const Square sq = pop_lsb(passers);
+      const int rr = rel_rank(c, sq);
       const Square front = sq + (c == WHITE ? 8 : -8);
       eg += sign * PASSED_OWN_KING[rr] * distance(pos.king_square(c), front);
       eg += sign * PASSED_ENEMY_KING[rr] * distance(pos.king_square(them), front);
@@ -262,15 +298,15 @@ int evaluate_uncached(const Position& pos) {
     while (rooks) {
       const Square sq = pop_lsb(rooks);
       const int file = file_of(sq);
-      if (pawn_count[c][file] == 0) {
-        const bool open = pawn_count[them][file] == 0;
+      if (pawn_info.count[c][file] == 0) {
+        const bool open = pawn_info.count[them][file] == 0;
         mg += sign * (open ? ROOK_OPEN_FILE[0] : ROOK_SEMI_OPEN_FILE[0]);
         eg += sign * (open ? ROOK_OPEN_FILE[1] : ROOK_SEMI_OPEN_FILE[1]);
       }
       // On the seventh, confining the enemy king or attacking unmoved pawns.
       if (rel_rank(c, sq) == 6) {
         bool seventh = rel_rank(c, pos.king_square(them)) == 7;
-        for (int f = 0; f < 8 && !seventh; f++) seventh = least_advanced[them][f] == 1;
+        for (int f = 0; f < 8 && !seventh; f++) seventh = pawn_info.least_advanced[them][f] == 1;
         if (seventh) {
           mg += sign * ROOK_ON_SEVENTH[0];
           eg += sign * ROOK_ON_SEVENTH[1];
@@ -296,8 +332,8 @@ int evaluate_uncached(const Position& pos) {
 
     // Files around the king without our pawns, and enemy pawns storming it.
     for (int f = std::max(0, kfile - 1); f <= std::min(7, kfile + 1); f++) {
-      if (pawn_count[c][f] == 0) mg += sign * KING_OPEN_FILE[pawn_count[them][f] == 0 ? 1 : 0];
-      const int storm_rank = most_advanced[them][f];  // from their side, -1 if none
+      if (pawn_info.count[c][f] == 0) mg += sign * KING_OPEN_FILE[pawn_info.count[them][f] == 0 ? 1 : 0];
+      const int storm_rank = pawn_info.most_advanced[them][f];  // from their side, -1 if none
       if (storm_rank >= 0 && 7 - storm_rank > rel_rank(c, king)) {
         const Square s = (c == WHITE ? 7 - storm_rank : storm_rank) * 8 + f;
         const bool blocked = pos.piece_on(s + (c == WHITE ? -8 : 8)) == make_piece(c, PAWN);
@@ -310,8 +346,8 @@ int evaluate_uncached(const Position& pos) {
       int units = 0;
       for (int i = 0; i < DANGER_TERMS; i++) units += KING_DANGER[i] * danger[c][i];
       if (units > 0) {
-        mg -= (sign * units * units) / DANGER_MG_DIVISOR;
-        eg -= (sign * units) / DANGER_EG_DIVISOR;
+        danger_mg += std::int64_t(sign) * units * units;
+        danger_eg += sign * units;
       }
     }
   }
@@ -328,8 +364,13 @@ int evaluate_uncached(const Position& pos) {
     }
   }
 
+  // Tapered: (mg * phase + eg * (24 - phase)) / 24 with mg and eg less their
+  // danger costs, over the common denominator 720 * 20 * 24, truncated
+  // toward zero as Engine 1.6 does.
   phase = std::min(phase, MAX_PHASE);
-  const int score = int((mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE);
+  const std::int64_t num = (std::int64_t(mg) * DANGER_MG_DIVISOR - danger_mg) * DANGER_EG_DIVISOR * phase +
+                           (std::int64_t(eg) * DANGER_EG_DIVISOR - danger_eg) * DANGER_MG_DIVISOR * (MAX_PHASE - phase);
+  const int score = int(num / (DANGER_MG_DIVISOR * DANGER_EG_DIVISOR * MAX_PHASE));
   return (pos.side_to_move() == WHITE ? score : -score) + TEMPO;
 }
 
@@ -365,6 +406,7 @@ int evaluate_lazy(const Position& pos, int alpha, int beta) {
 
 void clear_eval_cache() {
   for (auto& e : eval_cache) e = EvalCacheEntry();
+  for (auto& e : pawn_table) e = PawnEntry();
 }
 
 }  // namespace chess

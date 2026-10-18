@@ -5,6 +5,27 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.1 (in progress): speed
+
+Search and evaluation unchanged; the same work done faster. Measured with
+callgrind (instructions per node, bench depth 8; steadier than wall time)
+and `bench` on an idle machine.
+
+- Material and piece-square sums kept up to date in `Position` instead of
+  recounted every evaluation (as Engine 1.4 did in JS): 12% fewer
+  instructions in the search. Bench unchanged.
+- Pawn hash table for the pawn-structure terms, and the evaluation's
+  arithmetic made exact (integers over a common denominator instead of
+  floating point): about 8% fewer instructions per node. Engine 1.6 summed
+  king danger's fractions in floating point, which sometimes landed a hair
+  below a whole-number score and truncated 1 cp low; 0.13% of the
+  positions the bench evaluates were affected (each one checked to be an
+  exact integer). Scores still match Engine 1.6 on all 30,000 test
+  positions. **New bench signature 9557353** (was 9559579).
+
+Running total: about 2,700 instructions per node, down from 3,360 (-20%);
+bench 2.0M -> 2.35M nodes/s.
+
 ## 2.0: Engine 1.6 ported to C++
 
 Same search and evaluation as Engine 1.6, term for term: the evaluation gives
