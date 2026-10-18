@@ -18,14 +18,19 @@ history behind the search and evaluation.
   ([conorosully27-cloud/Chess_Engine#2](https://github.com/conorosully27-cloud/Chess_Engine/pull/2)).
 - **Engine 2.1** (speed, +28% nodes/s over 2.0, same search) passed its
   release SPRT against 2.0 and measured **+37 Elo (+/- 16)** over 1,000
-  games at 8+0.08. Its commit is `3a3f237`; keep it as the next baseline.
+  games at 8+0.08 (commit `3a3f237`).
+- **Engine 2.2** (SEE: quiescence pruning, losing captures ordered last,
+  SEE pruning in the main search) passed its release SPRT against 2.1 on
+  the owner's laptop: **+19 Elo (+/- 14)** over 1,366 games at 8+0.08.
+  It is the next baseline; details in `CHANGELOG.md`.
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
-  search, UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
-  2.0 was 9559579, see the 2.1 notes in `CHANGELOG.md`), the same on
-  Linux/gcc and Windows/MinGW.
+  search, UCI), a few seconds. **Bench signature: 6533990** (`build/engine2 bench`;
+  2.1 was 9557353, 2.0 9559579), the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
-  and passes the tests; about 1.8M nodes/s on bench. Cute Chess is set up
-  for Engine 1.6 and not yet for Engine 2 (the owner will do that later).
+  and passes the tests; about 3.1M nodes/s on bench. Has fastchess
+  (prebuilt Windows release, `C:\Users\conor\fastchess-bin\...`) and runs
+  SPRTs at 12 games at a time, about 4x the cloud's rate: good for long
+  tests. Cute Chess is set up for Engine 1.6 and not yet for Engine 2.
 - **Repository:** `engine-1/` (JavaScript, frozen at 1.6, the phone app) and
   `engine-2/` (C++), built and run separately.
 
@@ -97,8 +102,8 @@ Each item is one or more SPRT-tested changes.
    ~8% (mostly in quiescence), make/unmake ~8%. Wall-time comparisons are
    noisy on the shared cloud machine (+/-10%): alternate the builds and
    compare medians.
-2. **Static exchange evaluation (SEE)**, in steps, each tested on its own
-   (all on `claude/loving-ramanujan-lewlp6`):
+2. **Static exchange evaluation (SEE): done as 2.2** (+19 Elo). In steps,
+   each tested on its own:
    1. `Position::see_ge` (swap algorithm; pins ignored; knight = bishop =
       325), checked by `tests/see_test.cpp` against hand-worked exchanges
       and a slow recursive reference on every move of random playouts.
@@ -114,10 +119,9 @@ Each item is one or more SPRT-tested changes.
       more than 25*depth^2 and captures losing more than 100*depth
       (`9feb847`, bench 6533990). vs step 3 (cloud): +177 -149 =214 at
       540 games, Elo +18 +/- 21, LLR 1.18, stopped to free the cores.
-   The whole package (step 4 build) vs 2.1 is the 2.2 test, running on
-   the owner's laptop (about +15 at 555 games). Version plan: **2.2 = SEE
-   steps 2-4**; 2.3 = further SEE enhancements (e.g. item 11); LMR, IIR
-   and the rest get later numbers.
+   The package vs 2.1 is the 2.2 release match (laptop, H1 at 1,366
+   games). Version plan: 2.3 = further SEE enhancements (e.g. item 11);
+   LMR, IIR and the rest get later numbers.
 
 Outstanding, in priority order (owner's ranking, Oct 2026). Each its own
 SPRT against the best build at the time:
@@ -125,13 +129,13 @@ SPRT against the best build at the time:
 3. **Logarithmic LMR**: 1.6's parked steeper version (Engine 1's
    `FAILED_EXPERIMENTS.md`): 1 + ln(depth) ln(move) / 1.75 from the third
    move, one ply less on the PV and for killers, one more for zero
-   history, never at the root. **Built** on step 4 (bench 3617582, 45%
-   fewer nodes); test binary from step 4 + this patch alone, vs step 4.
-   **Under SPRT** in the cloud (concurrency 2, `~/matches/lmr.out`).
+   history, never at the root. Code in commit `1631c2b` (not in 2.2;
+   re-apply on top of it). On 2.2 alone: bench 3617582, 45% fewer nodes.
+   **Under SPRT** vs 2.2 in the cloud (concurrency 2, `~/matches/lmr.out`).
 4. **Internal iterative reduction**: depth >= 4 with no TT move (not at
    the root) searches a ply shallower (`07cba28`, bench 5320123 on step
-   4). **Under SPRT** vs step 4 in the cloud (concurrency 2,
-   `~/matches/iir.out`).
+   4). Code in commit `07cba28` (not in 2.2; re-apply on top of it).
+   **Under SPRT** vs 2.2 in the cloud (concurrency 2, `~/matches/iir.out`).
 5. **Stronger null move**: reduction 3 + depth/3, more when the static
    eval is well above beta (now a fixed 2-3).
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,

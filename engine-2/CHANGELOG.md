@@ -5,6 +5,30 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.2: static exchange evaluation (SEE)
+
+**Release match against 2.1** (owner's laptop, fastchess, 8+0.08, SPRT
+0/10, 12 games at a time): **H1 accepted after 1,366 games**: 461 wins,
+385 losses, 520 draws (52.8%), **+19 Elo (+/- 14)**, LOS 99.8%. New bench
+signature **6533990** (2.1: 9557353): 32% fewer nodes for the same depths.
+
+- `Position::see_ge(move, threshold)`: does the move, followed by the best
+  recaptures on its square (each side taking with its cheapest piece and
+  free to stop), win at least `threshold`? Swap algorithm with x-rays, en
+  passant, promotion by the moving pawn, kings taking only when nothing can
+  take back; pins ignored; values 100/325/325/500/900. Checked by
+  `tests/see_test.cpp` against hand-worked exchanges and a slow recursive
+  reference (84M comparisons on random playouts).
+- Quiescence skips captures that lose material by SEE, replacing 1.6's
+  pawn-guard rule. Flat on its own: -1 +/- 17 over 800 games vs 2.1.
+- Captures that lose material by SEE are tried after the quiet moves
+  instead of before the killers. +11 +/- 11 over 2,118 games vs the
+  previous step (LLR 1.79, stopped; laptop).
+- SEE pruning in the main search (non-PV nodes, depth <= 6, not in check,
+  not checking moves, after the first move): skip quiet moves losing more
+  than 25*depth^2 and captures losing more than 100*depth. +18 +/- 21 over
+  540 games vs the previous step (LLR 1.18, stopped; cloud).
+
 ## 2.1: speed
 
 Search and evaluation unchanged; the same work done faster. **About 28%
