@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "bitboard.h"
+#include "psqt.h"
 #include "types.h"
 
 namespace chess {
@@ -56,6 +57,12 @@ class Position {
   Bitboard checkers() const { return st().checkers; }
   Bitboard pinned() const { return st().pinned; }
   bool in_check() const { return st().checkers != 0; }
+
+  // Sums of psqt::PSQ over every piece (White minus Black) and of the
+  // pieces' phase weights, kept up to date as pieces move.
+  int psq_mg() const { return psq_mg_; }
+  int psq_eg() const { return psq_eg_; }
+  int phase() const { return phase_; }
   Move last_move() const { return st().move; }
   int game_ply() const { return int(states_.size()) - 1; }
 
@@ -90,6 +97,7 @@ class Position {
   Bitboard by_type_[PIECE_TYPE_NB];
   Bitboard by_color_[COLOR_NB];
   Bitboard occ_;
+  int psq_mg_, psq_eg_, phase_;
   Color side_;
   std::vector<StateInfo> states_;
 };

@@ -48,6 +48,9 @@ void init_all() {
 void Position::put_piece(Piece pc, Square s) {
   Bitboard b = square_bb(s);
   board_[s] = pc;
+  psq_mg_ += psqt::PSQ.mg[pc][s];
+  psq_eg_ += psqt::PSQ.eg[pc][s];
+  phase_ += psqt::PHASE_WEIGHT[type_of(pc)];
   by_type_[type_of(pc)] |= b;
   by_color_[color_of(pc)] |= b;
   occ_ |= b;
@@ -57,6 +60,9 @@ void Position::remove_piece(Square s) {
   Piece pc = board_[s];
   Bitboard b = square_bb(s);
   board_[s] = NO_PIECE;
+  psq_mg_ -= psqt::PSQ.mg[pc][s];
+  psq_eg_ -= psqt::PSQ.eg[pc][s];
+  phase_ -= psqt::PHASE_WEIGHT[type_of(pc)];
   by_type_[type_of(pc)] &= ~b;
   by_color_[color_of(pc)] &= ~b;
   occ_ &= ~b;
@@ -67,6 +73,8 @@ void Position::move_piece(Square from, Square to) {
   Bitboard b = square_bb(from) | square_bb(to);
   board_[from] = NO_PIECE;
   board_[to] = pc;
+  psq_mg_ += psqt::PSQ.mg[pc][to] - psqt::PSQ.mg[pc][from];
+  psq_eg_ += psqt::PSQ.eg[pc][to] - psqt::PSQ.eg[pc][from];
   by_type_[type_of(pc)] ^= b;
   by_color_[color_of(pc)] ^= b;
   occ_ ^= b;
@@ -77,6 +85,7 @@ bool Position::set(const std::string& fen) {
   std::fill(std::begin(by_type_), std::end(by_type_), 0);
   std::fill(std::begin(by_color_), std::end(by_color_), 0);
   occ_ = 0;
+  psq_mg_ = psq_eg_ = phase_ = 0;
   side_ = WHITE;
   states_.clear();
   states_.reserve(1024);
@@ -370,14 +379,19 @@ bool Position::insufficient_material() const {
 
 bool Position::is_consistent() const {
   Bitboard occ = 0;
+  int mg = 0, eg = 0, phase = 0;
   for (Square s = 0; s < 64; s++) {
     Piece pc = board_[s];
     if (pc == NO_PIECE) continue;
     Bitboard b = square_bb(s);
     occ |= b;
+    mg += psqt::PSQ.mg[pc][s];
+    eg += psqt::PSQ.eg[pc][s];
+    phase += psqt::PHASE_WEIGHT[type_of(pc)];
     if (!(by_type_[type_of(pc)] & b) || !(by_color_[color_of(pc)] & b)) return false;
   }
   if (occ != occ_) return false;
+  if (mg != psq_mg_ || eg != psq_eg_ || phase != phase_) return false;
   if (by_color_[WHITE] & by_color_[BLACK]) return false;
   if ((by_color_[WHITE] | by_color_[BLACK]) != occ_) return false;
   Bitboard types = 0;
