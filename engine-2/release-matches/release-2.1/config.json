@@ -56,7 +56,7 @@
         "elo0": 0.0,
         "elo1": 10.0,
         "model": "logistic",
-        "enabled": true
+        "enabled": false
     },
     "config_name": "config.json",
     "output": 0,
@@ -69,7 +69,7 @@
     "wait": 0,
     "autosaveinterval": 10,
     "games": 2,
-    "rounds": 50000,
+    "rounds": 500,
     "concurrency": 3,
     "force_concurrency": false,
     "recover": true,
@@ -131,15 +131,15 @@
     ],
     "stats": {
         "new-3a3f237 vs old-b6dad46": {
-            "wins": 107,
-            "losses": 54,
-            "draws": 109,
-            "penta_WW": 21,
-            "penta_WD": 38,
-            "penta_WL": 27,
-            "penta_DD": 27,
-            "penta_LD": 17,
-            "penta_LL": 5
+            "wins": 158,
+            "losses": 94,
+            "draws": 178,
+            "penta_WW": 26,
+            "penta_WD": 64,
+            "penta_WL": 42,
+            "penta_DD": 41,
+            "penta_LD": 32,
+            "penta_LL": 10
         }
     }
 }

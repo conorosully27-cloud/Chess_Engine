@@ -81,8 +81,9 @@ Carried over from Engine 1:
 - **Keep the session awake during matches:** the session sleeps after the
   turn ends unless a tracked background task runs, and that kills detached
   matches. Start the match detached (`nohup ... &`) and run a watcher beside
-  it: a Bash `run_in_background` loop that waits for "Finished match" (or
-  "accepted") in the log. Tracked tasks stop after 2 hours, so plan tests to
+  it: a Bash `run_in_background` loop that waits for "Finished match" in the
+  log (fastchess writes "H1 was accepted" / "H0 was accepted", not
+  "H1 accepted": a watcher matching the latter missed a verdict once). Tracked tasks stop after 2 hours, so plan tests to
   decide within that.
 
 ## Plan after 2.0, in order
