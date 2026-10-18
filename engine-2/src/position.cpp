@@ -227,6 +227,54 @@ Bitboard Position::attackers_to(Square s, Bitboard occ) const {
          (bishop_attacks(s, occ) & (pieces(BISHOP) | pieces(QUEEN)));
 }
 
+// The usual swap algorithm, deciding as soon as the threshold settles it.
+// `swap` is what the side about to recapture must win back for the result to
+// flip; `res` is 1 while the moving side is reaching the threshold.
+bool Position::see_ge(Move m, int threshold) const {
+  if (m.is_castle()) return 0 >= threshold;
+
+  const Square from = m.from(), to = m.to();
+  PieceType on_to = type_of(board_[from]);  // the piece left standing on `to`
+  int swap = (m.is_ep() ? SEE_VALUE[PAWN] : m.is_capture() ? SEE_VALUE[type_of(board_[to])] : 0) - threshold;
+  if (m.is_promotion()) {
+    on_to = m.promotion_type();
+    swap += SEE_VALUE[on_to] - SEE_VALUE[PAWN];
+  }
+  if (swap < 0) return false;  // even keeping everything doesn't reach the threshold
+  swap = SEE_VALUE[on_to] - swap;
+  if (swap <= 0) return true;  // even losing the piece on `to` still reaches it
+
+  Bitboard occ = (occ_ ^ square_bb(from)) | square_bb(to);
+  if (m.is_ep()) occ ^= square_bb(side_ == WHITE ? to - 8 : to + 8);
+  Bitboard attackers = attackers_to(to, occ) & occ;
+  const Bitboard diagonal = pieces(BISHOP) | pieces(QUEEN), straight = pieces(ROOK) | pieces(QUEEN);
+  Color stm = side_;
+  int res = 1;
+  while (true) {
+    stm = ~stm;
+    attackers &= occ;
+    const Bitboard ours = attackers & pieces(stm);
+    if (!ours) break;
+    res ^= 1;
+
+    PieceType pt = PAWN;
+    while (!(ours & pieces(pt))) pt = PieceType(pt + 1);
+    if (pt == KING) {
+      // The king may take only if nothing can take it back, x-rays included.
+      occ ^= square_bb(lsb(ours & pieces(KING)));
+      attackers |= (bishop_attacks(to, occ) & diagonal) | (rook_attacks(to, occ) & straight);
+      return (attackers & occ & pieces(~stm)) ? res ^ 1 : res;
+    }
+    swap = SEE_VALUE[pt] - swap;
+    if (swap < res) break;
+    occ ^= square_bb(lsb(ours & pieces(pt)));
+    // Removing the capturer may uncover a slider behind it.
+    if (pt == PAWN || pt == BISHOP || pt == QUEEN) attackers |= bishop_attacks(to, occ) & diagonal;
+    if (pt == ROOK || pt == QUEEN) attackers |= rook_attacks(to, occ) & straight;
+  }
+  return res;
+}
+
 void Position::update_check_info(StateInfo& s) const {
   const Color us = side_, them = ~us;
   const Square ksq = king_square(us);

@@ -19,8 +19,8 @@ history behind the search and evaluation.
 - **Engine 2.1** (speed, +28% nodes/s over 2.0, same search) passed its
   release SPRT against 2.0 and measured **+37 Elo (+/- 16)** over 1,000
   games at 8+0.08. Its commit is `3a3f237`; keep it as the next baseline.
-- **Tests:** `ctest --test-dir build`, 4 suites (perft, position, search,
-  UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
+- **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
+  search, UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
   2.0 was 9559579, see the 2.1 notes in `CHANGELOG.md`), the same on
   Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
@@ -98,7 +98,17 @@ Each item is one or more SPRT-tested changes.
    noisy on the shared cloud machine (+/-10%): alternate the builds and
    compare medians.
 2. **Static exchange evaluation (SEE)** for capture ordering and quiescence
-   pruning, replacing 1.6's "bad capture" pawn-guard check.
+   pruning, replacing 1.6's "bad capture" pawn-guard check. Done in steps,
+   each tested on its own:
+   1. `Position::see_ge` (swap algorithm; pins ignored; knight = bishop =
+      325), checked by `tests/see_test.cpp` against hand-worked exchanges
+      and a slow recursive reference on every move of random playouts.
+      **Done**; not called by the search yet, so bench is unchanged.
+   2. Quiescence: skip captures with `!see_ge(move, 0)` instead of the
+      pawn-guard rule (SPRT).
+   3. Ordering: captures that lose material by SEE tried after the quiet
+      moves instead of before them (SPRT).
+   4. If those pass: SEE pruning in the main search at low depth.
 3. **Transposition table:** buckets, age-based replacement, store the
    static evaluation, use it in quiescence.
 4. **Reductions and ordering:** logarithmic LMR table (1.6's steeper LMR
