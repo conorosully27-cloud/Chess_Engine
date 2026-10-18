@@ -16,6 +16,9 @@ history behind the search and evaluation.
   later version numbers.
 - 2.0 is merged to `main`
   ([conorosully27-cloud/Chess_Engine#2](https://github.com/conorosully27-cloud/Chess_Engine/pull/2)).
+- **2.1** (speed, +28% nodes/s over 2.0, same search) is the release
+  candidate on the session branch; its release match against 2.0 is for
+  the owner to start.
 - **Tests:** `ctest --test-dir build`, 4 suites (perft, position, search,
   UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
   2.0 was 9559579, see the 2.1 notes in `CHANGELOG.md`), the same on
@@ -81,14 +84,13 @@ Carried over from Engine 1:
 
 Each item is one or more SPRT-tested changes.
 
-1. **Speed, released as 2.1** (in progress; bench must not change except
-   where noted in `CHANGELOG.md`). Ideas: incremental material and
-   piece-square sums in `Position` (the evaluation recounts them every call,
-   and `evaluate_material` for lazy eval too); a cheaper evaluation pass
-   (pawn hash for the pawn terms, fewer per-square loops in `rook_behind`,
-   shelter and storms); staged move generation (TT move first, captures,
-   then quiets); avoid generating quiets when the TT move cuts off. Profile
-   first (`perf` is not installed; `-pg` or manual timing works).
+1. **Speed: done as 2.1** (+28% nodes/s; see `CHANGELOG.md` for what was
+   done and what didn't help). Where the time goes now (callgrind,
+   `valgrind --tool=callgrind ./engine2 bench 8` on a `-g` Release build):
+   evaluation ~25%, move picking ~9%, ordering scores ~8%, move generation
+   ~8% (mostly in quiescence), make/unmake ~8%. Wall-time comparisons are
+   noisy on the shared cloud machine (+/-10%): alternate the builds and
+   compare medians.
 2. **Static exchange evaluation (SEE)** for capture ordering and quiescence
    pruning, replacing 1.6's "bad capture" pawn-guard check.
 3. **Transposition table:** buckets, age-based replacement, store the
