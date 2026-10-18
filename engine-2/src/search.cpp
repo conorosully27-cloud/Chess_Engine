@@ -37,11 +37,14 @@ int from_tt(int score, int ply) {
   return score;
 }
 
-// Moves the highest-scored remaining move to index i and returns it.
+// Moves the highest-scored remaining move to index i and returns it (the
+// first one, if several share the highest score). Two passes, the first of
+// which the compiler vectorizes: it is cheaper than one branchy pass.
 Move pick_next(MoveList& list, int* scores, int i) {
+  int top = scores[i];
+  for (int j = i + 1; j < list.count; j++) top = std::max(top, scores[j]);
   int best = i;
-  for (int j = i + 1; j < list.count; j++)
-    if (scores[j] > scores[best]) best = j;
+  while (scores[best] != top) best++;
   if (best != i) {
     std::swap(list.moves[i], list.moves[best]);
     std::swap(scores[i], scores[best]);
@@ -266,19 +269,15 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (!pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
-    pos.make_move(move);
     legal++;
-    const bool gives_check = pos.in_check();
+    const bool gives_check = pos.gives_check(move);
 
-    if (futile && legal > 1 && quiet && !gives_check) {
-      pos.unmake_move();
-      continue;
-    }
+    // Pruned moves are decided before making them, which is cheaper.
+    if (futile && legal > 1 && quiet && !gives_check) continue;
     // Late move pruning: moves ordered this late almost never matter here.
-    if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) {
-      pos.unmake_move();
-      continue;
-    }
+    if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) continue;
+
+    pos.make_move(move);
 
     int score;
     if (legal == 1) {

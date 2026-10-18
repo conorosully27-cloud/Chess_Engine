@@ -126,6 +126,35 @@ void test_repetition_and_draws() {
   CHECK(!pos.insufficient_material());
 }
 
+void test_gives_check_special_moves() {
+  struct Case {
+    const char* fen;
+    const char* move;
+    bool check;
+  } cases[] = {
+      {"5k2/8/8/8/8/8/8/4K2R w K - 0 1", "e1g1", true},                 // castling: the rook checks on f1
+      {"4k3/8/8/8/8/8/8/R3K3 w Q - 0 1", "e1c1", false},                // rook to d1, king on e8
+      {"3k4/8/8/8/8/8/8/R3K3 w Q - 0 1", "e1c1", true},                 // rook to d1 checks d8
+      {"8/8/8/1k1pP2R/8/8/8/4K3 w - d6 0 1", "e5d6", true},             // en passant opens the rank
+      {"8/8/8/1k1pP3/8/8/8/4K3 w - d6 0 1", "e5d6", false},
+      {"3k4/1P6/8/8/8/8/8/4K3 w - - 0 1", "b7b8n", false},              // knight on b8 doesn't reach d8
+      {"8/1P2k3/8/8/8/8/8/4K3 w - - 0 1", "b7b8n", false},
+      {"8/1P6/2k5/8/8/8/8/4K3 w - - 0 1", "b7b8n", true},               // knight on b8 checks c6
+      {"4k3/8/8/4N3/8/8/8/4R1K1 w - - 0 1", "e5c6", true},              // discovered check by the rook
+      {"4k3/8/8/4N3/8/8/8/4R1K1 w - - 0 1", "e5f7", true},              // discovered (and not direct)
+      {"4k3/8/8/8/8/8/4P3/4R1K1 w - - 0 1", "e2e4", false},             // the pawn stays on the file
+  };
+  for (const Case& c : cases) {
+    Position pos(c.fen);
+    Move m = parse_uci_move(pos, c.move);
+    CHECK(m);
+    if (!m) continue;
+    CHECK(pos.gives_check(m) == c.check);
+    pos.make_move(m);
+    CHECK(pos.in_check() == c.check);
+  }
+}
+
 void test_null_move() {
   Position pos("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
   Key before = pos.key();
@@ -142,7 +171,7 @@ void test_null_move() {
 // agree with a from-scratch recomputation, and unmaking must restore exactly.
 void test_random_playouts() {
   std::mt19937_64 rng(12345);
-  long moves_played = 0;
+  long moves_played = 0, checks_tested = 0;
   for (const char* fen : FENS) {
     for (int game = 0; game < 200; game++) {
       Position pos(fen);
@@ -152,6 +181,20 @@ void test_random_playouts() {
         MoveList list;
         generate_legal(pos, list);
         if (list.size() == 0) break;
+        // gives_check must agree with making the move and looking.
+        for (Move cand : list) {
+          const bool predicted = pos.gives_check(cand);
+          pos.make_move(cand);
+          const bool actual = pos.in_check();
+          pos.unmake_move();
+          if (predicted != actual) {
+            std::printf("gives_check(%s) = %d, but the move %s check: %s\n", cand.uci().c_str(), predicted,
+                        actual ? "gives" : "does not give", pos.fen().c_str());
+            CHECK(false);
+            return;
+          }
+          checks_tested++;
+        }
         Move m = list[rng() % list.size()];
         pos.make_move(m);
         moves_played++;
@@ -180,7 +223,7 @@ void test_random_playouts() {
       }
     }
   }
-  std::printf("random playouts: %ld moves checked\n", moves_played);
+  std::printf("random playouts: %ld moves checked, gives_check tested on %ld\n", moves_played, checks_tested);
 }
 
 // The same position reached by different move orders must hash the same.
@@ -206,6 +249,7 @@ int main() {
   test_castling_rules();
   test_repetition_and_draws();
   test_null_move();
+  test_gives_check_special_moves();
   test_transposition_hash();
   test_random_playouts();
   std::printf(g_failures ? "%d FAILED\n" : "all position tests pass\n", g_failures);

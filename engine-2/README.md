@@ -12,9 +12,9 @@ goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 | --- | --- |
 | 1. Position: bitboards, legal move generation, make/unmake, Zobrist, FEN | done, perft matches the standard counts |
 | 2. UCI front end | done |
-| 3. Search and transposition table, evaluation ported from Engine 1 | done: same algorithms as 1.6, about 5x faster; see CHANGELOG.md |
-| 4. NNUE evaluation | next |
-| 5. Search refinements and tuning | |
+| 3. Search and transposition table, evaluation ported from Engine 1 | done: **Engine 2.0**, same algorithms as 1.6, about 6x faster, +372 Elo over 1.6 |
+| 4. Speed and search improvements (2.1: speed) | in progress; see HANDOFF.md |
+| 5. NNUE evaluation | after that |
 
 ## Build and test
 
@@ -58,6 +58,12 @@ Stockfish's testing uses, on the openings in `engine-1/test/openings.epd`
 scripts/match.sh build/engine2 engine1            # 200 games vs Engine 1.6 at 8+0.08
 SPRT=1 scripts/match.sh new/engine2 old/engine2   # SPRT between two builds
 ```
+
+Release matches use `scripts/release_match.sh`, which builds both versions
+from their git commits and runs a restartable SPRT (`start`, `resume`,
+`status`, `checkpoint`; see the script's header). Checkpoints of a match in
+progress are kept in `release-matches/` so it can continue even after the
+cloud machine is reset.
 
 fastchess is not in the repo; build it once with
 `git clone https://github.com/Disservin/fastchess ~/tools/fastchess && make -C ~/tools/fastchess -j`.

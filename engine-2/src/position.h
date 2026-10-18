@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "bitboard.h"
+#include "psqt.h"
 #include "types.h"
 
 namespace chess {
@@ -56,6 +57,14 @@ class Position {
   Bitboard checkers() const { return st().checkers; }
   Bitboard pinned() const { return st().pinned; }
   bool in_check() const { return st().checkers != 0; }
+
+  // Sums of psqt::PSQ over every piece (White minus Black) and of the
+  // pieces' phase weights, kept up to date as pieces move.
+  int psq_mg() const { return psq_mg_; }
+  int psq_eg() const { return psq_eg_; }
+  int phase() const { return phase_; }
+  // Zobrist hash of the pawns alone, for the evaluation's pawn cache.
+  Key pawn_key() const { return pawn_key_; }
   Move last_move() const { return st().move; }
   int game_ply() const { return int(states_.size()) - 1; }
 
@@ -65,6 +74,8 @@ class Position {
 
   // Full legality test for a pseudo-legal move (see movegen.h).
   bool legal(Move m) const;
+  // Whether a legal move checks the enemy king, without making it.
+  bool gives_check(Move m) const;
 
   // Rules of draw.
   int repetitions() const;  // earlier occurrences of the current position
@@ -73,8 +84,9 @@ class Position {
   bool is_fifty_move() const { return st().halfmove >= 100; }
   bool insufficient_material() const;
 
-  // Recomputes the hash from scratch; used by tests to check the incremental one.
+  // Recompute the hashes from scratch; used by tests to check the incremental ones.
   Key compute_key() const;
+  Key compute_pawn_key() const;
   // Checks that the bitboards, mailbox and king counts agree; used by tests.
   bool is_consistent() const;
 
@@ -90,6 +102,8 @@ class Position {
   Bitboard by_type_[PIECE_TYPE_NB];
   Bitboard by_color_[COLOR_NB];
   Bitboard occ_;
+  int psq_mg_, psq_eg_, phase_;
+  Key pawn_key_;
   Color side_;
   std::vector<StateInfo> states_;
 };

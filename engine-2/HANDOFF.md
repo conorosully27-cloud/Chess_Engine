@@ -8,14 +8,21 @@ history behind the search and evaluation.
 
 ## Where things stand
 
-- **Engine 2 is Engine 1.6 ported to C++** (`2.0-dev`): same search, same
+- **Engine 2.0 is Engine 1.6 ported to C++**: same search, same
   evaluation (identical scores on 30,000 positions), about 6x the speed.
   It beat Engine 1.6 by **+372 Elo (+/- 59)** over 200 games at 8+0.08.
-- **Plan agreed with the owner:** build up Engine 2.0 with search and speed
-  work first (list below), release it, and only then start NNUE.
+- **Plan agreed with the owner:** search and speed work first (list below),
+  NNUE after. **2.1 is 2.0 plus the speed work** (item 1); later items get
+  later version numbers.
+- 2.0 is merged to `main`
+  ([conorosully27-cloud/Chess_Engine#2](https://github.com/conorosully27-cloud/Chess_Engine/pull/2)).
+- **Engine 2.1** (speed, +28% nodes/s over 2.0, same search) passed its
+  release SPRT against 2.0 and measured **+37 Elo (+/- 16)** over 1,000
+  games at 8+0.08. Its commit is `3a3f237`; keep it as the next baseline.
 - **Tests:** `ctest --test-dir build`, 4 suites (perft, position, search,
-  UCI), a few seconds. **Bench signature: 9559579** (`build/engine2 bench`),
-  the same on Linux/gcc and the owner's Windows/MinGW build.
+  UCI), a few seconds. **Bench signature: 9557353** (`build/engine2 bench`;
+  2.0 was 9559579, see the 2.1 notes in `CHANGELOG.md`), the same on
+  Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 1.8M nodes/s on bench. Cute Chess is set up
   for Engine 1.6 and not yet for Engine 2 (the owner will do that later).
@@ -28,7 +35,7 @@ history behind the search and evaluation.
 cd engine-2
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
 ctest --test-dir build
-./build/engine2 bench            # must print 9559579 nodes until a search change
+./build/engine2 bench            # must print the signature above until a search change
 
 # fastchess, for matches (not in the repo)
 git clone https://github.com/Disservin/fastchess ~/tools/fastchess && make -C ~/tools/fastchess -j4
@@ -49,6 +56,11 @@ build stole CPU from a game once and caused a time loss.
   only on "H1 accepted"; record rejections in `FAILED_EXPERIMENTS.md`.
 - Keep a copy of each accepted build in `~/matches/` (outside the repo) as
   the next baseline.
+- **Release matches:** `scripts/release_match.sh start <name> <new commit>
+  <old commit>` (run detached with `setsid nohup ... &`), then `status`,
+  `checkpoint` (copies the state to `release-matches/<name>/`; commit and
+  push it now and then) and `resume` after any interruption, even on a fresh
+  machine.
 
 ## How the owner works (follow these)
 
@@ -69,21 +81,22 @@ Carried over from Engine 1:
 - **Keep the session awake during matches:** the session sleeps after the
   turn ends unless a tracked background task runs, and that kills detached
   matches. Start the match detached (`nohup ... &`) and run a watcher beside
-  it: a Bash `run_in_background` loop that waits for "Finished match" (or
-  "accepted") in the log. Tracked tasks stop after 2 hours, so plan tests to
+  it: a Bash `run_in_background` loop that waits for "Finished match" in the
+  log (fastchess writes "H1 was accepted" / "H0 was accepted", not
+  "H1 accepted": a watcher matching the latter missed a verdict once). Tracked tasks stop after 2 hours, so plan tests to
   decide within that.
 
-## Plan for Engine 2.0, in order
+## Plan after 2.0, in order
 
 Each item is one or more SPRT-tested changes.
 
-1. **Speed** (bench must stay 9559579). Ideas: incremental material and
-   piece-square sums in `Position` (the evaluation recounts them every call,
-   and `evaluate_material` for lazy eval too); a cheaper evaluation pass
-   (pawn hash for the pawn terms, fewer per-square loops in `rook_behind`,
-   shelter and storms); staged move generation (TT move first, captures,
-   then quiets); avoid generating quiets when the TT move cuts off. Profile
-   first (`perf` is not installed; `-pg` or manual timing works).
+1. **Speed: done as 2.1** (+37 Elo) (+28% nodes/s; see `CHANGELOG.md` for what was
+   done and what didn't help). Where the time goes now (callgrind,
+   `valgrind --tool=callgrind ./engine2 bench 8` on a `-g` Release build):
+   evaluation ~25%, move picking ~9%, ordering scores ~8%, move generation
+   ~8% (mostly in quiescence), make/unmake ~8%. Wall-time comparisons are
+   noisy on the shared cloud machine (+/-10%): alternate the builds and
+   compare medians.
 2. **Static exchange evaluation (SEE)** for capture ordering and quiescence
    pruning, replacing 1.6's "bad capture" pawn-guard check.
 3. **Transposition table:** buckets, age-based replacement, store the
@@ -96,6 +109,6 @@ Each item is one or more SPRT-tested changes.
 6. **Lazy SMP (threads):** big gain on the owner's laptop in Cute Chess;
    hard to test here with 3 of 4 cores in use. Do last, confirm on the laptop.
 
-Then release 2.0: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
-and this file, and let the owner start the release match. NNUE after that
+For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
+and this file, and let the owner start the release match. NNUE after these
 (training data from Engine 2 self-play; the cloud machine has no GPU).

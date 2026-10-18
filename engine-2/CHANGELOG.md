@@ -5,7 +5,48 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## 2.0-dev: Engine 1.6 ported to C++ (step 3)
+## 2.1: speed
+
+Search and evaluation unchanged; the same work done faster. **About 28%
+more nodes per second than 2.0** (median of 8 alternating `bench` runs:
+2.02M -> 2.59M nodes/s on the cloud machine), 30% fewer instructions per
+node (callgrind, bench depth 8).
+
+**Release match against 2.0** (`scripts/release_match.sh`, 8+0.08, SPRT
+0/10): **H1 accepted after 430 games**, 158 wins, 94 losses, 178 draws,
++52 Elo (+/- 24). Extended to 1,000 games for a firmer estimate: 354 wins,
+249 losses, 397 draws (55.3%), **+37 Elo (+/- 16)**, no time losses. The
+early-stopped SPRT overstated the gain, as expected.
+
+- Material and piece-square sums kept up to date in `Position` instead of
+  recounted every evaluation (as Engine 1.4 did in JS): 12% fewer
+  instructions in the search. Bench unchanged.
+- Pawn hash table for the pawn-structure terms, and the evaluation's
+  arithmetic made exact (integers over a common denominator instead of
+  floating point): about 8% fewer instructions per node. Engine 1.6 summed
+  king danger's fractions in floating point, which sometimes landed a hair
+  below a whole-number score and truncated 1 cp low; 0.13% of the
+  positions the bench evaluates were affected (each one checked to be an
+  exact integer). Scores still match Engine 1.6 on all 30,000 test
+  positions. **New bench signature 9557353** (was 9559579).
+
+- Move picking: the top ordering score is found with a loop the compiler
+  vectorizes, then the first move with it (same move as before); move
+  lists are no longer zeroed when created. About 6% fewer instructions.
+- Futility and late move pruning are decided before making the move, with
+  a new `Position::gives_check` instead of making the move to look: about
+  8% fewer instructions, and the biggest wall-time gain. Tested against
+  making the move on 5.3M random-playout moves.
+
+Tried and dropped (no change in search, so no SPRT needed):
+- Larger evaluation cache (2^18, 2^20 entries): slower in wall time, and
+  it changes the search, because lazy evaluation uses a cached full score
+  when there is one.
+- BMI1/BMI2 instructions and link-time optimization: within noise.
+- Trying the hash move before generating the rest: most move generation
+  happens in quiescence, so at most ~4% to gain; not done.
+
+## 2.0: Engine 1.6 ported to C++
 
 Same search and evaluation as Engine 1.6, term for term: the evaluation gives
 identical scores on 30,000 test positions. The only difference is speed:

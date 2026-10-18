@@ -1,0 +1,4 @@
+saved: new-3a3f237 vs old-b6dad46: 1000 games, +354 -249 =397
+Elo: 38.44 +/- 16.02, nElo: 52.65 +/- 21.75
+Elo: 36.62 +/- 15.76, nElo: 50.45 +/- 21.53
+Finished match

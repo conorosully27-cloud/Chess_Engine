@@ -8,113 +8,8 @@ namespace chess {
 namespace {
 
 // ---------------------------------------------------------------- weights
-// Copied from engine-1/src/engine/weights.js. Tables are written from
-// White's side with rank 8 first; Black uses them mirrored.
-
-constexpr int MATERIAL_MG[6] = {115, 472, 503, 685, 1438, 0};
-constexpr int MATERIAL_EG[6] = {85, 298, 307, 538, 990, 0};
-
-constexpr int PST_MG[6][64] = {
-    {   0,    0,    0,    0,    0,    0,    0,    0,
-       14,    8,   -9,   53,  124,  105,   32,  -32,
-       -3,   -2,   40,   16,   56,   93,   24,   -7,
-        4,   10,   11,   26,   39,   16,    3,  -18,
-      -19,  -14,    9,   29,   24,   19,   -3,  -23,
-      -14,  -17,   12,    2,   21,   13,   28,    0,
-      -21,   -7,   -8,  -12,   -1,   31,   37,  -13,
-        0,    0,    0,    0,    0,    0,    0,    0},
-    {-270,  -46,  -42,  -72,   23, -157, -157, -154,
-      -55,    4,  122,   41,  125,   97,   31,   -6,
-       29,   59,   62,  100,  123,  160,   82,    9,
-       51,   56,   51,   79,   39,   47,   24,   52,
-       35,   40,   64,   53,   57,   58,   25,    9,
-       17,   41,   58,   66,   73,   58,   68,   17,
-       21,    7,   43,   58,   58,   59,   44,   34,
-       -5,   18,    6,   21,   23,   38,   13,  -43},
-    { -27,  -41,  -40, -104, -127,  -32,  -12,  -66,
-      -17,   25,   -2,    8,   20,   67,  -13,   29,
-       12,   19,   81,   24,   87,   67,   67,   44,
-       -2,   18,   24,   41,   37,   -7,   22,    7,
-       24,   23,   21,   49,   49,   18,   29,    6,
-       46,   49,   49,   25,   36,   53,   38,   39,
-       10,   61,   38,   33,   41,   61,   78,   36,
-       43,   17,   29,   26,   18,   11,   12,   36},
-    {  47,   86,   69,   84,  103,  171,  104,   20,
-       93,   66,  105,  136,   97,  149,  171,  134,
-       22,   11,   -4,   25,   41,   61,   94,   32,
-      -10,    3,   24,   41,    7,   26,   33,   37,
-       -3,  -17,  -21,   -1,    6,    4,   12,    2,
-       -5,   -2,    6,   27,   18,   18,   26,   13,
-       -4,    0,    0,   15,   21,   23,   37,  -39,
-       18,   21,   32,   37,   43,   43,   -1,   27},
-    { -15,  -11,   21,   78,  111,   64,   11,   -8,
-       -4,   -8,  -10,  -54,  -35,   79,   10,  141,
-        7,    9,   37,   43,   54,   54,  117,   60,
-        7,   26,   21,    5,   10,    5,    4,   31,
-       23,   23,   26,   14,   37,   32,   42,   28,
-       32,   48,   39,   42,   43,   43,   50,   36,
-       39,   52,   57,   62,   68,   79,   87,   44,
-       56,   45,   57,   66,   51,   44,   20,   54},
-    {   7,  -21,   14, -100,   91,   -2,  -85, -104,
-      -66,   26,   10,   19,  -53,   32, -138, -148,
-      -57,  117,   42,   73,  -45,   49,   42, -110,
-     -101,  -16,   -4,   -9,  -18,  -35,   -2, -119,
-      -63,   56,   22,  -28,    3,  -50,  -20, -149,
-      -23,   42,  -12,  -25,  -10,   -2,   20,  -61,
-       42,   26,   36,  -15,   -1,   18,   57,   26,
-      -52,   48,   35,  -32,   25,  -14,   47,   26},
-};
-
-constexpr int PST_EG[6][64] = {
-    {   0,    0,    0,    0,    0,    0,    0,    0,
-       68,   88,  106,   75,   52,   66,  107,   78,
-       32,   31,   27,   20,   10,    4,   26,   28,
-       27,   21,   12,   -2,   -3,    5,   17,   16,
-       22,   20,    2,   -5,   -2,    0,    7,    7,
-       12,   11,    4,    9,    9,    8,   -2,   -2,
-       18,   12,   19,   18,   15,   10,   -5,   -3,
-        0,    0,    0,    0,    0,    0,    0,    0},
-    { -15,  -52,  -18,   -5,  -19,  -10,  -11,  -90,
-      -20,   -9,  -25,    2,  -27,  -24,  -24,  -39,
-      -30,  -10,   22,   12,   -8,   -9,  -23,  -18,
-       -7,   15,   23,   39,   40,   30,   18,  -21,
-      -16,    6,   19,   25,   31,    8,   -1,  -11,
-      -26,   -3,   -8,   12,   15,   -8,  -23,  -30,
-      -34,  -18,  -13,  -12,  -15,  -12,  -19,  -31,
-      -68,  -46,  -10,   -9,  -17,  -14,  -43,  -12},
-    {   7,   -1,    9,   21,   25,    4,    8,   21,
-        2,    1,    7,   -5,    2,   -7,   13,  -23,
-       11,    7,   -8,   10,   -7,    6,    0,    2,
-       18,   14,    8,    8,    5,    8,   -1,    6,
-        0,   -1,   12,   -3,   -4,    9,   -6,   -7,
-      -17,    3,   -2,    9,    7,   -4,   -9,  -11,
-        4,  -21,  -12,   -5,   -1,   -9,  -13,  -16,
-      -22,    3,  -17,    2,    5,    2,   -7,  -11},
-    {  24,    7,   12,    6,    1,  -14,   12,   24,
-       -6,   13,    0,  -12,   -4,   -5,  -14,  -12,
-       28,   28,   31,   23,   18,   12,    7,   17,
-       31,   25,   26,   17,   21,   20,   16,   15,
-       23,   28,   32,   28,   25,   20,   13,   10,
-       15,   18,   15,   13,   16,   10,    2,    2,
-       14,   17,   26,   17,   13,   12,    8,   21,
-       14,   15,   13,   12,    3,    5,   15,  -15},
-    {  56,   62,   49,   30,    8,   62,   39,   93,
-       69,   52,   62,  131,   91,   99,   81,  -45,
-       27,   40,   42,   28,   77,   28,   -3,    9,
-       51,   60,   41,   70,   64,   70,   57,   28,
-       41,   52,   42,   65,   42,   27,   37,   26,
-       -7,   -8,   33,   20,   31,   31,   46,   22,
-       22,   14,   -1,    8,    6,  -33,  -51,   12,
-       -9,   -3,   -5,  -25,   26,  -15,    0,  -22},
-    { -53,  -16,  -17,   13,  -28,   -4,    8,  -19,
-      -21,    0,   -2,   -3,   11,   17,   50,   21,
-      -14,  -13,   -8,   -9,   15,   19,   23,   23,
-      -20,   -2,    5,    6,    8,   21,   13,   13,
-      -28,  -23,   -3,    8,    6,   15,    3,   13,
-      -30,  -19,    2,    8,    7,    6,   -6,   -3,
-      -39,  -16,   -6,    9,    9,    5,  -10,  -26,
-      -34,  -37,  -15,   -8,  -22,   -9,  -39,  -67},
-};
+// Copied from engine-1/src/engine/weights.js; material and piece-square
+// tables are in psqt.h.
 
 constexpr int BISHOP_PAIR[2] = {36, 54};
 constexpr int DOUBLED_PAWN[2] = {-5, -11};
@@ -146,33 +41,22 @@ enum Danger {
   NO_QUEEN, BASE, DANGER_TERMS,
 };
 constexpr int KING_DANGER[DANGER_TERMS] = {45, 21, 25, 12, 23, 33, 124, 90, 110, 38, -275, -8};
-constexpr double DANGER_MG_DIVISOR = 720;
-constexpr double DANGER_EG_DIVISOR = 20;
+constexpr std::int64_t DANGER_MG_DIVISOR = 720;
+constexpr std::int64_t DANGER_EG_DIVISOR = 20;
 
 // Fixed piece values for mop-up; not tuned.
 constexpr int MOPUP_VALUE[6] = {90, 320, 330, 480, 950, 0};
-constexpr int PHASE_WEIGHT[6] = {0, 1, 1, 2, 4, 0};
-constexpr int MAX_PHASE = 24;
+using psqt::MAX_PHASE;
 
 // ------------------------------------------------------------- tables
 
 struct Tables {
-  int psq_mg[PIECE_NB][64];  // material + table, positive for both colors
-  int psq_eg[PIECE_NB][64];
   // King zone: the king's square, its neighbors and the three squares two
   // ranks in front, for a king of each color on each square.
   Bitboard king_zone[COLOR_NB][64];
 
   Tables() {
     for (int c = 0; c < 2; c++) {
-      for (int t = 0; t < 6; t++) {
-        for (Square s = 0; s < 64; s++) {
-          int idx = c == WHITE ? (7 - rank_of(s)) * 8 + file_of(s) : s;
-          Piece pc = make_piece(Color(c), PieceType(t));
-          psq_mg[pc][s] = MATERIAL_MG[t] + PST_MG[t][idx];
-          psq_eg[pc][s] = MATERIAL_EG[t] + PST_EG[t][idx];
-        }
-      }
       for (Square k = 0; k < 64; k++) {
         Bitboard z = 0;
         for (int dr = -1; dr <= 1; dr++)
@@ -232,52 +116,92 @@ struct EvalCacheEntry {
 constexpr int CACHE_SIZE = 1 << 16;
 thread_local EvalCacheEntry eval_cache[CACHE_SIZE];
 
-int psq_score(const Position& pos, int& mg, int& eg) {
-  mg = eg = 0;
-  int phase = 0;
-  Bitboard occ = pos.pieces();
-  while (occ) {
-    Square s = pop_lsb(occ);
-    Piece pc = pos.piece_on(s);
-    int sign = color_of(pc) == WHITE ? 1 : -1;
-    mg += sign * T.psq_mg[pc][s];
-    eg += sign * T.psq_eg[pc][s];
-    phase += PHASE_WEIGHT[type_of(pc)];
-  }
-  return phase;
-}
+// Pawn structure, which depends only on where the pawns are, is cached by
+// the position's pawn hash: pawns move far less often than pieces.
+struct PawnEntry {
+  Key key = 0;
+  Bitboard passed[2] = {};
+  int mg = 0, eg = 0;  // doubled, isolated and passed-pawn rank terms, White minus Black
+  std::int8_t count[2][8] = {};
+  std::int8_t most_advanced[2][8] = {};   // relative rank of the most advanced pawn, -1 if none
+  std::int8_t least_advanced[2][8] = {};  // ... of the least advanced, 8 if none
+};
+constexpr int PAWN_TABLE_SIZE = 1 << 14;
+thread_local PawnEntry pawn_table[PAWN_TABLE_SIZE];
 
-int evaluate_uncached(const Position& pos) {
-  int psq_mg, psq_eg;
-  int phase = psq_score(pos, psq_mg, psq_eg);
-  // Doubles, because king danger adds fractions; the arithmetic follows the
-  // JavaScript order so both engines give identical scores.
-  double mg = psq_mg, eg = psq_eg;
-  const Bitboard occ = pos.pieces();
-
-  // Pawn structure per [color][file]: count and most/least advanced relative rank.
-  int pawn_count[2][8] = {};
-  int most_advanced[2][8], least_advanced[2][8];
-  int non_pawn_material[2] = {};
+const PawnEntry& probe_pawns(const Position& pos) {
+  PawnEntry& e = pawn_table[pos.pawn_key() & (PAWN_TABLE_SIZE - 1)];
+  if (e.key == pos.pawn_key()) return e;
+  e = PawnEntry();
+  e.key = pos.pawn_key();
   for (int c = 0; c < 2; c++) {
     for (int f = 0; f < 8; f++) {
-      most_advanced[c][f] = -1;
-      least_advanced[c][f] = 8;
+      e.most_advanced[c][f] = -1;
+      e.least_advanced[c][f] = 8;
     }
     Bitboard pawns = pos.pieces(Color(c), PAWN);
     while (pawns) {
-      Square s = pop_lsb(pawns);
-      int f = file_of(s), rr = rel_rank(Color(c), s);
-      pawn_count[c][f]++;
-      most_advanced[c][f] = std::max(most_advanced[c][f], rr);
-      least_advanced[c][f] = std::min(least_advanced[c][f], rr);
+      const Square s = pop_lsb(pawns);
+      const int f = file_of(s), rr = rel_rank(Color(c), s);
+      e.count[c][f]++;
+      e.most_advanced[c][f] = std::int8_t(std::max<int>(e.most_advanced[c][f], rr));
+      e.least_advanced[c][f] = std::int8_t(std::min<int>(e.least_advanced[c][f], rr));
     }
+  }
+  for (int ci = 0; ci < 2; ci++) {
+    const Color c = Color(ci), them = ~c;
+    const int sign = c == WHITE ? 1 : -1;
+    for (int f = 0; f < 8; f++) {
+      if (e.count[c][f] > 1) {
+        e.mg += sign * DOUBLED_PAWN[0] * (e.count[c][f] - 1);
+        e.eg += sign * DOUBLED_PAWN[1] * (e.count[c][f] - 1);
+      }
+    }
+    Bitboard pawns = pos.pieces(c, PAWN);
+    while (pawns) {
+      const Square sq = pop_lsb(pawns);
+      const int file = file_of(sq), rr = rel_rank(c, sq);
+      const int left = file > 0 ? e.count[c][file - 1] : 0;
+      const int right = file < 7 ? e.count[c][file + 1] : 0;
+      if (left == 0 && right == 0) {
+        e.mg += sign * ISOLATED_PAWN[0];
+        e.eg += sign * ISOLATED_PAWN[1];
+      }
+      // Passed: no enemy pawn ahead of it on its own or a neighboring file.
+      bool passed = true;
+      for (int f = std::max(0, file - 1); f <= std::min(7, file + 1) && passed; f++)
+        if (e.count[them][f] && 7 - e.least_advanced[them][f] > rr) passed = false;
+      if (passed) {
+        e.passed[c] |= square_bb(sq);
+        e.mg += sign * PASSED_PAWN_MG[rr];
+        e.eg += sign * PASSED_PAWN_EG[rr];
+      }
+    }
+  }
+  return e;
+}
+
+int evaluate_uncached(const Position& pos) {
+  // Material and tables, kept up to date by the position as moves are made.
+  int phase = pos.phase();
+  // Integer terms; king danger's fractional costs (units^2 / 720 middlegame,
+  // units / 20 endgame) are summed separately so the final score is computed
+  // exactly, with one division.
+  int mg = pos.psq_mg(), eg = pos.psq_eg();
+  std::int64_t danger_mg = 0, danger_eg = 0;  // sum of sign * units^2 and sign * units
+  const Bitboard occ = pos.pieces();
+
+  int non_pawn_material[2] = {};
+  for (int c = 0; c < 2; c++)
     for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN})
       non_pawn_material[c] += MOPUP_VALUE[pt] * popcount(pos.pieces(Color(c), pt));
-  }
 
   // Bare kings and lone minor pieces can't win.
   if (!pos.pieces(PAWN) && phase <= 2 && pos.insufficient_material()) return 0;
+
+  const PawnEntry& pawn_info = probe_pawns(pos);
+  mg += pawn_info.mg;
+  eg += pawn_info.eg;
 
   // Attack maps, mobility and king-danger features in one pass.
   Bitboard attacks[2][6] = {};
@@ -348,31 +272,12 @@ int evaluate_uncached(const Position& pos) {
       eg += sign * BISHOP_PAIR[1];
     }
 
-    for (int f = 0; f < 8; f++) {
-      int count = pawn_count[c][f];
-      if (count > 1) {
-        mg += sign * DOUBLED_PAWN[0] * (count - 1);
-        eg += sign * DOUBLED_PAWN[1] * (count - 1);
-      }
-    }
-
-    Bitboard pawns = pos.pieces(c, PAWN);
-    while (pawns) {
-      const Square sq = pop_lsb(pawns);
-      const int file = file_of(sq), rr = rel_rank(c, sq);
-      const int left = file > 0 ? pawn_count[c][file - 1] : 0;
-      const int right = file < 7 ? pawn_count[c][file + 1] : 0;
-      if (left == 0 && right == 0) {
-        mg += sign * ISOLATED_PAWN[0];
-        eg += sign * ISOLATED_PAWN[1];
-      }
-      // Passed: no enemy pawn ahead of it on its own or a neighboring file.
-      bool passed = true;
-      for (int f = std::max(0, file - 1); f <= std::min(7, file + 1) && passed; f++)
-        if (pawn_count[them][f] && 7 - least_advanced[them][f] > rr) passed = false;
-      if (!passed) continue;
-      mg += sign * PASSED_PAWN_MG[rr];
-      eg += sign * PASSED_PAWN_EG[rr];
+    // Passed pawns: kings matter around them, ours escorting, theirs
+    // stopping; rooks belong behind them (Tarrasch).
+    Bitboard passers = pawn_info.passed[c];
+    while (passers) {
+      const Square sq = pop_lsb(passers);
+      const int rr = rel_rank(c, sq);
       const Square front = sq + (c == WHITE ? 8 : -8);
       eg += sign * PASSED_OWN_KING[rr] * distance(pos.king_square(c), front);
       eg += sign * PASSED_ENEMY_KING[rr] * distance(pos.king_square(them), front);
@@ -393,15 +298,15 @@ int evaluate_uncached(const Position& pos) {
     while (rooks) {
       const Square sq = pop_lsb(rooks);
       const int file = file_of(sq);
-      if (pawn_count[c][file] == 0) {
-        const bool open = pawn_count[them][file] == 0;
+      if (pawn_info.count[c][file] == 0) {
+        const bool open = pawn_info.count[them][file] == 0;
         mg += sign * (open ? ROOK_OPEN_FILE[0] : ROOK_SEMI_OPEN_FILE[0]);
         eg += sign * (open ? ROOK_OPEN_FILE[1] : ROOK_SEMI_OPEN_FILE[1]);
       }
       // On the seventh, confining the enemy king or attacking unmoved pawns.
       if (rel_rank(c, sq) == 6) {
         bool seventh = rel_rank(c, pos.king_square(them)) == 7;
-        for (int f = 0; f < 8 && !seventh; f++) seventh = least_advanced[them][f] == 1;
+        for (int f = 0; f < 8 && !seventh; f++) seventh = pawn_info.least_advanced[them][f] == 1;
         if (seventh) {
           mg += sign * ROOK_ON_SEVENTH[0];
           eg += sign * ROOK_ON_SEVENTH[1];
@@ -427,8 +332,8 @@ int evaluate_uncached(const Position& pos) {
 
     // Files around the king without our pawns, and enemy pawns storming it.
     for (int f = std::max(0, kfile - 1); f <= std::min(7, kfile + 1); f++) {
-      if (pawn_count[c][f] == 0) mg += sign * KING_OPEN_FILE[pawn_count[them][f] == 0 ? 1 : 0];
-      const int storm_rank = most_advanced[them][f];  // from their side, -1 if none
+      if (pawn_info.count[c][f] == 0) mg += sign * KING_OPEN_FILE[pawn_info.count[them][f] == 0 ? 1 : 0];
+      const int storm_rank = pawn_info.most_advanced[them][f];  // from their side, -1 if none
       if (storm_rank >= 0 && 7 - storm_rank > rel_rank(c, king)) {
         const Square s = (c == WHITE ? 7 - storm_rank : storm_rank) * 8 + f;
         const bool blocked = pos.piece_on(s + (c == WHITE ? -8 : 8)) == make_piece(c, PAWN);
@@ -441,8 +346,8 @@ int evaluate_uncached(const Position& pos) {
       int units = 0;
       for (int i = 0; i < DANGER_TERMS; i++) units += KING_DANGER[i] * danger[c][i];
       if (units > 0) {
-        mg -= (sign * units * units) / DANGER_MG_DIVISOR;
-        eg -= (sign * units) / DANGER_EG_DIVISOR;
+        danger_mg += std::int64_t(sign) * units * units;
+        danger_eg += sign * units;
       }
     }
   }
@@ -459,8 +364,13 @@ int evaluate_uncached(const Position& pos) {
     }
   }
 
+  // Tapered: (mg * phase + eg * (24 - phase)) / 24 with mg and eg less their
+  // danger costs, over the common denominator 720 * 20 * 24, truncated
+  // toward zero as Engine 1.6 does.
   phase = std::min(phase, MAX_PHASE);
-  const int score = int((mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE);
+  const std::int64_t num = (std::int64_t(mg) * DANGER_MG_DIVISOR - danger_mg) * DANGER_EG_DIVISOR * phase +
+                           (std::int64_t(eg) * DANGER_EG_DIVISOR - danger_eg) * DANGER_MG_DIVISOR * (MAX_PHASE - phase);
+  const int score = int(num / (DANGER_MG_DIVISOR * DANGER_EG_DIVISOR * MAX_PHASE));
   return (pos.side_to_move() == WHITE ? score : -score) + TEMPO;
 }
 
@@ -476,8 +386,8 @@ int evaluate(const Position& pos) {
 }
 
 int evaluate_material(const Position& pos) {
-  int mg, eg;
-  const int phase = std::min(psq_score(pos, mg, eg), MAX_PHASE);
+  const int mg = pos.psq_mg(), eg = pos.psq_eg();
+  const int phase = std::min(pos.phase(), MAX_PHASE);
   const int score = (mg * phase + eg * (MAX_PHASE - phase)) / MAX_PHASE;
   return (pos.side_to_move() == WHITE ? score : -score) + TEMPO;
 }
@@ -496,6 +406,7 @@ int evaluate_lazy(const Position& pos, int alpha, int beta) {
 
 void clear_eval_cache() {
   for (auto& e : eval_cache) e = EvalCacheEntry();
+  for (auto& e : pawn_table) e = PawnEntry();
 }
 
 }  // namespace chess

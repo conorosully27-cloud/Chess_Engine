@@ -12,6 +12,8 @@ Key psq[PIECE_NB][64];
 Key side;
 Key castling[16];
 Key ep_file[8];
+// Starting value of the pawn hash, so "no pawns" isn't 0 (an empty cache slot).
+constexpr Key NO_PAWNS = 0x5D588B656C078965ULL;
 }  // namespace Zobrist
 
 int CastlingMask[64];
@@ -48,6 +50,10 @@ void init_all() {
 void Position::put_piece(Piece pc, Square s) {
   Bitboard b = square_bb(s);
   board_[s] = pc;
+  psq_mg_ += psqt::PSQ.mg[pc][s];
+  psq_eg_ += psqt::PSQ.eg[pc][s];
+  phase_ += psqt::PHASE_WEIGHT[type_of(pc)];
+  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][s];
   by_type_[type_of(pc)] |= b;
   by_color_[color_of(pc)] |= b;
   occ_ |= b;
@@ -57,6 +63,10 @@ void Position::remove_piece(Square s) {
   Piece pc = board_[s];
   Bitboard b = square_bb(s);
   board_[s] = NO_PIECE;
+  psq_mg_ -= psqt::PSQ.mg[pc][s];
+  psq_eg_ -= psqt::PSQ.eg[pc][s];
+  phase_ -= psqt::PHASE_WEIGHT[type_of(pc)];
+  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][s];
   by_type_[type_of(pc)] &= ~b;
   by_color_[color_of(pc)] &= ~b;
   occ_ &= ~b;
@@ -67,6 +77,9 @@ void Position::move_piece(Square from, Square to) {
   Bitboard b = square_bb(from) | square_bb(to);
   board_[from] = NO_PIECE;
   board_[to] = pc;
+  psq_mg_ += psqt::PSQ.mg[pc][to] - psqt::PSQ.mg[pc][from];
+  psq_eg_ += psqt::PSQ.eg[pc][to] - psqt::PSQ.eg[pc][from];
+  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
   by_type_[type_of(pc)] ^= b;
   by_color_[color_of(pc)] ^= b;
   occ_ ^= b;
@@ -77,6 +90,8 @@ bool Position::set(const std::string& fen) {
   std::fill(std::begin(by_type_), std::end(by_type_), 0);
   std::fill(std::begin(by_color_), std::end(by_color_), 0);
   occ_ = 0;
+  psq_mg_ = psq_eg_ = phase_ = 0;
+  pawn_key_ = Zobrist::NO_PAWNS;
   side_ = WHITE;
   states_.clear();
   states_.reserve(1024);
@@ -192,6 +207,16 @@ Key Position::compute_key() const {
   if (side_ == BLACK) k ^= Zobrist::side;
   k ^= Zobrist::castling[st().castling];
   if (ep_capturable(st().ep, side_)) k ^= Zobrist::ep_file[file_of(st().ep)];
+  return k;
+}
+
+Key Position::compute_pawn_key() const {
+  Key k = Zobrist::NO_PAWNS;
+  Bitboard pawns = pieces(PAWN);
+  while (pawns) {
+    Square s = pop_lsb(pawns);
+    k ^= Zobrist::psq[board_[s]][s];
+  }
   return k;
 }
 
@@ -345,6 +370,38 @@ bool Position::legal(Move m) const {
   return true;
 }
 
+bool Position::gives_check(Move m) const {
+  const Color us = side_, them = ~us;
+  const Square from = m.from(), to = m.to();
+  const Square ksq = king_square(them);
+  const PieceType moved = type_of(board_[from]);
+  const PieceType lands = m.is_promotion() ? m.promotion_type() : moved;
+
+  // Our pieces and the occupancy as they will be after the move.
+  Bitboard occ = (occ_ ^ square_bb(from)) | square_bb(to);
+  Bitboard pawns = pieces(us, PAWN), knights = pieces(us, KNIGHT);
+  Bitboard diag = pieces(us, BISHOP, QUEEN), orth = pieces(us, ROOK, QUEEN);
+  auto remove = [&](Bitboard& set, Square s) { set &= ~square_bb(s); };
+  remove(pawns, from);
+  remove(knights, from);
+  remove(diag, from);
+  remove(orth, from);
+  if (lands == PAWN) pawns |= square_bb(to);
+  else if (lands == KNIGHT) knights |= square_bb(to);
+  if (lands == BISHOP || lands == QUEEN) diag |= square_bb(to);
+  if (lands == ROOK || lands == QUEEN) orth |= square_bb(to);
+  if (m.is_ep()) occ ^= square_bb(us == WHITE ? to - 8 : to + 8);
+  if (m.is_castle()) {
+    const Square rook_from = m.flags() == Move::KING_CASTLE ? from + 3 : from - 4;
+    const Square rook_to = m.flags() == Move::KING_CASTLE ? from + 1 : from - 1;
+    occ = (occ ^ square_bb(rook_from)) | square_bb(rook_to);
+    orth = (orth ^ square_bb(rook_from)) | square_bb(rook_to);
+  }
+
+  return (PawnAttacks[them][ksq] & pawns) || (KnightAttacks[ksq] & knights) || (bishop_attacks(ksq, occ) & diag) ||
+         (rook_attacks(ksq, occ) & orth);
+}
+
 int Position::repetitions() const {
   const int n = int(states_.size());
   const int limit = std::min(st().halfmove, n - 1);
@@ -370,14 +427,20 @@ bool Position::insufficient_material() const {
 
 bool Position::is_consistent() const {
   Bitboard occ = 0;
+  int mg = 0, eg = 0, phase = 0;
   for (Square s = 0; s < 64; s++) {
     Piece pc = board_[s];
     if (pc == NO_PIECE) continue;
     Bitboard b = square_bb(s);
     occ |= b;
+    mg += psqt::PSQ.mg[pc][s];
+    eg += psqt::PSQ.eg[pc][s];
+    phase += psqt::PHASE_WEIGHT[type_of(pc)];
     if (!(by_type_[type_of(pc)] & b) || !(by_color_[color_of(pc)] & b)) return false;
   }
   if (occ != occ_) return false;
+  if (mg != psq_mg_ || eg != psq_eg_ || phase != phase_) return false;
+  if (pawn_key_ != compute_pawn_key()) return false;
   if (by_color_[WHITE] & by_color_[BLACK]) return false;
   if ((by_color_[WHITE] | by_color_[BLACK]) != occ_) return false;
   Bitboard types = 0;
