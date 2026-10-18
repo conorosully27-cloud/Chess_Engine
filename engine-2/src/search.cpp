@@ -15,6 +15,9 @@ constexpr int PROMOTION_SCORE = 1900000;
 constexpr int KILLER1_SCORE = 1800000;
 constexpr int KILLER2_SCORE = 1700000;
 constexpr int HISTORY_LIMIT = 500000;
+// Captures that lose material by SEE: after every quiet move (history stays
+// within +/-HISTORY_LIMIT).
+constexpr int BAD_CAPTURE_SCORE = -2000000;
 
 // Late move pruning: near the leaves, after this many quiet moves have been
 // tried at a given depth, the remaining quiet moves are skipped.
@@ -373,8 +376,8 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       const PieceType victim = captured_type(pos, move);
       if (best_score + ORDER_VALUE[victim] + 200 < alpha) continue;
       // Bad captures: skip any that lose material once the recaptures on
-      // the square are played out.
-      if (!pos.see_ge(move, 0)) continue;
+      // the square are played out (score_moves has already checked).
+      if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
     }
     if (!pos.legal(move)) continue;
     pos.make_move(move);
@@ -397,7 +400,8 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
 
 // Orders moves: the remembered best move, then captures by most valuable
 // victim / least valuable attacker, promotions, killer moves (quiet moves
-// that refuted another line at this ply), then by history.
+// that refuted another line at this ply), then by history, and last the
+// captures that lose material by SEE.
 void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, int ply) const {
   const Position& pos = *pos_;
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
@@ -407,7 +411,8 @@ void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, 
     int score;
     if (m == tt_move) score = TT_MOVE_SCORE;
     else if (m.is_capture())
-      score = CAPTURE_SCORE + ORDER_VALUE[captured_type(pos, m)] * 10 - ORDER_VALUE[type_of(pos.piece_on(m.from()))] + promo;
+      score = (pos.see_ge(m, 0) ? CAPTURE_SCORE : BAD_CAPTURE_SCORE) + ORDER_VALUE[captured_type(pos, m)] * 10 -
+              ORDER_VALUE[type_of(pos.piece_on(m.from()))] + promo;
     else if (m.is_promotion()) score = PROMOTION_SCORE + promo;
     else if (m == killer1) score = KILLER1_SCORE;
     else if (m == killer2) score = KILLER2_SCORE;
