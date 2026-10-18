@@ -1,4 +1,4 @@
-saved: new-3a3f237 vs old-b6dad46: 430 games, +158 -94 =178
-LLR: 2.95 (100.2%) (-2.94, 2.94) [0.00, 10.00]
-SPRT ([0.00, 10.00]) completed - H1 was accepted
-Finished match
+saved: new-3a3f237 vs old-b6dad46: 698 games, +258 -160 =280
+Elo: 53.05 +/- 19.54, nElo: 73.16 +/- 26.51
+Elo: 51.99 +/- 19.15, nElo: 72.03 +/- 26.11
+Elo: 48.46 +/- 18.79, nElo: 67.31 +/- 25.74
