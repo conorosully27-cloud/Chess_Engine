@@ -1,5 +1,12 @@
 # Handoff
 
+> **Since the repository split (commit `2370826`), Engine 1 lives in
+> `engine-1/` and is frozen at 1.6; active work is Engine 2 in C++
+> (`../engine-2/HANDOFF.md`).** Run the commands below from inside
+> `engine-1/`. Commits before the split (1.0 to 1.6, e.g. `1576297`) have
+> these files at the repository root instead, which is what
+> `git worktree add` gives you for them.
+
 Start here when picking up this project in a new session. It covers where
 things stand, how to set up, how the owner likes to work, and what to do
 next. Last updated 2026-10-17, at Engine 1.6 (UCI front end added).
