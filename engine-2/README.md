@@ -1,5 +1,7 @@
 # Engine 2
 
+New session? Start with [`HANDOFF.md`](HANDOFF.md).
+
 C++20 engine (bitboards, magic bitboards, later NNUE). Built with CMake; the
 goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 `../engine-1`) is the baseline it is measured against.

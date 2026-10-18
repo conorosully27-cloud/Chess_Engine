@@ -10,7 +10,9 @@
 #
 # For an SPRT instead of a fixed number of games, pass SPRT=1:
 #   SPRT=1 scripts/match.sh new old 20000 8+0.08
-# which stops as soon as the result is clear (elo0=0, elo1=5).
+# which stops as soon as the result is clear: H0 "no better" (0 Elo) against
+# H1 "at least 10 Elo better", logistic Elo, 5% error each way, the same
+# bounds Engine 1's tests used. Accept a change only on "H1 accepted".
 #
 # fastchess is looked up as $FASTCHESS, then on the PATH, then ~/tools/fastchess.
 set -euo pipefail
@@ -39,7 +41,7 @@ grep -v '^#' "$here/../engine-1/test/openings.epd" | grep -v '^$' > "$book"
 stamp="$(date +%Y%m%d-%H%M%S)"
 
 sprt=()
-[ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0=0 elo1=5 alpha=0.05 beta=0.05)
+[ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 model=logistic)
 
 engine_a="$(engine_args "$a")"
 engine_b="$(engine_args "$b")"
