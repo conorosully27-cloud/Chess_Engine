@@ -56,6 +56,11 @@ build stole CPU from a game once and caused a time loss.
   only on "H1 accepted"; record rejections in `FAILED_EXPERIMENTS.md`.
 - Keep a copy of each accepted build in `~/matches/` (outside the repo) as
   the next baseline.
+- **Release matches:** `scripts/release_match.sh start <name> <new commit>
+  <old commit>` (run detached with `setsid nohup ... &`), then `status`,
+  `checkpoint` (copies the state to `release-matches/<name>/`; commit and
+  push it now and then) and `resume` after any interruption, even on a fresh
+  machine.
 
 ## How the owner works (follow these)
 

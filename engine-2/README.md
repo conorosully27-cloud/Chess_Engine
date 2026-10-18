@@ -59,6 +59,12 @@ scripts/match.sh build/engine2 engine1            # 200 games vs Engine 1.6 at 8
 SPRT=1 scripts/match.sh new/engine2 old/engine2   # SPRT between two builds
 ```
 
+Release matches use `scripts/release_match.sh`, which builds both versions
+from their git commits and runs a restartable SPRT (`start`, `resume`,
+`status`, `checkpoint`; see the script's header). Checkpoints of a match in
+progress are kept in `release-matches/` so it can continue even after the
+cloud machine is reset.
+
 fastchess is not in the repo; build it once with
 `git clone https://github.com/Disservin/fastchess ~/tools/fastchess && make -C ~/tools/fastchess -j`.
 Results and PGNs go to `matches/` (git-ignored); accepted changes and their
