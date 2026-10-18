@@ -41,6 +41,8 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 sprt=()
 [ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0=0 elo1=5 alpha=0.05 beta=0.05)
 
+# fastchess writes its resume file (config.json) to the working directory.
+cd "$here/matches"
 # shellcheck disable=SC2046
 "$fastchess" \
   -engine $(engine_args "$a") \
