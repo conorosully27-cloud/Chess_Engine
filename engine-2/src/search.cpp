@@ -37,11 +37,14 @@ int from_tt(int score, int ply) {
   return score;
 }
 
-// Moves the highest-scored remaining move to index i and returns it.
+// Moves the highest-scored remaining move to index i and returns it (the
+// first one, if several share the highest score). Two passes, the first of
+// which the compiler vectorizes: it is cheaper than one branchy pass.
 Move pick_next(MoveList& list, int* scores, int i) {
+  int top = scores[i];
+  for (int j = i + 1; j < list.count; j++) top = std::max(top, scores[j]);
   int best = i;
-  for (int j = i + 1; j < list.count; j++)
-    if (scores[j] > scores[best]) best = j;
+  while (scores[best] != top) best++;
   if (best != i) {
     std::swap(list.moves[i], list.moves[best]);
     std::swap(scores[i], scores[best]);

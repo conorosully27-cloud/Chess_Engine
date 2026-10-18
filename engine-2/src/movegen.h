@@ -12,13 +12,19 @@ namespace chess {
 struct MoveList {
   static constexpr int MAX_MOVES = 256;
 
+  // The storage is left uninitialized: only the first count entries are used,
+  // and zeroing 256 moves for every node showed up in profiles.
+  MoveList() {}
+
   void add(Move m) { moves[count++] = m; }
   int size() const { return count; }
   Move operator[](int i) const { return moves[i]; }
   const Move* begin() const { return moves; }
   const Move* end() const { return moves + count; }
 
-  Move moves[MAX_MOVES];
+  union {
+    Move moves[MAX_MOVES];
+  };
   int count = 0;
 };
 
