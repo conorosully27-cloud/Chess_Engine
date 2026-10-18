@@ -365,7 +365,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   int scores[MoveList::MAX_MOVES];
   score_moves(moves, scores, Move(), ply);
 
-  const Color us = pos.side_to_move();
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
     const Move move = pick_next(moves, scores, i);
@@ -373,11 +372,9 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       // Delta pruning: even winning this piece outright wouldn't reach alpha.
       const PieceType victim = captured_type(pos, move);
       if (best_score + ORDER_VALUE[victim] + 200 < alpha) continue;
-      // Bad captures: a piece taking something cheaper that an enemy pawn
-      // guards loses material (the pawn recaptures), so skip it.
-      const PieceType attacker = type_of(pos.piece_on(move.from()));
-      if (ORDER_VALUE[attacker] > ORDER_VALUE[victim] + 50 && (PawnAttacks[us][move.to()] & pos.pieces(~us, PAWN)))
-        continue;
+      // Bad captures: skip any that lose material once the recaptures on
+      // the square are played out.
+      if (!pos.see_ge(move, 0)) continue;
     }
     if (!pos.legal(move)) continue;
     pos.make_move(move);
