@@ -224,8 +224,13 @@ Next for the app, in order (owner's phone is Android):
    `npm run apk` builds a debug APK into
    `android/app/build/outputs/apk/debug/`. Needs Java (21 here), and the
    Android Gradle plugin and SDK, both from `dl.google.com`, which the
-   cloud environment's network policy blocks (403) until the owner adds it
-   under Allowed domains. Not built yet.
+   cloud environment's network policy blocked until the owner allowed it
+   (Oct 2026). SDK: `~/tools/android-sdk` (command-line tools, platform
+   36; set `sdk.dir` in `android/local.properties`, not committed). The
+   first build hit Maven Central rate limits (429): `./gradlew
+   --max-workers=1 assembleDebug` got through. **First APK built** (debug,
+   4.5 MB, with the best build's engine, bench 3601124) and sent to the
+   owner to sideload; not yet tried on a real phone.
 
 For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
 and this file, and let the owner start the release match. NNUE after these
