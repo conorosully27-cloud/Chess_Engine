@@ -5,6 +5,28 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Continuation history, at 8+0.08 (Oct 2026) — parked for a longer TC
+
+**Change:** a 768 x 768 table (2.4 MB) of how well a quiet move did after
+the move one and two plies earlier, added to the history score in move
+ordering; updated like history (+depth^2 on a quiet cutoff, -depth^2 for
+the quiets tried before it, quartered before each search). Commit
+`924f494` (taken out again). On the best build: bench 3107651 (14% fewer
+nodes than 3601124), ~10% fewer nodes/s, bench 4% faster.
+
+**Result:** vs 2.2 + IIR + mild LMR (cloud, 4 games at a time,
+adjudication on): stopped by the owner at 880 games, +254 -272 =354, Elo
+-7 +/- 17, LOS 21%, LLR -1.56.
+
+**Prior:** 7/10.
+
+**Commentary:** not rejected outright: its gain should grow with depth
+(better ordering matters more in a deeper tree) while its speed cost
+(cache misses on a 2.4 MB table) stays the same, and the same pattern
+showed in the TT change (-3 at 8+0.08, +10 so far at 40+0.4). Retest at
+20+0.2 or 40+0.4. A smaller table (int16_t, 1.2 MB) would also cut the
+speed cost.
+
 ## Stronger null move v3: 1.6's reduction + an eval term (Oct 2026)
 
 **Change:** null-move reduction `(depth >= 7 ? 3 : 2) + min((static_eval -

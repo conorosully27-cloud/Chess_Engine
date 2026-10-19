@@ -123,7 +123,6 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
-  std::fill(cont_history_.begin(), cont_history_.end(), 0);
   clear_eval_cache();
 }
 
@@ -153,7 +152,6 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& k : killers_) k[0] = k[1] = Move();
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
-  for (int& h : cont_history_) h >>= 2;
 
   SearchResult result;
   MoveList legal;
@@ -264,7 +262,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
         const int reduction = depth >= 7 ? 3 : 2;
-        ply_move_[ply] = -1;
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
         pos.unmake_null_move();
@@ -310,7 +307,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth))
       continue;
 
-    ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();
     pos.make_move(move);
 
     int score;
@@ -348,19 +344,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
-            const int bonus = depth * depth;
             int& h = history_[piece][move.to()];
-            h = std::min(h + bonus, HISTORY_LIMIT);
-            for (int back = 1; back <= 2; back++)
-              if (const int c = cont_index(ply, back, piece * 64 + move.to()); c >= 0)
-                cont_history_[c] = std::min(cont_history_[c] + bonus, HISTORY_LIMIT);
+            h = std::min(h + depth * depth, HISTORY_LIMIT);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
-              hq = std::max(hq - bonus, -HISTORY_LIMIT);
-              for (int back = 1; back <= 2; back++)
-                if (const int c = cont_index(ply, back, quiets_searched[q]); c >= 0)
-                  cont_history_[c] = std::max(cont_history_[c] - bonus, -HISTORY_LIMIT);
+              hq = std::max(hq - depth * depth, -HISTORY_LIMIT);
             }
           }
           break;
@@ -442,7 +431,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
     }
     if (!pos.legal(move)) continue;
-    ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();
     pos.make_move(move);
     legal++;
     const int score = -quiesce(-beta, -alpha, ply + 1);
@@ -491,19 +479,9 @@ void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, 
     else if (m.is_promotion()) score = PROMOTION_SCORE + promo;
     else if (m == killer1) score = KILLER1_SCORE;
     else if (m == killer2) score = KILLER2_SCORE;
-    else {
-      const int index = pos.piece_on(m.from()) * 64 + m.to();
-      score = history_[index / 64][index % 64];
-      for (int back = 1; back <= 2; back++)
-        if (const int c = cont_index(ply, back, index); c >= 0) score += cont_history_[c];
-    }
+    else score = history_[pos.piece_on(m.from())][m.to()];
     scores[i] = score;
   }
-}
-
-int SearchWorker::cont_index(int ply, int back, int move_index) const {
-  if (ply < back || ply_move_[ply - back] < 0) return -1;
-  return ply_move_[ply - back] * CONT_INDEX + move_index;
 }
 
 void SearchWorker::update_pv(int ply, Move m) {
