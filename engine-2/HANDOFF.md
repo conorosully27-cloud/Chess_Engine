@@ -217,8 +217,9 @@ square, per side) -> 128 hidden per side -> 1.
 1. **Data:** `engine2 datagen` (`src/datagen.h` for the 32-byte format;
    reader `scripts/nnue/data.py`). First run: 2.3's search plus datagen
    (`~/nnue-data/engine2-2.3-datagen`, bench 3601124), 4 processes, 5,000
-   nodes a move, writing `~/nnue-data/part-1..4.bin`, 25M positions each
-   (100M, 3.2 GB), about 6M positions an hour in all. Moving data to the
+   nodes a move, writing `~/nnue-data/part-1..4.bin`, 12.5M positions each
+   (50M, 1.6 GB; the owner cut it from 100M), about 6M positions an hour
+   in all. Moving data to the
    laptop: compressed chunks sent to the owner, or generate there.
 2. Trainer (PyTorch, streaming), 3. inference in the engine, 4. SPRT.
 
