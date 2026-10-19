@@ -163,8 +163,17 @@ SPRT against the best build at the time:
    - v3 on the best build (2.2 + IIR + mild LMR): 980 games, -0 +/- 15,
      stopped and taken out. **No gain in three tries**; retry after the
      transposition-table work (`FAILED_EXPERIMENTS.md`).
-6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
-   age-based replacement, store the static evaluation.
+6. **Transposition table**, in separate steps:
+   1. **Quiescence uses the table** (it didn't): probe it, cut off on any
+      matching entry off the main line, try its move first; store results
+      at depth 0, never over a main-search entry (depth 1+), since with
+      one entry per slot the far more numerous quiescence results would
+      push deeper ones out. On the best build: bench 3329263 (8% fewer
+      nodes than 3601124). **Under SPRT** vs the best build, cloud, 4
+      games at a time, adjudication on, log `~/matches/best-qstt.out`.
+   2. Buckets (several entries per slot) with depth- and age-based
+      replacement.
+   3. Store the static evaluation, and reuse it instead of re-evaluating.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
    reverse futility, futility and late move pruning when not improving.
 8. **Continuation history** (countermoves failed in 1.6 as a plain table),
