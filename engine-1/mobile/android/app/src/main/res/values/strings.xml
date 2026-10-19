@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chess Engine</string>
+    <string name="title_activity_main">Chess Engine</string>
+    <string name="package_name">com.chessengine.app</string>
+    <string name="custom_url_scheme">com.chessengine.app</string>
+</resources>

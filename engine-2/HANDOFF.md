@@ -216,8 +216,16 @@ under "Engine" in the New game sheet. Pieces:
 Next for the app, in order (owner's phone is Android):
 1. **Installable web app (PWA):** a manifest and a service worker so it
    installs to the home screen and works offline.
-2. **Android APK** with Capacitor wrapping the same web app (needs the
-   Android SDK and a JDK to build; sideload, or Play Store later).
+2. **Android APK** with Capacitor wrapping the same web app: the project
+   is in `engine-1/mobile/` (Capacitor 8.5.3, app id
+   `com.chessengine.app`). `npm run web` copies the page, `app/` and
+   `src/` into `www/` and swaps Google Fonts for the bundled copies in
+   `mobile/fonts/` (Archivo, Martian Mono; SIL OFL), so it works offline;
+   `npm run apk` builds a debug APK into
+   `android/app/build/outputs/apk/debug/`. Needs Java (21 here), and the
+   Android Gradle plugin and SDK, both from `dl.google.com`, which the
+   cloud environment's network policy blocks (403) until the owner adds it
+   under Allowed domains. Not built yet.
 
 For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
 and this file, and let the owner start the release match. NNUE after these
