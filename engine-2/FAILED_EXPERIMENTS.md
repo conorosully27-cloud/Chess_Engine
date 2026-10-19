@@ -5,6 +5,28 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Stronger null move v3: 1.6's reduction + an eval term (Oct 2026)
+
+**Change:** null-move reduction `(depth >= 7 ? 3 : 2) + min((static_eval -
+beta) / 200, 3)`: 1.6's reduction plus one ply per 200 cp above beta, at
+most 3. Commit `d39d85a`, taken out again after the test.
+
+**Result:**
+- On 2.2 + IIR: paused by the owner at 40 games, +16 -13 =11, +26 +/- 71
+  (bench 5485422, 3% more nodes).
+- On 2.2 + IIR + mild LMR, vs that build (cloud, 4 games at a time,
+  adjudication on): stopped at 980 games, +284 -285 =411, Elo -0 +/- 15,
+  LOS 48%, LLR -0.88 (bench 3251253, 10% fewer nodes). No time losses.
+
+**Prior:** 6/10.
+
+**Commentary:** no gain in three tries at a stronger null move (this one,
+3 + depth/3, 3 + depth/4 with a 1-ply floor). 1.6's plain 2-3 ply
+reduction seems to suit this engine; the usual larger reductions assume a
+search that makes up for an optimistic cut elsewhere (verification, better
+TT, more accurate eval). Worth a retry after the transposition-table work,
+not before.
+
 ## Stronger null move: 3 + depth/4, null search at least 1 ply (Oct 2026)
 
 **Change:** null-move reduction 3 + depth/4 plus one per 200 cp above beta
