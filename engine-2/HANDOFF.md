@@ -149,8 +149,16 @@ SPRT against the best build at the time:
    root) searches a ply shallower. On this branch on top of 2.2; **bench
    5320123** is now the signature of the best build, and the next tests'
    baseline. Not yet released.
-5. **Stronger null move**: reduction 3 + depth/3, more when the static
-   eval is well above beta (now a fixed 2-3).
+5. **Stronger null move**: reduction 3 + depth/3, plus one per 200 cp the
+   static eval is above beta (at most 3), instead of 2 (3 from depth 7).
+   In `negamax`: `const int reduction = 3 + depth / 3 +
+   std::min((static_eval - beta) / 200, 3);`. Built on 2.2 + IIR (not
+   committed; binary `~/matches/engine2-iir-nmp`): bench 6119429, *more*
+   nodes than 2.2 + IIR (5320123), probably because the shallower check
+   drops into quiescence and fails more often. **Under SPRT** vs 2.2 + IIR,
+   cloud, 1 game at a time on the spare core, with adjudication, log
+   `~/matches/iir-nmp.out`. If it fails: try 3 + depth/4, or keep the null
+   search at least 1 ply deep.
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
    age-based replacement, store the static evaluation.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten

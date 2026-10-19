@@ -54,8 +54,12 @@ adjudicate=()
 
 engine_a="$(engine_args "$a")"
 engine_b="$(engine_args "$b")"
-# fastchess writes its resume file (config.json) to the working directory.
-cd "$here/matches"
+# fastchess writes its resume file (config.json) to the working directory:
+# one folder per run, so matches running side by side don't overwrite each
+# other's. To resume a run: cd into its folder, fastchess -config file=config.json
+run_dir="$here/matches/run-$stamp"
+mkdir -p "$run_dir"
+cd "$run_dir"
 # shellcheck disable=SC2086
 "$fastchess" \
   -engine $engine_a \
