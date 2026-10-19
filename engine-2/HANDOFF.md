@@ -23,6 +23,12 @@ history behind the search and evaluation.
   SEE pruning in the main search) passed its release SPRT against 2.1 on
   the owner's laptop: **+19 Elo (+/- 14)** over 1,366 games at 8+0.08.
   It is the next baseline; details in `CHANGELOG.md`.
+- **Engine 2.3 release candidate** = 2.2 + IIR + mild LMR (the search of
+  `cd18e14`, renamed; bench 3601124). Release match vs 2.2 (`d0acbf0`)
+  running in the cloud: `scripts/release_match.sh status release-2.3`
+  (4 games at a time; SPRT, then extend to 1,000 games). The TT change
+  (`31fddc5`, `d2d1303`) is out of the candidate; it was under test at
+  40+0.4 on the owner's laptop, to re-apply on top if it passes.
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
   search, UCI), a few seconds. **Bench signature: 6533990** (`build/engine2 bench`;
   2.1 was 9557353, 2.0 9559579), the same on Linux/gcc and Windows/MinGW.
