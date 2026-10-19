@@ -5,11 +5,14 @@
 //   engine2 bench [depth]          fixed-depth searches: node signature and speed
 //   engine2 perftbench             perft speed on the start position
 //   engine2 eval                   static evaluation of each FEN read from stdin
+//   engine2 datagen <file> <positions> [nodes] [seed]
+//                                  self-play training data for NNUE (datagen.h)
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include "datagen.h"
 #include "evaluate.h"
 #include "movegen.h"
 #include "position.h"
@@ -26,7 +29,8 @@ std::string join_fen(int argc, char** argv, int first) {
 }
 
 int usage() {
-  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n";
+  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n"
+               "       engine2 datagen <file> <positions> [nodes] [seed]\n";
   return 2;
 }
 
@@ -42,6 +46,13 @@ int main(int argc, char** argv) {
 
   if (cmd == "bench") {
     run_bench(argc >= 3 ? std::atoi(argv[2]) : 0);
+    return 0;
+  }
+
+  if (cmd == "datagen") {
+    if (argc < 4) return usage();
+    run_datagen(argv[2], std::strtoull(argv[3], nullptr, 10), argc >= 5 ? std::atoi(argv[4]) : 5000,
+                argc >= 6 ? std::strtoull(argv[5], nullptr, 10) : 1);
     return 0;
   }
 

@@ -26,6 +26,7 @@ endif()
 add_library(engine2_core STATIC
   src/bench.cpp
   src/bitboard.cpp
+  src/datagen.cpp
   src/position.cpp
   src/movegen.cpp
   src/evaluate.cpp
