@@ -186,8 +186,11 @@ SPRT against the best build at the time:
       - 8+0.08 (owner's laptop, 12 at a time): 1,204 games, +366 -377
         =461, Elo -3 +/- 15, LOS 34%, LLR -1.37; stopped as flat (the 64 MB
         table hardly fills at this speed, and the probes cost ~5% speed).
-      - **Now under SPRT at 40+0.4 on the laptop**, where the table fills
-        and replacement matters. If flat there too, take both out.
+      - 40+0.4 (laptop): 1,076 games, +317 -293 =466, Elo +8 +/- 14, LOS
+        86%, LLR 0.53; stopped. Probably a small gain at longer time
+        controls (the table fills), unproven.
+      - **Now in the 2.4 bundle**: 2.3 + steps 1-2 + continuation history
+        (item 8), bench 3974756, vs 2.3 at 40+0.4 on the owner's laptop.
    3. Store the static evaluation, and reuse it instead of re-evaluating.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
    reverse futility, futility and late move pruning when not improving.

@@ -123,6 +123,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
+  std::fill(cont_history_.begin(), cont_history_.end(), 0);
   clear_eval_cache();
 }
 
@@ -141,6 +142,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
+  tt_.new_search();
   nodes_ = 0;
   stopped_ = false;
   can_stop_ = false;
@@ -151,6 +153,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& k : killers_) k[0] = k[1] = Move();
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
+  for (int& h : cont_history_) h >>= 2;
 
   SearchResult result;
   MoveList legal;
@@ -234,10 +237,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
   // Transposition table: reuse an earlier result for this position if it
   // was searched deeply enough, or at least try its best move first.
-  TTEntry& tte = tt_.entry(pos.key());
+  bool tt_hit;
+  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
   const std::uint32_t check = TranspositionTable::check(pos.key());
   Move tt_move;
-  if (tte.bound != BOUND_NONE && tte.key == check) {
+  if (tt_hit) {
     tt_move = Move::from_raw(tte.move);
     if (!pv_node && tte.depth >= depth) {
       const int score = from_tt(tte.score, ply);
@@ -260,6 +264,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
         const int reduction = depth >= 7 ? 3 : 2;
+        ply_move_[ply] = -1;
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
         pos.unmake_null_move();
@@ -305,6 +310,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth))
       continue;
 
+    ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();
     pos.make_move(move);
 
     int score;
@@ -342,12 +348,19 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
+            const int bonus = depth * depth;
             int& h = history_[piece][move.to()];
-            h = std::min(h + depth * depth, HISTORY_LIMIT);
+            h = std::min(h + bonus, HISTORY_LIMIT);
+            for (int back = 1; back <= 2; back++)
+              if (const int c = cont_index(ply, back, piece * 64 + move.to()); c >= 0)
+                cont_history_[c] = std::min(cont_history_[c] + bonus, HISTORY_LIMIT);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
-              hq = std::max(hq - depth * depth, -HISTORY_LIMIT);
+              hq = std::max(hq - bonus, -HISTORY_LIMIT);
+              for (int back = 1; back <= 2; back++)
+                if (const int c = cont_index(ply, back, quiets_searched[q]); c >= 0)
+                  cont_history_[c] = std::max(cont_history_[c] - bonus, -HISTORY_LIMIT);
             }
           }
           break;
@@ -366,6 +379,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
+    tte.age = tt_.age();
   }
   return best_score;
 }
@@ -373,6 +387,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 // Searches only captures (or every move when in check) until the position
 // is quiet, then trusts the static evaluation. "Stand pat": the side to move
 // can usually decline to capture, so the evaluation is a lower bound.
+// Results go in the transposition table at depth 0.
 int SearchWorker::quiesce(int alpha, int beta, int ply) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
@@ -380,6 +395,25 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (stopped_) return 0;
   if (ply >= MAX_PLY - 1) return evaluate(pos);
 
+  // Transposition table: any earlier result for this position (from here or
+  // the main search) is deep enough to settle it off the main line, and its
+  // move is tried first.
+  const bool pv_node = beta - alpha > 1;
+  bool tt_hit;
+  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
+  const std::uint32_t check = TranspositionTable::check(pos.key());
+  Move tt_move;
+  if (tt_hit) {
+    tt_move = Move::from_raw(tte.move);
+    if (!pv_node) {
+      const int score = from_tt(tte.score, ply);
+      if (tte.bound == BOUND_EXACT || (tte.bound == BOUND_LOWER && score >= beta) ||
+          (tte.bound == BOUND_UPPER && score <= alpha))
+        return score;
+    }
+  }
+
+  const int alpha_at_start = alpha;
   const bool in_check = pos.in_check();
   int best_score;
   if (in_check) {
@@ -393,8 +427,9 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   MoveList moves;
   generate_pseudo_legal(pos, moves, !in_check);
   int scores[MoveList::MAX_MOVES];
-  score_moves(moves, scores, Move(), ply);
+  score_moves(moves, scores, tt_move, ply);
 
+  Move best_move;
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
     const Move move = pick_next(moves, scores, i);
@@ -407,6 +442,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
     }
     if (!pos.legal(move)) continue;
+    ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();
     pos.make_move(move);
     legal++;
     const int score = -quiesce(-beta, -alpha, ply + 1);
@@ -414,6 +450,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
     if (stopped_) return 0;
     if (score > best_score) {
       best_score = score;
+      best_move = move;
       if (score > alpha) {
         alpha = score;
         update_pv(ply, move);
@@ -422,6 +459,17 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
     }
   }
   if (in_check && legal == 0) return -MATE + ply;
+
+  // Never over a main-search entry (depth 1+) from this search: quiescence
+  // results are far more numerous and would push the deeper ones out.
+  if (tte.bound == BOUND_NONE || tte.depth <= 0 || (!tt_hit && tte.age != tt_.age())) {
+    tte.key = check;
+    tte.move = best_move.raw();
+    tte.score = std::int16_t(to_tt(best_score, ply));
+    tte.depth = 0;
+    tte.bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
+    tte.age = tt_.age();
+  }
   return best_score;
 }
 
@@ -443,9 +491,19 @@ void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, 
     else if (m.is_promotion()) score = PROMOTION_SCORE + promo;
     else if (m == killer1) score = KILLER1_SCORE;
     else if (m == killer2) score = KILLER2_SCORE;
-    else score = history_[pos.piece_on(m.from())][m.to()];
+    else {
+      const int index = pos.piece_on(m.from()) * 64 + m.to();
+      score = history_[index / 64][index % 64];
+      for (int back = 1; back <= 2; back++)
+        if (const int c = cont_index(ply, back, index); c >= 0) score += cont_history_[c];
+    }
     scores[i] = score;
   }
+}
+
+int SearchWorker::cont_index(int ply, int back, int move_index) const {
+  if (ply < back || ply_move_[ply - back] < 0) return -1;
+  return ply_move_[ply - back] * CONT_INDEX + move_index;
 }
 
 void SearchWorker::update_pv(int ply, Move m) {
