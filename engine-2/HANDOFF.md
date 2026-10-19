@@ -59,6 +59,11 @@ build stole CPU from a game once and caused a time loss.
   `SPRT=1 scripts/match.sh build/engine2 ~/matches/engine2-before 20000 8+0.08`
   (copy the old binary first). Bounds 0 / 10 Elo, as Engine 1 used. Accept
   only on "H1 accepted"; record rejections in `FAILED_EXPERIMENTS.md`.
+  Since Oct 2026 `match.sh` adjudicates decided games (resign at 6+ pawns
+  for 3 moves with both engines agreeing, draw within 0.2 pawns for 8
+  moves after move 34), about 20-30% less time per game; `ADJUDICATE=0`
+  turns it off. Tests before that played every game out. Release matches
+  (`release_match.sh`) still play every game out.
 - Keep a copy of each accepted build in `~/matches/` (outside the repo) as
   the next baseline.
 - **Release matches:** `scripts/release_match.sh start <name> <new commit>

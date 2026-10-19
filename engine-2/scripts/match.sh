@@ -14,6 +14,12 @@
 # H1 "at least 10 Elo better", logistic Elo, 5% error each way, the same
 # bounds Engine 1's tests used. Accept a change only on "H1 accepted".
 #
+# Games that are clearly decided are adjudicated, as most testing setups do
+# (fastchess's own example values): a loss once both engines agree one side
+# is 6+ pawns ahead for 3 moves in a row, a draw once both score within 0.2
+# pawns of level for 8 moves in a row after move 34. About 20-30% less time
+# per game. ADJUDICATE=0 plays every game out (as before Oct 2026).
+#
 # fastchess is looked up as $FASTCHESS, then on the PATH, then ~/tools/fastchess.
 set -euo pipefail
 
@@ -43,6 +49,9 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 sprt=()
 [ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 model=logistic)
 
+adjudicate=()
+[ "${ADJUDICATE:-1}" = "1" ] && adjudicate=(-resign movecount=3 score=600 twosided=true -draw movenumber=34 movecount=8 score=20)
+
 engine_a="$(engine_args "$a")"
 engine_b="$(engine_args "$b")"
 # fastchess writes its resume file (config.json) to the working directory.
@@ -55,5 +64,6 @@ cd "$here/matches"
   -openings file="$book" format=epd order=random \
   -rounds $((games / 2)) -repeat -concurrency "$conc" -recover \
   "${sprt[@]}" \
+  "${adjudicate[@]}" \
   -pgnout file="$here/matches/$stamp.pgn" \
   | tee "$here/matches/$stamp.log"
