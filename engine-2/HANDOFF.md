@@ -230,7 +230,9 @@ Next for the app, in order (owner's phone is Android):
    first build hit Maven Central rate limits (429): `./gradlew
    --max-workers=1 assembleDebug` got through. **First APK built** (debug,
    4.5 MB, with the best build's engine, bench 3601124) and sent to the
-   owner to sideload; not yet tried on a real phone.
+   owner to sideload. **Installed and working on the owner's Android
+   phone** (Oct 2026): Engine 2 plays offline on the phone. Rebuild the
+   wasm and the APK after each accepted engine release.
 
 For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
 and this file, and let the owner start the release match. NNUE after these
