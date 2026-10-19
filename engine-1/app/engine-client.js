@@ -5,10 +5,22 @@
 // of positions carries over from move to move.
 
 export class EngineClient {
-  constructor() {
+  // `script`: the worker to run, engine-worker.js (Engine 1.6) or
+  // engine2-worker.js (Engine 2).
+  constructor(script = 'engine-worker.js') {
+    this.script = script;
     this.worker = null;
     this.job = null; // { id, onInfo, onDone }
     this.nextId = 1;
+  }
+
+  // Switches engine; takes effect from the next job.
+  setScript(script) {
+    if (script === this.script) return;
+    this.stop();
+    this.worker?.terminate();
+    this.worker = null;
+    this.script = script;
   }
 
   get busy() {
@@ -37,7 +49,7 @@ export class EngineClient {
   }
 
   spawn() {
-    const worker = new Worker(new URL('./engine-worker.js', import.meta.url), { type: 'module' });
+    const worker = new Worker(new URL(`./${this.script}`, import.meta.url), { type: 'module' });
     worker.onmessage = ({ data }) => {
       const job = this.job;
       if (!job || data.id !== job.id) return;

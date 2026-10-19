@@ -195,28 +195,29 @@ SPRT against the best build at the time:
     laptop.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
-The app (`engine-1/index.html`, `engine-1/app/`) still plays Engine 1.6,
-the JS engine, run in a Web Worker (`app/engine-worker.js`). Plan: compile
-Engine 2 to WebAssembly and let the app use it. Start when a test slot
-frees up: installing Emscripten and compiling are heavy, so not while all 4
-cores run matches.
-1. Install the Emscripten SDK (outside the repo, like fastchess).
-2. A WebAssembly build target in `CMakeLists.txt` (no AVX2; no threads:
-   `Searcher` runs the search on a `std::thread`, so the wasm entry point
-   calls `SearchWorker::search` directly, synchronously, inside the worker).
-   A small C entry point takes "position ... / go movetime N" and reports
-   info lines and the best move back to JavaScript.
-3. `app/engine2-worker.js` speaking the same messages as `engine-worker.js`
-   (`analyse` / `play` with the move history and time), translating to UCI
-   and parsing `info` lines into the app's format. Stopping works as now:
-   the page ends the worker. Keep Engine 1.6's opening book (`bookMove`)
-   for variety in play mode.
-4. A setting to pick the engine (1.6 or 2.x), defaulting to 2.x once it
-   is checked; Engine 1's code itself stays frozen.
-5. Tests: a Node test running the wasm engine on a few positions (bench
-   node count must match the native build at the same depth), the app's
-   existing tests, and a look in a real browser (Playwright, Chromium is
-   installed here) before showing the owner.
+**Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
+plays and analyses with Engine 2 by default; Engine 1.6 stays selectable
+under "Engine" in the New game sheet. Pieces:
+- `src/wasm.cpp`: entry points (init, new game, go, bench); the search runs
+  on the calling thread (the app's Web Worker). Built by
+  `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
+  `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
+  build only** (now 2.2 + IIR + mild LMR, bench 3601124): check with
+  `node scripts/wasm_bench.mjs`, whose node count must match the native
+  bench. About 85% of native speed.
+- `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,
+  Engine 1.6's opening book in games), `engine-1/app/uci-info.js` (UCI
+  info lines to the app's analysis format, tested in
+  `engine-1/test/uci-info.test.js`), `EngineClient(script)`.
+- Checked in Chromium with Playwright at phone size: Engine 2 replies within
+  its time, analysis reaches depth 17-18 in 4 s, Engine 1.6 still works, no
+  console errors.
+
+Next for the app, in order (owner's phone is Android):
+1. **Installable web app (PWA):** a manifest and a service worker so it
+   installs to the home screen and works offline.
+2. **Android APK** with Capacitor wrapping the same web app (needs the
+   Android SDK and a JDK to build; sideload, or Play Store later).
 
 For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
 and this file, and let the owner start the release match. NNUE after these
