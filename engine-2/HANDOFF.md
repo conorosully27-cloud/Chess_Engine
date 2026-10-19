@@ -175,6 +175,30 @@ SPRT against the best build at the time:
     hard to test here with 3 of 4 cores in use. Do last, confirm on the
     laptop.
 
+**Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
+The app (`engine-1/index.html`, `engine-1/app/`) still plays Engine 1.6,
+the JS engine, run in a Web Worker (`app/engine-worker.js`). Plan: compile
+Engine 2 to WebAssembly and let the app use it. Start when a test slot
+frees up: installing Emscripten and compiling are heavy, so not while all 4
+cores run matches.
+1. Install the Emscripten SDK (outside the repo, like fastchess).
+2. A WebAssembly build target in `CMakeLists.txt` (no AVX2; no threads:
+   `Searcher` runs the search on a `std::thread`, so the wasm entry point
+   calls `SearchWorker::search` directly, synchronously, inside the worker).
+   A small C entry point takes "position ... / go movetime N" and reports
+   info lines and the best move back to JavaScript.
+3. `app/engine2-worker.js` speaking the same messages as `engine-worker.js`
+   (`analyse` / `play` with the move history and time), translating to UCI
+   and parsing `info` lines into the app's format. Stopping works as now:
+   the page ends the worker. Keep Engine 1.6's opening book (`bookMove`)
+   for variety in play mode.
+4. A setting to pick the engine (1.6 or 2.x), defaulting to 2.x once it
+   is checked; Engine 1's code itself stays frozen.
+5. Tests: a Node test running the wasm engine on a few positions (bench
+   node count must match the native build at the same depth), the app's
+   existing tests, and a look in a real browser (Playwright, Chromium is
+   installed here) before showing the owner.
+
 For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
 and this file, and let the owner start the release match. NNUE after these
 (training data from Engine 2 self-play; the cloud machine has no GPU).
