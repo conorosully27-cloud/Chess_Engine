@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Stronger null move: 3 + depth/3 (Oct 2026)
+
+**Change:** null-move reduction 3 + depth/3 plus one per 200 cp the static
+eval is above beta (at most 3), instead of 2 (3 from depth 7). Built on
+2.2 + IIR, not committed (one line in `negamax`; see HANDOFF item 5).
+Bench 6119429 vs 5320123: *more* nodes.
+
+**Result:** vs 2.2 + IIR (cloud, 1 game at a time, adjudication on),
+stopped by the owner at 260 games: +71 -79 =110, Elo -11 +/- 31, LOS 25%,
+LLR -0.65.
+
+**Prior:** 7/10.
+
+**Commentary:** the bigger reduction sent most null-move checks straight
+into quiescence (depth - 1 - R <= 0 from depth 3 up to about 6), where
+the side that passed meets the opponent's captures at once and the check
+fails far more often, so fewer cutoffs and more nodes. Next: 3 + depth/4
+with the null search at least 1 ply deep; that version has 23% *fewer*
+nodes than 2.2 + IIR (bench 4090339).
+
 ## Logarithmic LMR, steep (1.6's parked version), on top of IIR (Oct 2026)
 
 **Change:** late quiet moves reduced by 1 + ln(depth) ln(move) / 1.75 from
