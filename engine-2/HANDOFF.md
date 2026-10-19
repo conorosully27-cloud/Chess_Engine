@@ -133,8 +133,12 @@ SPRT against the best build at the time:
    - On 2.2 alone (vs 2.2, cloud, 2 games at a time): +888 -818 =1054 at
      2,760 games, Elo +9 +/- 9, LLR 1.66, **stopped** by the owner as
      slow to decide (a small gain, not a rejection).
-   - **Now under SPRT on top of IIR**: 2.2 + IIR + LMR (bench 2728215)
-     vs 2.2 + IIR (bench 5320123), cloud, 3 games at a time.
+   - On 2.2 + IIR, vs 2.2 + IIR: 680 games, -4 +/- 19, LLR -0.99,
+     stopped as flat (see `FAILED_EXPERIMENTS.md`).
+   - **Now under SPRT, milder**: divisor 2.0 and no zero-history rule
+     (history is quartered before every search, so that rule fired almost
+     everywhere). 2.2 + IIR + mild LMR, bench 3601124, vs 2.2 + IIR, cloud,
+     3 games at a time, log `~/matches/iir-lmr2.out`.
 4. **Internal iterative reduction: accepted** (+28 +/- 17 vs 2.2 over 776
    games, see `CHANGELOG.md`). Depth >= 4 with no TT move (not at the
    root) searches a ply shallower. On this branch on top of 2.2; **bench
