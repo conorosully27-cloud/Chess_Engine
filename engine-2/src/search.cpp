@@ -236,6 +236,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         return score;
     }
   }
+  // Internal iterative reduction: with no remembered best move the ordering
+  // here is poor, so a full-depth search is mostly wasted; go a ply shallower.
+  if (ply > 0 && depth >= 4 && !tt_move) depth--;
 
   int static_eval = 0;
   if (!in_check) {

@@ -5,6 +5,16 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Next release (accepted, not yet released)
+
+- **Internal iterative reduction**: at depth 4 or more with no move from
+  the transposition table (not at the root), search one ply shallower:
+  without a remembered best move the ordering is poor. SPRT against 2.2
+  (cloud, 8+0.08, 2 games at a time): **H1 accepted after 776 games**,
+  267 wins, 204 losses, 305 draws (54.1%), **+28 Elo (+/- 17)**, LOS
+  99.9%. Bench 5320123 (2.2: 6533990). The match was resumed once from
+  its saved state after a container restart.
+
 ## 2.2: static exchange evaluation (SEE)
 
 **Release match against 2.1** (owner's laptop, fastchess, 8+0.08, SPRT

@@ -131,11 +131,16 @@ SPRT against the best build at the time:
    move, one ply less on the PV and for killers, one more for zero
    history, never at the root. Code in commit `1631c2b` (not in 2.2;
    re-apply on top of it). On 2.2 alone: bench 3617582, 45% fewer nodes.
-   **Under SPRT** vs 2.2 in the cloud (concurrency 2, `~/matches/lmr.out`).
-4. **Internal iterative reduction**: depth >= 4 with no TT move (not at
-   the root) searches a ply shallower (`07cba28`, bench 5320123 on step
-   4). Code in commit `07cba28` (not in 2.2; re-apply on top of it).
-   **Under SPRT** vs 2.2 in the cloud (concurrency 2, `~/matches/iir.out`).
+   **Under SPRT** vs 2.2 in the cloud (2 games at a time, resumed after a
+   container restart from `~/matches/lmr-run/config.json`, log
+   `~/matches/lmr2.out`): +14 +/- 16 at 920 games, LLR 1.38. Tested
+   without IIR; if it passes, test LMR + IIR against IIR before keeping
+   both.
+4. **Internal iterative reduction: accepted** (+28 +/- 17 vs 2.2 over 776
+   games, see `CHANGELOG.md`). Depth >= 4 with no TT move (not at the
+   root) searches a ply shallower. On this branch on top of 2.2; **bench
+   5320123** is now the signature of the best build, and the next tests'
+   baseline. Not yet released.
 5. **Stronger null move**: reduction 3 + depth/3, more when the static
    eval is well above beta (now a fixed 2-3).
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
