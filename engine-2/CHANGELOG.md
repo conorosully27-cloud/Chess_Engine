@@ -10,8 +10,9 @@ each played with both colors). Elo figures are fastchess's estimate with its
 **Release match against 2.2** (cloud, `scripts/release_match.sh`, 8+0.08,
 SPRT 0/10, 4 games at a time, every game played out): **H1 accepted after
 586 games**: 203 wins, 138 losses, 245 draws (55.5%), **+39 Elo (+/- 21)**,
-LOS 99.99%, no time losses. Being extended to 1,000 games for a firmer
-estimate. New bench signature **3601124** (2.2: 6533990): 45% fewer nodes
+LOS 99.99%, no time losses. Extended for a firmer estimate and stopped
+by the owner at **760 games**: 261 wins, 180 losses, 319 draws (55.3%),
+**+37 Elo (+/- 18)**, no time losses. New bench signature **3601124** (2.2: 6533990): 45% fewer nodes
 for the same depths. Also in the phone app (`engine-1/app/engine2/`).
 
 Not in 2.3: the transposition-table change (quiescence probes + buckets;

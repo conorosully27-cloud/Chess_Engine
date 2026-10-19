@@ -24,10 +24,10 @@ history behind the search and evaluation.
   the owner's laptop: **+19 Elo (+/- 14)** over 1,366 games at 8+0.08.
   It is the next baseline; details in `CHANGELOG.md`.
 - **Engine 2.3** (2.2 + IIR + mild LMR) passed its release SPRT against
-  2.2: **+39 Elo (+/- 21)** after 586 games at 8+0.08 (H1), extended to
-  1,000 games (`scripts/release_match.sh status release-2.3`; the final
-  figure goes in `CHANGELOG.md`). Commit `836fe46`; **the next
-  baseline**, bench 3601124.
+  2.2: H1 after 586 games at 8+0.08, then extended and stopped at 760
+  games: **+37 Elo (+/- 18)**. Merged to `main`
+  ([conorosully27-cloud/Chess_Engine#5](https://github.com/conorosully27-cloud/Chess_Engine/pull/5)).
+  Commit `836fe46`; **the next baseline**, bench 3601124.
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
   search, UCI), a few seconds. **Bench signature: 3601124** (`build/engine2 bench`;
   2.2 was 6533990, 2.1 9557353, 2.0 9559579), the same on Linux/gcc and Windows/MinGW.
