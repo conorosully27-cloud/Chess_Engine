@@ -258,8 +258,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       if (depth <= 4 && static_eval - 90 * depth >= beta) return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
+      // A shallower check the further ahead we are.
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
-        const int reduction = depth >= 7 ? 3 : 2;
+        const int reduction = (depth >= 7 ? 3 : 2) + std::min((static_eval - beta) / 200, 3);
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
         pos.unmake_null_move();

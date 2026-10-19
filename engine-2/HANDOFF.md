@@ -159,8 +159,11 @@ SPRT against the best build at the time:
      static eval is above beta, at most 3:
      `(depth >= 7 ? 3 : 2) + std::min((static_eval - beta) / 200, 3)`.
      On 2.2 + IIR, bench 5485422. **Paused** by the owner at 40 games
-     (+16 -13 =11, +26 +/- 71), not rejected; retest on the new best build
-     (2.2 + IIR + mild LMR).
+     (+16 -13 =11, +26 +/- 71), not rejected.
+   - **Now under SPRT on the best build**: 2.2 + IIR + mild LMR + v3, bench
+     3251253 (10% fewer nodes than 3601124), vs 2.2 + IIR + mild LMR,
+     cloud, 4 games at a time, adjudication on, log
+     `~/matches/best-nmp3.out`.
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
    age-based replacement, store the static evaluation.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
