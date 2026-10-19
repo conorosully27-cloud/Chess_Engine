@@ -141,6 +141,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
+  tt_.new_search();
   nodes_ = 0;
   stopped_ = false;
   can_stop_ = false;
@@ -234,10 +235,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
   // Transposition table: reuse an earlier result for this position if it
   // was searched deeply enough, or at least try its best move first.
-  TTEntry& tte = tt_.entry(pos.key());
+  bool tt_hit;
+  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
   const std::uint32_t check = TranspositionTable::check(pos.key());
   Move tt_move;
-  if (tte.bound != BOUND_NONE && tte.key == check) {
+  if (tt_hit) {
     tt_move = Move::from_raw(tte.move);
     if (!pv_node && tte.depth >= depth) {
       const int score = from_tt(tte.score, ply);
@@ -366,6 +368,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
+    tte.age = tt_.age();
   }
   return best_score;
 }
@@ -385,10 +388,11 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   // the main search) is deep enough to settle it off the main line, and its
   // move is tried first.
   const bool pv_node = beta - alpha > 1;
-  TTEntry& tte = tt_.entry(pos.key());
+  bool tt_hit;
+  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
   const std::uint32_t check = TranspositionTable::check(pos.key());
   Move tt_move;
-  if (tte.bound != BOUND_NONE && tte.key == check) {
+  if (tt_hit) {
     tt_move = Move::from_raw(tte.move);
     if (!pv_node) {
       const int score = from_tt(tte.score, ply);
@@ -444,14 +448,15 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   }
   if (in_check && legal == 0) return -MATE + ply;
 
-  // Never over a main-search entry (depth 1+): quiescence results are far
-  // more numerous and would push the deeper ones out of the table.
-  if (tte.bound == BOUND_NONE || tte.depth <= 0) {
+  // Never over a main-search entry (depth 1+) from this search: quiescence
+  // results are far more numerous and would push the deeper ones out.
+  if (tte.bound == BOUND_NONE || tte.depth <= 0 || (!tt_hit && tte.age != tt_.age())) {
     tte.key = check;
     tte.move = best_move.raw();
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = 0;
     tte.bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
+    tte.age = tt_.age();
   }
   return best_score;
 }

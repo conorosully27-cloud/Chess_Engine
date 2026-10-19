@@ -166,13 +166,19 @@ SPRT against the best build at the time:
 6. **Transposition table**, in separate steps:
    1. **Quiescence uses the table** (it didn't): probe it, cut off on any
       matching entry off the main line, try its move first; store results
-      at depth 0, never over a main-search entry (depth 1+), since with
-      one entry per slot the far more numerous quiescence results would
-      push deeper ones out. On the best build: bench 3329263 (8% fewer
-      nodes than 3601124). **Under SPRT** vs the best build, cloud, 4
-      games at a time, adjudication on, log `~/matches/best-qstt.out`.
-   2. Buckets (several entries per slot) with depth- and age-based
-      replacement.
+      at depth 0. Alone, on the best build (bench 3329263): 700 games,
+      +222 -216 =262, +3 +/- 18, LOS 63%, stopped as flat: with one entry
+      per slot, quiescence entries rarely survive to be found again.
+   2. **Buckets**, tested together with step 1: 5 entries per bucket, one
+      64-byte cache line (alignas(64)); each entry records the search that
+      last wrote or found it (`age`); a new position replaces an empty
+      entry, else the one with the lowest depth minus 8 per search of age.
+      Quiescence stores only over empty, quiescence or stale entries. Bench
+      **3139756** (13% fewer nodes than 3601124), about 5% fewer nodes/s
+      (memory), bench 8% faster overall (median of 6 alternating runs).
+      **Under SPRT** vs the best build, cloud, 4 games at a time,
+      adjudication on, log `~/matches/best-tt2.out`. (A 4-entry, 48-byte
+      bucket straddled cache lines: 13% fewer nodes/s, no faster.)
    3. Store the static evaluation, and reuse it instead of re-evaluating.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
    reverse futility, futility and late move pruning when not improving.
