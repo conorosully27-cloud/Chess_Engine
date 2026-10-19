@@ -5,6 +5,38 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.3: internal iterative reduction and logarithmic LMR
+
+**Release match against 2.2** (cloud, `scripts/release_match.sh`, 8+0.08,
+SPRT 0/10, 4 games at a time, every game played out): **H1 accepted after
+586 games**: 203 wins, 138 losses, 245 draws (55.5%), **+39 Elo (+/- 21)**,
+LOS 99.99%, no time losses. Being extended to 1,000 games for a firmer
+estimate. New bench signature **3601124** (2.2: 6533990): 45% fewer nodes
+for the same depths. Also in the phone app (`engine-1/app/engine2/`).
+
+Not in 2.3: the transposition-table change (quiescence probes + buckets;
+flat at 8+0.08, under test at 40+0.4) and continuation history (parked for
+a longer time control); see `HANDOFF.md`.
+
+- **Internal iterative reduction**: at depth 4 or more with no move from
+  the transposition table (not at the root), search one ply shallower:
+  without a remembered best move the ordering is poor. SPRT against 2.2
+  (cloud, 8+0.08, 2 games at a time): **H1 accepted after 776 games**,
+  267 wins, 204 losses, 305 draws (54.1%), **+28 Elo (+/- 17)**, LOS
+  99.9%. Bench 5320123 (2.2: 6533990). The match was resumed once from
+  its saved state after a container restart.
+- **Logarithmic late move reductions** (mild version): late quiet moves
+  reduced by 1 + ln(depth) ln(move number) / 2 from the third move, one
+  ply less on the main line and for killers, never at the root, at most
+  depth - 2 (was 1 ply, 2 after the tenth move). Against 2.2 + IIR (cloud,
+  8+0.08, 3 games at a time): 2,180 games, 677 wins, 620 losses, 883 draws
+  (51.3%), **+9 Elo (+/- 10)**, LOS 96%, LLR 1.54. **Accepted by the
+  owner** on that evidence without a formal H1 (the SPRT was still between
+  its bounds: a gain of this size takes thousands more games to settle).
+  Bench 3601124 (2.2 + IIR: 5320123). The steeper version (divisor 1.75,
+  an extra ply for zero-history moves) added nothing on top of IIR; see
+  `FAILED_EXPERIMENTS.md`.
+
 ## 2.2: static exchange evaluation (SEE)
 
 **Release match against 2.1** (owner's laptop, fastchess, 8+0.08, SPRT

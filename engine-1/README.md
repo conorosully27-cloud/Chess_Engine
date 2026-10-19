@@ -30,6 +30,10 @@ small server.)
 - **Export PGN** shows the game in PGN, the standard format, with a Copy
   button, ready to paste into Lichess, Chess.com or any chess app.
 - The game is saved in the browser, so it survives a reload.
+- **Engine** in the New game sheet picks who plays and analyses: **Engine 2**
+  (the C++ engine from `../engine-2`, compiled to WebAssembly; the default,
+  several hundred Elo stronger) or **Engine 1.6** (this folder's JavaScript
+  engine). Both use Engine 1.6's opening book in games.
 
 ### Engine
 
@@ -216,6 +220,8 @@ most chess apps.
 | `app/ui.js` | Board rendering and drag/tap input |
 | `app/game.js` | Game session behind the board (no DOM code, so it's unit-tested) |
 | `app/engine-worker.js`, `app/engine-client.js` | Runs the engine in a background thread |
+| `app/engine2-worker.js`, `app/uci-info.js` | The same for Engine 2: runs its WebAssembly build and reads its UCI output |
+| `app/engine2/` | Engine 2 as WebAssembly, built by `../engine-2/scripts/build_wasm.sh` (rebuild after an engine change) |
 | `src/engine/` | Evaluation (`evaluate.js`, weights in `weights.js`), search, opening book |
 | `scripts/match.js`, `scripts/sprt.js` | Engine-vs-engine matches and the SPRT |
 | `scripts/tune.js`, `scripts/eval-trace.js` | Texel tuner and the evaluation as a linear model |
@@ -227,7 +233,7 @@ most chess apps.
 ## Testing
 
 ```sh
-npm test                    # ~7 seconds, 105 tests
+npm test                    # ~7 seconds, 109 tests
 npm run perft -- 5          # perft breakdown and speed from the start position
 npm run perft -- 4 <fen>    # ... or from any position
 npm run match -- --b ../engine-1.6 --fens test/openings.epd --sprt 0,10   # engine vs engine (see Engine)

@@ -125,7 +125,11 @@ function loadSaved() {
   return { ...DEFAULT_SAVE };
 }
 
-const DEFAULT_SAVE = { moves: [], flipped: false, opponent: 'friend', human: 'w', thinkMs: 5000, analysis: false };
+const DEFAULT_SAVE = { moves: [], flipped: false, opponent: 'friend', human: 'w', thinkMs: 5000, engine: '2', analysis: false };
+
+// The worker running each engine choice in the New game sheet.
+const ENGINE_SCRIPTS = { 2: 'engine2-worker.js', '1.6': 'engine-worker.js' };
+const engineScript = (engine) => ENGINE_SCRIPTS[engine] ?? ENGINE_SCRIPTS[2];
 
 class BoardUI {
   constructor() {
@@ -135,10 +139,11 @@ class BoardUI {
     this.resignTimer = 0;
     this.flipped = Boolean(saved.flipped);
     // opponent: 'friend' (both sides on this device) or 'engine'.
-    this.settings = { opponent: saved.opponent, human: saved.human, thinkMs: saved.thinkMs };
+    // engine: '2' (Engine 2, WebAssembly) or '1.6' (Engine 1.6, JavaScript).
+    this.settings = { opponent: saved.opponent, human: saved.human, thinkMs: saved.thinkMs, engine: saved.engine };
     this.analysisOn = Boolean(saved.analysis);
-    this.player = new EngineClient(); // plays the engine's moves
-    this.analyst = new EngineClient(); // runs the analysis panel
+    this.player = new EngineClient(engineScript(saved.engine)); // plays the engine's moves
+    this.analyst = new EngineClient(engineScript(saved.engine)); // runs the analysis panel
     this.thinkingFor = null; // the position (UCI history) the player is thinking about
     this.analysingFor = null; // the position the analysis is for
     this.analysis = null; // latest analysis info, or null
@@ -591,6 +596,7 @@ class BoardUI {
     press('opponent-options', this.settings.opponent);
     press('color-options', this.settings.human);
     press('time-options', this.settings.thinkMs);
+    press('engine-options', this.settings.engine);
     this.updateNewGameForm();
     newGameSheetEl.hidden = false;
     $('start-game').focus({ preventScroll: true });
@@ -612,11 +618,14 @@ class BoardUI {
       opponent: chosen('opponent-options'),
       human: chosen('color-options'),
       thinkMs: Number(chosen('time-options')),
+      engine: chosen('engine-options'),
     };
     newGameSheetEl.hidden = true;
     if (this.pendingPromotion) this.cancelPromotion();
     this.player.stop();
     this.analyst.stop();
+    this.player.setScript(engineScript(this.settings.engine));
+    this.analyst.setScript(engineScript(this.settings.engine));
     this.thinkingFor = this.analysingFor = null;
     this.analysis = null;
     this.game.reset();

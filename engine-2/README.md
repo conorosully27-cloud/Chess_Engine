@@ -59,6 +59,16 @@ scripts/match.sh build/engine2 engine1            # 200 games vs Engine 1.6 at 8
 SPRT=1 scripts/match.sh new/engine2 old/engine2   # SPRT between two builds
 ```
 
+### In the browser (the phone app)
+
+`scripts/build_wasm.sh` compiles the engine to WebAssembly with Emscripten
+(install it outside the repo, e.g. `~/tools/emsdk`; see the script) into
+`../engine-1/app/engine2/`, where the app (`../engine-1`) runs it in a Web
+Worker. Same search and evaluation, no AVX2, no search thread; about 85% of
+native speed. `node scripts/wasm_bench.mjs` must print the same bench node
+count as `build/engine2 bench`. The entry points are in `src/wasm.cpp` (not
+part of the native build). Rebuild it from the best accepted build only.
+
 Release matches use `scripts/release_match.sh`, which builds both versions
 from their git commits and runs a restartable SPRT (`start`, `resume`,
 `status`, `checkpoint`; see the script's header). Checkpoints of a match in
