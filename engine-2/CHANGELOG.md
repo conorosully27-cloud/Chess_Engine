@@ -14,6 +14,17 @@ each played with both colors). Elo figures are fastchess's estimate with its
   267 wins, 204 losses, 305 draws (54.1%), **+28 Elo (+/- 17)**, LOS
   99.9%. Bench 5320123 (2.2: 6533990). The match was resumed once from
   its saved state after a container restart.
+- **Logarithmic late move reductions** (mild version): late quiet moves
+  reduced by 1 + ln(depth) ln(move number) / 2 from the third move, one
+  ply less on the main line and for killers, never at the root, at most
+  depth - 2 (was 1 ply, 2 after the tenth move). Against 2.2 + IIR (cloud,
+  8+0.08, 3 games at a time): 2,180 games, 677 wins, 620 losses, 883 draws
+  (51.3%), **+9 Elo (+/- 10)**, LOS 96%, LLR 1.54. **Accepted by the
+  owner** on that evidence without a formal H1 (the SPRT was still between
+  its bounds: a gain of this size takes thousands more games to settle).
+  Bench 3601124 (2.2 + IIR: 5320123). The steeper version (divisor 1.75,
+  an extra ply for zero-history moves) added nothing on top of IIR; see
+  `FAILED_EXPERIMENTS.md`.
 
 ## 2.2: static exchange evaluation (SEE)
 

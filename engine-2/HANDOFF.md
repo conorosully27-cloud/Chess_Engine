@@ -140,26 +140,27 @@ SPRT against the best build at the time:
      slow to decide (a small gain, not a rejection).
    - On 2.2 + IIR, vs 2.2 + IIR: 680 games, -4 +/- 19, LLR -0.99,
      stopped as flat (see `FAILED_EXPERIMENTS.md`).
-   - **Now under SPRT, milder**: divisor 2.0 and no zero-history rule
-     (history is quartered before every search, so that rule fired almost
-     everywhere). 2.2 + IIR + mild LMR, bench 3601124, vs 2.2 + IIR, cloud,
-     3 games at a time, log `~/matches/iir-lmr2.out`.
+   - **Mild version accepted by the owner** (divisor 2.0, no zero-history
+     rule): vs 2.2 + IIR, 2,180 games, +9 +/- 10, LOS 96%, LLR 1.54 (no
+     formal H1; see `CHANGELOG.md`). On this branch on top of IIR. **2.2 +
+     IIR + mild LMR (bench 3601124) is now the best build** and the
+     baseline for the next tests. Not yet released.
 4. **Internal iterative reduction: accepted** (+28 +/- 17 vs 2.2 over 776
    games, see `CHANGELOG.md`). Depth >= 4 with no TT move (not at the
    root) searches a ply shallower. On this branch on top of 2.2; **bench
    5320123** is now the signature of the best build, and the next tests'
-   baseline. Not yet released.
+   baseline. Not yet released. (Superseded: see item 3.)
 5. **Stronger null move**, built on 2.2 + IIR (not committed yet):
    - 3 + depth/3 (+1 per 200 cp above beta, at most 3): more nodes (bench
      6119429), -11 +/- 31 at 260 games, stopped (`FAILED_EXPERIMENTS.md`).
    - 3 + depth/4 with the null search at least 1 ply: bench 4090339, -70
      +/- 64 at 40 games, stopped (too shallow a check from depth 4 to 7).
-   - **Now under SPRT**: 1.6's reduction (2, 3 from depth 7) plus one per
-     200 cp the static eval is above beta, at most 3:
+   - v3, 1.6's reduction (2, 3 from depth 7) plus one per 200 cp the
+     static eval is above beta, at most 3:
      `(depth >= 7 ? 3 : 2) + std::min((static_eval - beta) / 200, 3)`.
-     Bench 5485422 (3% more nodes than 2.2 + IIR). Binary
-     `~/matches/engine2-iir-nmp3`, vs 2.2 + IIR, 1 game at a time on the
-     spare core, adjudication on, log `~/matches/iir-nmp3.out`.
+     On 2.2 + IIR, bench 5485422. **Paused** by the owner at 40 games
+     (+16 -13 =11, +26 +/- 71), not rejected; retest on the new best build
+     (2.2 + IIR + mild LMR).
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
    age-based replacement, store the static evaluation.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
