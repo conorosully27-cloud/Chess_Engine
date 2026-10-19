@@ -129,13 +129,12 @@ SPRT against the best build at the time:
 3. **Logarithmic LMR**: 1.6's parked steeper version (Engine 1's
    `FAILED_EXPERIMENTS.md`): 1 + ln(depth) ln(move) / 1.75 from the third
    move, one ply less on the PV and for killers, one more for zero
-   history, never at the root. Code in commit `1631c2b` (not in 2.2;
-   re-apply on top of it). On 2.2 alone: bench 3617582, 45% fewer nodes.
-   **Under SPRT** vs 2.2 in the cloud (2 games at a time, resumed after a
-   container restart from `~/matches/lmr-run/config.json`, log
-   `~/matches/lmr2.out`): +14 +/- 16 at 920 games, LLR 1.38. Tested
-   without IIR; if it passes, test LMR + IIR against IIR before keeping
-   both.
+   history, never at the root.
+   - On 2.2 alone (vs 2.2, cloud, 2 games at a time): +888 -818 =1054 at
+     2,760 games, Elo +9 +/- 9, LLR 1.66, **stopped** by the owner as
+     slow to decide (a small gain, not a rejection).
+   - **Now under SPRT on top of IIR**: 2.2 + IIR + LMR (bench 2728215)
+     vs 2.2 + IIR (bench 5320123), cloud, 3 games at a time.
 4. **Internal iterative reduction: accepted** (+28 +/- 17 vs 2.2 over 776
    games, see `CHANGELOG.md`). Depth >= 4 with no TT move (not at the
    root) searches a ply shallower. On this branch on top of 2.2; **bench

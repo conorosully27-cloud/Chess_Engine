@@ -1,6 +1,8 @@
 #include "search.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 
 #include "evaluate.h"
 #include "uci.h"
@@ -29,6 +31,14 @@ constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
 constexpr int SEE_PRUNE_DEPTH = 6;
 constexpr int SEE_QUIET_MARGIN = 25;
 constexpr int SEE_CAPTURE_MARGIN = 100;
+
+// Late move reductions by depth and move number: 1 + ln(depth) ln(move) / 1.75.
+const auto LMR = [] {
+  std::array<std::array<std::int8_t, 64>, 64> t{};
+  for (int d = 1; d < 64; d++)
+    for (int m = 1; m < 64; m++) t[d][m] = std::int8_t(1 + std::log(d) * std::log(m) / 1.75);
+  return t;
+}();
 
 // Piece values for move ordering and quiescence pruning only.
 constexpr int ORDER_VALUE[6] = {100, 320, 330, 500, 900, 2000};
@@ -303,11 +313,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     } else {
       // Late move reductions: moves ordered late are rarely best, so search
       // them shallower first and only re-search if they surprise us.
+      // Not at the root: reducing there can miss a quicker mate.
       int reduction = 0;
-      if (depth >= 3 && legal > 3 && quiet && !in_check && !gives_check && move != killer1 && move != killer2) {
-        reduction = legal > 10 ? 2 : 1;
-        if (pv_node) reduction--;
-        reduction = std::min(reduction, depth - 2);
+      if (depth >= 3 && legal > 2 && quiet && !in_check && !gives_check && ply > 0) {
+        reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
+        if (pv_node) reduction--;  // less on the main line
+        if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
+        else if (history_[piece][move.to()] == 0) reduction++;  // more for moves that never have
+        reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
