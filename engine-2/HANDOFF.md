@@ -207,6 +207,21 @@ SPRT against the best build at the time:
     hard to test here with 3 of 4 cores in use. Do last, confirm on the
     laptop.
 
+**NNUE (started Oct 2026).** Plan: self-play data from Engine 2 (cloud,
+and the owner's laptop when free), a PyTorch trainer on the owner's laptop
+GPU (NVIDIA RTX A2000 8 GB, CUDA; Python 3.12 and PyTorch 2.11+cu128
+installed and checked; 16 GB RAM, so the trainer streams data from disk),
+then NNUE inference in the engine, checked against the trainer, and an
+SPRT against the best build. Network to start with: 768 inputs (piece x
+square, per side) -> 128 hidden per side -> 1.
+1. **Data:** `engine2 datagen` (`src/datagen.h` for the 32-byte format;
+   reader `scripts/nnue/data.py`). First run: 2.3's search plus datagen
+   (`~/nnue-data/engine2-2.3-datagen`, bench 3601124), 4 processes, 5,000
+   nodes a move, writing `~/nnue-data/part-1..4.bin`, 25M positions each
+   (100M, 3.2 GB), about 6M positions an hour in all. Moving data to the
+   laptop: compressed chunks sent to the owner, or generate there.
+2. Trainer (PyTorch, streaming), 3. inference in the engine, 4. SPRT.
+
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
 plays and analyses with Engine 2 by default; Engine 1.6 stays selectable
