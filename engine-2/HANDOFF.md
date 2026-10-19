@@ -152,11 +152,14 @@ SPRT against the best build at the time:
 5. **Stronger null move**, built on 2.2 + IIR (not committed yet):
    - 3 + depth/3 (+1 per 200 cp above beta, at most 3): more nodes (bench
      6119429), -11 +/- 31 at 260 games, stopped (`FAILED_EXPERIMENTS.md`).
-   - **Now under SPRT**: 3 + depth/4 (+ the same eval term), and the null
-     search at least 1 ply deep: `negamax(std::max(depth - 1 - reduction,
-     1), ...)`. Bench 4090339 (23% fewer nodes than 2.2 + IIR). Binary
-     `~/matches/engine2-iir-nmp2`, vs 2.2 + IIR, 1 game at a time on the
-     spare core, adjudication on, log `~/matches/iir-nmp2.out`.
+   - 3 + depth/4 with the null search at least 1 ply: bench 4090339, -70
+     +/- 64 at 40 games, stopped (too shallow a check from depth 4 to 7).
+   - **Now under SPRT**: 1.6's reduction (2, 3 from depth 7) plus one per
+     200 cp the static eval is above beta, at most 3:
+     `(depth >= 7 ? 3 : 2) + std::min((static_eval - beta) / 200, 3)`.
+     Bench 5485422 (3% more nodes than 2.2 + IIR). Binary
+     `~/matches/engine2-iir-nmp3`, vs 2.2 + IIR, 1 game at a time on the
+     spare core, adjudication on, log `~/matches/iir-nmp3.out`.
 6. **Transposition table**: probe it in quiescence (it isn't now), buckets,
    age-based replacement, store the static evaluation.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten

@@ -5,6 +5,27 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Stronger null move: 3 + depth/4, null search at least 1 ply (Oct 2026)
+
+**Change:** null-move reduction 3 + depth/4 plus one per 200 cp above beta
+(at most 3), with the null search never shallower than 1 ply
+(`negamax(std::max(depth - 1 - reduction, 1), ...)`). On 2.2 + IIR, not
+committed. Bench 4090339 (23% fewer nodes than 2.2 + IIR).
+
+**Result:** vs 2.2 + IIR (cloud, 1 game at a time, adjudication on),
+stopped at 40 games: +6 -14 =20, Elo -70 +/- 64, LOS 1%, 2 pairs won and
+8 lost.
+
+**Prior:** 6/10.
+
+**Commentary:** the floor bites in the wrong place: from depth 4 to 7 the
+reduction is 4 or more, so the check is clamped to a 1-ply search where
+the old engine looked 1 to 4 plies deep. Too shallow to see the
+opponent's threats, so it cuts far too often (hence the big node drop)
+and misses tactics. The first version erred the other way (into
+quiescence, too few cutoffs). Next: keep 1.6's reduction and add only the
+"far ahead" term.
+
 ## Stronger null move: 3 + depth/3 (Oct 2026)
 
 **Change:** null-move reduction 3 + depth/3 plus one per 200 cp the static
