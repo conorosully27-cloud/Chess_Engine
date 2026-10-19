@@ -176,15 +176,29 @@ SPRT against the best build at the time:
       Quiescence stores only over empty, quiescence or stale entries. Bench
       **3139756** (13% fewer nodes than 3601124), about 5% fewer nodes/s
       (memory), bench 8% faster overall (median of 6 alternating runs).
-      **Under SPRT** vs the best build, cloud, 4 games at a time,
-      adjudication on, log `~/matches/best-tt2.out`. (A 4-entry, 48-byte
-      bucket straddled cache lines: 13% fewer nodes/s, no faster.)
+      (A 4-entry, 48-byte bucket straddled cache lines: 13% fewer
+      nodes/s, no faster.) Steps 1 + 2 vs the best build:
+      - 8+0.08 (owner's laptop, 12 at a time): 1,204 games, +366 -377
+        =461, Elo -3 +/- 15, LOS 34%, LLR -1.37; stopped as flat (the 64 MB
+        table hardly fills at this speed, and the probes cost ~5% speed).
+      - **Now under SPRT at 40+0.4 on the laptop**, where the table fills
+        and replacement matters. If flat there too, take both out.
    3. Store the static evaluation, and reuse it instead of re-evaluating.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
    reverse futility, futility and late move pruning when not improving.
-8. **Continuation history** (countermoves failed in 1.6 as a plain table),
-   then **history pruning** of quiet moves with very bad history at low
-   depth.
+8. **Continuation history** (countermoves failed in 1.6 as a plain table):
+   one table `[earlier move][this move]` (piece * 64 + to, 768 x 768 ints,
+   2.4 MB on the heap), read for the move one ply earlier and two plies
+   earlier and added to the history score in move ordering; same updates
+   as history (+depth^2 on a quiet cutoff, -depth^2 for the quiets tried
+   before it, capped at HISTORY_LIMIT, quartered before each search).
+   On the best build: bench 3107651 (14% fewer nodes than 3601124), ~10%
+   fewer nodes/s, bench 4% faster. Committed on the branch on top of the
+   table change (bench there 3974756: the two interact), but **tested on
+   the best build alone**: binary `~/matches/engine2-best-conthist`, vs
+   the best build, cloud, 4 games at a time, adjudication on, log
+   `~/matches/best-conthist.out`. Then **history pruning** of quiet moves
+   with very bad history at low depth.
 9. **Singular extensions** (needs the TT work first).
 10. **Razoring, ProbCut**: small gains, later.
 11. **SEE with tuned piece values** (owner's parked idea): phase-blended
