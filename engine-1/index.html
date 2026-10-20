@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chess Engine</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Play chess on your phone: drag or tap pieces to legal squares.">
+<meta name="description" content="Play chess against the engine or a friend, or analyse positions with the engine.">
 <meta name="theme-color" content="#e9e9e2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0e1015" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +14,55 @@
 <link rel="stylesheet" href="app/style.css">
 </head>
 <body>
-<main class="layout">
+<main class="home" id="home">
+  <header class="home-head">
+    <p class="home-kicker" id="home-engine">Engine 2</p>
+    <h1 class="home-title">Chess Engine</h1>
+    <p class="home-lede">Play the engine or a friend, or explore any position with the engine's help.</p>
+  </header>
+
+  <section class="home-card" aria-labelledby="play-title">
+    <h2 class="home-card-title" id="play-title">Play</h2>
+    <button type="button" class="continue-button" id="continue-game" hidden>
+      <span class="continue-label">Continue game</span>
+      <span class="continue-detail" id="continue-detail"></span>
+    </button>
+    <h3 class="sheet-label" id="opponent-label">Opponent</h3>
+    <div class="segmented" id="opponent-options" role="group" aria-labelledby="opponent-label">
+      <button type="button" data-value="engine">Engine</button>
+      <button type="button" data-value="friend">A friend</button>
+    </div>
+    <h3 class="sheet-label" id="engine-label">Engine</h3>
+    <div class="segmented" id="engine-options" role="group" aria-labelledby="engine-label">
+      <button type="button" data-value="2" id="engine2-option">Engine 2</button>
+      <button type="button" data-value="1.6">Engine 1.6</button>
+    </div>
+    <div class="engine-settings" id="engine-settings">
+      <h3 class="sheet-label" id="color-label">You play</h3>
+      <div class="segmented" id="color-options" role="group" aria-labelledby="color-label">
+        <button type="button" data-value="w">White</button>
+        <button type="button" data-value="b">Black</button>
+      </div>
+      <h3 class="sheet-label" id="time-label">Engine thinks for</h3>
+      <div class="segmented" id="time-options" role="group" aria-labelledby="time-label">
+        <button type="button" data-value="2000">2 s</button>
+        <button type="button" data-value="5000">5 s</button>
+        <button type="button" data-value="10000">10 s</button>
+        <button type="button" data-value="20000">20 s</button>
+      </div>
+      <p class="sheet-note">per move, at full strength</p>
+    </div>
+    <button type="button" class="start-button" id="start-game">Start game</button>
+  </section>
+
+  <section class="home-card" aria-labelledby="analysis-board-title">
+    <h2 class="home-card-title" id="analysis-board-title">Analysis board</h2>
+    <p class="home-card-text">Move both sides freely. The engine shows its best move and the line it expects.</p>
+    <button type="button" class="start-button is-secondary" id="open-analysis">Open analysis board</button>
+  </section>
+</main>
+
+<main class="layout" id="game" hidden>
   <header class="status" id="status" aria-live="polite">
     <span class="turn-mark" id="turn-mark" aria-hidden="true"></span>
     <div class="status-text">
@@ -39,12 +87,22 @@
     <div class="files" id="files" aria-hidden="true"></div>
   </div>
 
+  <div class="nav" role="group" aria-label="Step through the moves" data-mode-only="analysis">
+    <button type="button" id="nav-start" aria-label="To the start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h2.5v14H5zM19 5v14l-10-7z"/></svg></button>
+    <button type="button" id="nav-back" aria-label="Back a move"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14L7 12z"/></svg></button>
+    <button type="button" id="nav-forward" aria-label="Forward a move"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l10-7z"/></svg></button>
+    <button type="button" id="nav-end" aria-label="To the end of the line"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 5H19v14h-2.5zM5 5v14l10-7z"/></svg></button>
+  </div>
+
   <div class="controls">
-    <button type="button" id="take-back">Take back</button>
+    <button type="button" id="take-back" data-mode-only="play">Take back</button>
     <button type="button" id="flip">Flip board</button>
-    <button type="button" id="new-game">New game</button>
-    <button type="button" id="resign">Resign</button>
-    <button type="button" id="export-pgn">Export PGN</button>
+    <button type="button" id="home-button">Home</button>
+    <button type="button" id="resign" data-mode-only="play">Resign</button>
+    <button type="button" id="reset-board" data-mode-only="analysis">Reset</button>
+    <button type="button" id="import-button" data-mode-only="analysis">Import</button>
+    <button type="button" id="export-pgn" aria-label="Export PGN">Export</button>
+    <button type="button" id="analyse-game" data-mode-only="play">Analyse</button>
   </div>
 
   <section class="analysis" id="analysis" aria-labelledby="analysis-title">
@@ -56,11 +114,15 @@
       </button>
     </div>
     <div class="analysis-body" id="analysis-body" hidden>
+      <div class="best-row">
+        <span class="best-label">Best move</span>
+        <span class="best-move" id="best-move">…</span>
+      </div>
       <div class="eval-row">
         <span class="eval-score" id="eval-score">0.00</span>
         <div class="eval-bar" aria-hidden="true"><span class="eval-fill" id="eval-fill"></span></div>
       </div>
-      <p class="eval-line" id="eval-line"></p>
+      <p class="eval-line"><span class="line-label">Line</span> <span id="eval-line"></span></p>
     </div>
   </section>
 
@@ -83,38 +145,16 @@
     <div class="options" id="board-options" role="group" aria-labelledby="board-label"></div>
   </section>
 </div>
-<div class="sheet-backdrop" id="new-game-sheet" hidden>
-  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="new-game-title">
+<div class="sheet-backdrop" id="import-sheet" hidden>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="import-title">
     <div class="sheet-head">
-      <h2 class="sheet-title" id="new-game-title">New game</h2>
-      <button type="button" class="sheet-done" id="new-game-cancel">Cancel</button>
+      <h2 class="sheet-title" id="import-title">Import</h2>
+      <button type="button" class="sheet-done" id="import-cancel">Cancel</button>
     </div>
-    <h3 class="sheet-label" id="opponent-label">Opponent</h3>
-    <div class="segmented" id="opponent-options" role="group" aria-labelledby="opponent-label">
-      <button type="button" data-value="engine">Engine</button>
-      <button type="button" data-value="friend">A friend</button>
-    </div>
-    <h3 class="sheet-label" id="engine-label">Engine</h3>
-    <div class="segmented" id="engine-options" role="group" aria-labelledby="engine-label">
-      <button type="button" data-value="2">Engine 2</button>
-      <button type="button" data-value="1.6">Engine 1.6</button>
-    </div>
-    <div class="engine-settings" id="engine-settings">
-      <h3 class="sheet-label" id="color-label">You play</h3>
-      <div class="segmented" id="color-options" role="group" aria-labelledby="color-label">
-        <button type="button" data-value="w">White</button>
-        <button type="button" data-value="b">Black</button>
-      </div>
-      <h3 class="sheet-label" id="time-label">Engine thinks for</h3>
-      <div class="segmented" id="time-options" role="group" aria-labelledby="time-label">
-        <button type="button" data-value="2000">2 s</button>
-        <button type="button" data-value="5000">5 s</button>
-        <button type="button" data-value="10000">10 s</button>
-        <button type="button" data-value="20000">20 s</button>
-      </div>
-      <p class="sheet-note">per move, at full strength</p>
-    </div>
-    <button type="button" class="start-button" id="start-game">Start game</button>
+    <textarea class="pgn-text" id="import-text" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off"
+      aria-label="FEN or PGN" placeholder="Paste a FEN or a PGN"></textarea>
+    <p class="sheet-note" id="import-note">A FEN sets up a position; a PGN replays its moves (comments and variations are skipped).</p>
+    <button type="button" class="start-button" id="import-load">Load position</button>
   </section>
 </div>
 <div class="sheet-backdrop" id="pgn-sheet" hidden>

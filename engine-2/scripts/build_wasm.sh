@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds Engine 2 as WebAssembly for the browser app:
-#   engine-1/app/engine2/engine2.js and engine2.wasm
+#   engine-1/app/engine2/engine2.js, engine2.wasm and version.js
 # Needs the Emscripten SDK (https://emscripten.org), e.g. in ~/tools/emsdk:
 #   git clone https://github.com/emscripten-core/emsdk ~/tools/emsdk
 #   ~/tools/emsdk/emsdk install latest && ~/tools/emsdk/emsdk activate latest
@@ -37,4 +37,8 @@ em++ -std=c++20 -O3 -DNDEBUG -msimd128 -I"$here/src" "${sources[@]}" \
   -sEXPORTED_FUNCTIONS=_engine_init,_engine_new_game,_engine_go,_engine_bench \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF8ToString \
   -o "$out/engine2.js"
+
+# The engine's name and version (src/uci.cpp), for the app's labels.
+name="$(sed -n 's/.*ENGINE_NAME = "\(.*\)";.*/\1/p' "$here/src/uci.cpp")"
+printf '// Written by engine-2/scripts/build_wasm.sh: the name of the build in engine2.wasm.\nexport const ENGINE2_NAME = %s;\n' "'$name'" > "$out/version.js"
 ls -l "$out"
