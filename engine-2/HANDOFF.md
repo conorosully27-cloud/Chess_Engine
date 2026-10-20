@@ -301,6 +301,13 @@ square, per side) -> 128 hidden per side -> 1.
    **vs 2.6: H1 after 1,186 games, +381 -313 =492 (52.9%), +20 Elo
    (+/- 14)** (cloud, 8+0.08, 4 at a time, adjudication). **Released as
    2.7.** Picking the next quiet (selection over long lists) is still ~12%. Next for strength: more
+9. **Data run 2 (Oct 20, 22:24 UTC):** 100M positions from **2.7** (commit
+   `5ba42d6`: random opening of 6-11 plies instead of 8), 5,000 nodes a
+   move, 4 cores, ~4M positions an hour (~25 h). Writing
+   `~/nnue-data/v2/part-1..4.bin` (25M each, logs beside them), seeds
+   **5001-5004** (resume with new seeds, e.g. 6001-6004). Binary
+   `~/engines/engine2-2.7-datagen`. Plan: train a net on old 50M + new
+   100M on the laptop (try 256 hidden units too).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
