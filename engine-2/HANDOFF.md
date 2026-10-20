@@ -32,9 +32,12 @@ history behind the search and evaluation.
   `nets/engine-2.4.nnue`): **+181 Elo (+/- 42)** over 2.3 (H1 after 234
   games). **The new baseline**, bench 3116434. Details in `CHANGELOG.md`
   and the NNUE section below.
+- **Engine 2.5** = 2.4 with the final network (net-20) built in,
+  `nets/engine-2.5.nnue`: **+80 Elo (+/- 30)** over 2.4 (H1 after 332
+  games). **The new baseline**, bench 3183003.
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
-  search, UCI), a few seconds. **Bench signature: 3116434** (`build/engine2 bench`, with the
-  built-in network; 2.3 was 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  search, UCI), a few seconds. **Bench signature: 3183003** (`build/engine2 bench`, with the
+  built-in network; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -261,7 +264,13 @@ square, per side) -> 128 hidden per side -> 1.
    search reaches a given depth on ~2.6x the nodes (pruning margins tuned
    for the old evaluation's scale): retuning them is a likely further gain.
    **Released as 2.4** with net-3 built in (owner's call, without waiting
-   for the 20-epoch net). Next: the later epochs of the laptop run vs
+   for the 20-epoch net).
+6. **net-20** (the run's last epoch: train 0.00760, validation 0.00793;
+   `check_net.py` 5.8 cp mean): **2.4 + net-20 vs 2.4: H1 after 332
+   games, +156 -81 =95 (61.3%), +80 Elo (+/- 30)**, LOS 100%, no time
+   losses (cloud, 8+0.08, 4 at a time, adjudication). **Released as
+   2.5** (net-20 built in). Train/validation gap widened (0.0002 ->
+   0.0003): the next net needs more data more than more epochs. Next: the later epochs of the laptop run vs
    2.4 (`EvalFile` = the candidate net), incremental accumulator updates
    (speed), retuning the pruning margins for the network's scale, then
    bigger nets and more data (generated with 2.4, so better labels).
