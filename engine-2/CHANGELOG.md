@@ -5,6 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.7: staged move generation (speed)
+
+2.6 with moves generated and scored a stage at a time. **Against 2.6**
+(cloud, 8+0.08, SPRT 0/10, 4 games at a time, adjudication on): **H1
+accepted after 1,186 games**, 381 wins, 313 losses, 492 draws (52.9%),
+**+20 Elo (+/- 14)**. New bench signature **2870078** (2.6: 3183003).
+
+- **Staged move generation** (`src/movepick.h`, `MovePicker`): the hash
+  move first, before anything is generated (checked with the new
+  `pseudo_legal`), then the captures that don't lose material by SEE, the
+  quiet moves (promotions, killers, then by history), and last the losing
+  captures. A cutoff by an early move skips generating and scoring the
+  rest. The order is score_moves' as before; only ties between equal
+  scores come out differently (generation order), hence the new bench.
+- **Lazy gives_check:** worked out only when a pruning rule needs it; LMR
+  reads it from the position after the move. Same search on its own.
+- **Speed:** about 7% fewer instructions per node than 2.6.
+- **Test:** `tests/movepick_test.cpp`: the capture and quiet generators
+  split the full one exactly, `pseudo_legal` agrees with the generator on
+  all 65,536 move codes, and the picker returns every move once in score
+  order (it catches four deliberately broken variants).
+
 ## 2.6: incremental NNUE updates (speed)
 
 2.5's search and network, evaluated faster. **Against 2.5** (cloud,
