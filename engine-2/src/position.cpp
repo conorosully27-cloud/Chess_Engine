@@ -149,6 +149,9 @@ bool Position::set(const std::string& fen) {
     }
   }
   states_.push_back(s);
+  accumulators_.resize(std::max<std::size_t>(accumulators_.size(), 1));
+  accumulators_[0].net = 0;
+  accumulators_[0].dirty = {};
   if (!ok) {
     // Leave a valid position behind rather than a half-parsed one.
     if (fen != START_FEN) set(START_FEN);
@@ -288,8 +291,18 @@ void Position::update_check_info(StateInfo& s) const {
   }
 }
 
+nnue::DirtyPieces& Position::next_dirty_pieces() {
+  const std::size_t next = states_.size();
+  if (accumulators_.size() <= next) accumulators_.resize(next + 1);
+  nnue::Accumulator& a = accumulators_[next];
+  a.net = 0;
+  a.dirty.added = a.dirty.removed = 0;
+  return a.dirty;
+}
+
 void Position::make_move(Move m) {
   StateInfo s = states_.back();
+  nnue::DirtyPieces& dirty = next_dirty_pieces();
   const Color us = side_;
   const Square from = m.from(), to = m.to();
   const int flags = m.flags();
@@ -307,6 +320,7 @@ void Position::make_move(Move m) {
     Square capsq = to;
     if (m.is_ep()) capsq = us == WHITE ? to - 8 : to + 8;
     s.captured = board_[capsq];
+    dirty.remove(s.captured, capsq);
     k ^= Zobrist::psq[s.captured][capsq];
     remove_piece(capsq);
     s.halfmove = 0;
@@ -317,15 +331,21 @@ void Position::make_move(Move m) {
     Square rook_to = flags == Move::KING_CASTLE ? from + 1 : from - 1;
     Piece rook = board_[rook_from];
     k ^= Zobrist::psq[rook][rook_from] ^ Zobrist::psq[rook][rook_to];
+    dirty.remove(rook, rook_from);
+    dirty.add(rook, rook_to);
     move_piece(rook_from, rook_to);
   }
 
   if (m.is_promotion()) {
     Piece promo = make_piece(us, m.promotion_type());
+    dirty.remove(pc, from);
+    dirty.add(promo, to);
     remove_piece(from);
     put_piece(promo, to);
     k ^= Zobrist::psq[pc][from] ^ Zobrist::psq[promo][to];
   } else {
+    dirty.remove(pc, from);
+    dirty.add(pc, to);
     move_piece(from, to);
     k ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
   }
@@ -374,6 +394,7 @@ void Position::unmake_move() {
 
 void Position::make_null_move() {
   StateInfo s = states_.back();
+  next_dirty_pieces();
   Key k = s.key;
   if (ep_capturable(s.ep, side_)) k ^= Zobrist::ep_file[file_of(s.ep)];
   s.move = Move();

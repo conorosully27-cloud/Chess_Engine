@@ -12,7 +12,6 @@ namespace chess::nnue {
 namespace {
 
 constexpr int INPUTS = 768;
-constexpr int HIDDEN = 128;
 constexpr int QA = 255;
 constexpr int QB = 64;
 constexpr int SCALE = 400;
@@ -26,6 +25,9 @@ struct Network {
 
 Network net;
 bool have_net = false;
+// Changes with every network loaded, so accumulators computed with an
+// earlier one read as not computed. Never 0 (Accumulator's "none").
+std::uint32_t net_id = 0;
 
 // Reads `size` bytes into dst from data + *pos.
 bool take(const unsigned char* data, std::size_t size, std::size_t& pos, void* dst, std::size_t n) {
@@ -39,6 +41,91 @@ bool take(const unsigned char* data, std::size_t size, std::size_t& pos, void* d
 // from Black's side the colors swap and the board flips.
 inline int feature(Piece pc, Square s, Color side) {
   return side == WHITE ? pc * 64 + s : ((pc + 6) % 12) * 64 + (s ^ 56);
+}
+
+inline const std::int16_t* weights(Piece pc, Square s, Color side) { return net.ft_weight[feature(pc, s, side)]; }
+
+// The update loops. Sums wrap like the 16-bit lanes they vectorize to; the
+// trainer's weight limit keeps every finished accumulator in range, so the
+// result is exactly a from-scratch computation's.
+using Row = const std::int16_t* __restrict;
+
+inline void add1_sub1(std::int16_t* __restrict out, Row in, Row a, Row r) {
+  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a[j] - r[j]);
+}
+inline void add1_sub2(std::int16_t* __restrict out, Row in, Row a, Row r1, Row r2) {
+  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a[j] - r1[j] - r2[j]);
+}
+inline void add2_sub2(std::int16_t* __restrict out, Row in, Row a1, Row a2, Row r1, Row r2) {
+  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a1[j] + a2[j] - r1[j] - r2[j]);
+}
+
+// One side's hidden units, clipped to [0, QA], times their output weights.
+// A plain dot product of 16-bit values, which compilers vectorize
+// (pmaddwd on x86, i32x4.dot_i16x8_s in WebAssembly).
+inline std::int32_t output(Row units, Row w) {
+  std::int32_t sum = 0;
+  for (int j = 0; j < HIDDEN; j++) {
+    const std::int16_t u = std::min<std::int16_t>(std::max<std::int16_t>(units[j], 0), QA);
+    sum += u * w[j];
+  }
+  return sum;
+}
+
+// next = prev changed by next.dirty, from both sides.
+void apply(const Accumulator& prev, Accumulator& next) {
+  const DirtyPieces& d = next.dirty;
+  for (Color side : {WHITE, BLACK}) {
+    const std::int16_t* in = prev.values[side];
+    std::int16_t* out = next.values[side];
+    if (d.removed == 1) {  // a quiet move or a promotion
+      add1_sub1(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.remove_piece[0], d.remove_sq[0], side));
+    } else if (d.added == 1) {  // a capture
+      add1_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.remove_piece[0], d.remove_sq[0], side),
+                weights(d.remove_piece[1], d.remove_sq[1], side));
+    } else if (d.added == 2) {  // castling
+      add2_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.add_piece[1], d.add_sq[1], side),
+                weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side));
+    } else {  // a null move
+      std::memcpy(out, in, sizeof(prev.values[side]));
+    }
+  }
+  next.net = net_id;
+}
+
+void refresh(const Position& pos, Accumulator& acc) {
+  std::memcpy(acc.values[WHITE], net.ft_bias, sizeof(net.ft_bias));
+  std::memcpy(acc.values[BLACK], net.ft_bias, sizeof(net.ft_bias));
+  for (Bitboard b = pos.pieces(); b;) {
+    const Square s = pop_lsb(b);
+    const Piece pc = pos.piece_on(s);
+    const std::int16_t* w = weights(pc, s, WHITE);
+    const std::int16_t* k = weights(pc, s, BLACK);
+    for (int j = 0; j < HIDDEN; j++) {
+      acc.values[WHITE][j] += w[j];
+      acc.values[BLACK][j] += k[j];
+    }
+  }
+  acc.net = net_id;
+}
+
+// Brings the current position's accumulator up to date: forward from the
+// nearest computed one before it, or from scratch when the updates on the
+// way would add and remove more pieces than the board holds.
+void update(const Position& pos) {
+  Accumulator* stack = pos.accumulators();
+  const int top = pos.game_ply();
+  const int limit = popcount(pos.pieces());
+  int i = top, cost = 0;
+  while (stack[i].net != net_id) {
+    cost += stack[i].dirty.added + stack[i].dirty.removed;
+    if (i == 0 || cost > limit) {
+      refresh(pos, stack[top]);
+      return;
+    }
+    i--;
+  }
+  for (int j = i + 1; j <= top; j++) apply(stack[j - 1], stack[j]);
 }
 
 }  // namespace
@@ -59,6 +146,7 @@ bool load(const unsigned char* data, std::size_t size) {
       !take(data, size, pos, net.out_weight, sizeof(net.out_weight)) ||
       !take(data, size, pos, &net.out_bias, sizeof(net.out_bias)) || pos != size)
     return false;
+  if (++net_id == 0) net_id = 1;
   have_net = true;
   return true;
 }
@@ -79,27 +167,12 @@ void unload() { have_net = false; }
 bool loaded() { return have_net; }
 
 int evaluate(const Position& pos) {
+  const Accumulator& acc = pos.accumulators()[pos.game_ply()];
+  if (acc.net != net_id) update(pos);
   // Accumulators fit in 16 bits: the trainer keeps first-layer weights and
   // biases within 1.98, so 33 terms of at most 1.98 * QA stay under 32767.
-  alignas(64) std::int16_t acc[COLOR_NB][HIDDEN];
-  std::memcpy(acc[WHITE], net.ft_bias, sizeof(net.ft_bias));
-  std::memcpy(acc[BLACK], net.ft_bias, sizeof(net.ft_bias));
-  for (Bitboard b = pos.pieces(); b;) {
-    const Square s = pop_lsb(b);
-    const Piece pc = pos.piece_on(s);
-    const std::int16_t* w = net.ft_weight[feature(pc, s, WHITE)];
-    const std::int16_t* k = net.ft_weight[feature(pc, s, BLACK)];
-    for (int j = 0; j < HIDDEN; j++) {
-      acc[WHITE][j] += w[j];
-      acc[BLACK][j] += k[j];
-    }
-  }
   const Color us = pos.side_to_move();
-  std::int32_t sum = 0;
-  for (int j = 0; j < HIDDEN; j++) {
-    sum += std::clamp<int>(acc[us][j], 0, QA) * net.out_weight[j];
-    sum += std::clamp<int>(acc[~us][j], 0, QA) * net.out_weight[HIDDEN + j];
-  }
+  const std::int32_t sum = output(acc.values[us], net.out_weight) + output(acc.values[~us], net.out_weight + HIDDEN);
   return int((std::int64_t(sum) + net.out_bias) * SCALE / (QA * QB));
 }
 
