@@ -5,6 +5,14 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Next release (accepted, not yet released)
+
+- **NNUE evaluation** (768 -> 128x2 -> 1, trained on 50M positions of
+  2.3's self-play; `src/nnue.h`, `scripts/nnue/`). First network (epoch 3
+  of 20) against 2.3, cloud, 8+0.08: **H1 accepted after 234 games**, 147
+  wins, 35 losses, 52 draws (73.9%), **+181 Elo (+/- 42)**. The released
+  network will be a later epoch, embedded in the binary.
+
 ## 2.3: internal iterative reduction and logarithmic LMR
 
 **Release match against 2.2** (cloud, `scripts/release_match.sh`, 8+0.08,

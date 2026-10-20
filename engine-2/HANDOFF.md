@@ -244,9 +244,21 @@ square, per side) -> 128 hidden per side -> 1.
    mean 2.9 cp apart, max 14 (rounding).
    End-to-end test: a 30-second CPU net (2M positions) played 20 clean
    games vs 2.3 (lost 1.5-18.5, as expected from so little training).
-4. **Next: the real training run on the laptop GPU** (data in
-   `C:\Users\conor\nnue-data`), then `check_net.py`, then an SPRT of
-   2.3 + net vs 2.3 (fastchess `option.EvalFile=<net>` on the NNUE side).
+4. **Training run on the laptop GPU** (RTX A2000): ~197k positions/s,
+   ~252 s an epoch on the 49.5M training positions, 20 epochs planned.
+   Epoch 3: train loss 0.00804, validation 0.00824. `check_net.py`: engine
+   within 6.2 cp of the trainer on average (max 29, ~1% of the eval
+   spread: rounding; the check's fixed thresholds are too tight for
+   stronger nets and should become relative).
+5. **First SPRT: 2.3 + net-3 vs 2.3** (cloud, 8+0.08, 4 at a time,
+   adjudication): **H1 accepted after 234 games, +147 -35 =52 (73.9%),
+   +181 Elo (+/- 42)**, LOS 100%, no time losses. With the network the
+   search reaches a given depth on ~2.6x the nodes (pruning margins tuned
+   for the old evaluation's scale): retuning them is a likely further gain.
+   Next: the final net from the laptop (net-20) vs net-3; embed the
+   chosen net in the binary (fastchess, Cute Chess and the phone app need
+   no separate file); release as 2.4. Later: incremental accumulator
+   updates (speed), margin retuning, bigger nets and more data.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
