@@ -261,7 +261,13 @@ square, per side) -> 128 hidden per side -> 1.
    search reaches a given depth on ~2.6x the nodes (pruning margins tuned
    for the old evaluation's scale): retuning them is a likely further gain.
    **Released as 2.4** with net-3 built in (owner's call, without waiting
-   for the 20-epoch net). Next: the later epochs of the laptop run vs
+   for the 20-epoch net).
+6. **net-20** (the run's last epoch: train 0.00760, validation 0.00793;
+   `check_net.py` 5.8 cp mean): **2.4 + net-20 vs 2.4: H1 after 332
+   games, +156 -81 =95 (61.3%), +80 Elo (+/- 30)**, LOS 100%, no time
+   losses (cloud, 8+0.08, 4 at a time, adjudication). The 2.5 candidate:
+   2.4 with net-20 built in. Train/validation gap widened (0.0002 ->
+   0.0003): the next net needs more data more than more epochs. Next: the later epochs of the laptop run vs
    2.4 (`EvalFile` = the candidate net), incremental accumulator updates
    (speed), retuning the pruning margins for the network's scale, then
    bigger nets and more data (generated with 2.4, so better labels).

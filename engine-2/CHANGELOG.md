@@ -5,6 +5,12 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Next release (accepted, not yet released)
+
+- **The final epoch's network (net-20)** of the same training run, in
+  place of epoch 3: against 2.4 (cloud, 8+0.08): **H1 accepted after 332
+  games**, 156 wins, 81 losses, 95 draws (61.3%), **+80 Elo (+/- 30)**.
+
 ## 2.4: NNUE evaluation
 
 2.3's search with a neural-network evaluation in place of the hand-written
