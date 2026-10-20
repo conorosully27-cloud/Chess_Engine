@@ -4,7 +4,7 @@
 // test runner as well as in the browser.
 
 import {
-  Position, parseUci, WHITE, EMPTY, QUEEN, ROOK, BISHOP, KNIGHT,
+  Position, START_FEN, parseSan, parseUci, WHITE, EMPTY, QUEEN, ROOK, BISHOP, KNIGHT,
   moveFrom, moveTo, movePromotion,
 } from '../src/index.js';
 
@@ -18,14 +18,22 @@ const DRAW_REASONS = {
 };
 
 export class Game {
-  constructor() {
-    this.reset();
+  // A game from the standard start, or from any position (a FEN; throws an
+  // Error saying what is wrong if it can't be read).
+  constructor(fen = START_FEN) {
+    this.reset(fen);
   }
 
-  // Rebuilds a game from UCI moves, as saved by uciHistory(). Stops at the
-  // first move that isn't legal, so a corrupted save still loads.
-  static fromUci(moves) {
-    const game = new Game();
+  // Rebuilds a game from UCI moves, as saved by uciHistory(), from `fen`.
+  // Stops at the first move that isn't legal, so a corrupted save still
+  // loads (and a bad FEN gives the standard start).
+  static fromUci(moves, fen = START_FEN) {
+    let game;
+    try {
+      game = new Game(fen);
+    } catch {
+      game = new Game();
+    }
     for (const uci of moves) {
       const move = parseUci(game.pos, uci);
       if (move === null) break;
@@ -34,8 +42,55 @@ export class Game {
     return game;
   }
 
-  reset() {
-    this.pos = new Position();
+  // A pasted FEN or PGN. PGN tags are read only for a starting FEN;
+  // comments, variations, annotations and the result are skipped. Throws
+  // an Error to show the user if the text can't be read.
+  static fromText(text) {
+    const trimmed = String(text).trim();
+    if (!trimmed) throw new Error('Paste a FEN or a PGN first.');
+    if (/^[pnbrqkPNBRQK1-8]+(\/[pnbrqkPNBRQK1-8]+){7}\s/.test(trimmed + ' ')) {
+      try {
+        return new Game(trimmed.split(/\s+/).slice(0, 6).join(' '));
+      } catch (error) {
+        throw new Error(`That FEN can't be read: ${error.message.replace(/^Invalid FEN "[^"]*": /, '')}.`);
+      }
+    }
+    const fenTag = /\[\s*FEN\s+"([^"]*)"\s*\]/i.exec(trimmed);
+    let game;
+    try {
+      game = new Game(fenTag ? fenTag[1] : START_FEN);
+    } catch (error) {
+      throw new Error(`The PGN's FEN tag can't be read: ${error.message.replace(/^Invalid FEN "[^"]*": /, '')}.`);
+    }
+    let movetext = trimmed
+      .replace(/\[[^\]]*\]/g, ' ') // tags
+      .replace(/\{[^}]*\}/g, ' ') // comments
+      .replace(/;[^\n]*/g, ' ') // rest-of-line comments
+      .replace(/\$\d+/g, ' '); // numeric annotations
+    // Variations, innermost first (they can nest).
+    for (let before = ''; before !== movetext;) {
+      before = movetext;
+      movetext = movetext.replace(/\([^()]*\)/g, ' ');
+    }
+    const tokens = movetext.split(/\s+/)
+      .map((t) => t.replace(/^\d+\.+/, '')) // move numbers, also run into the move ("1.e4")
+      .filter((t) => t && !/^(1-0|0-1|1\/2-1\/2|\*|\.+)$/.test(t));
+    if (tokens.length === 0 && !fenTag) throw new Error('No moves found: paste a FEN, or a PGN with moves.');
+    for (const san of tokens) {
+      const move = parseSan(game.pos, san);
+      if (move === null) {
+        const number = `${game.pos.fullmoveNumber}${game.turn === 'w' ? '.' : '…'}`;
+        throw new Error(`Move ${number} ${san} isn't legal in that position.`);
+      }
+      game._play(move);
+    }
+    return game;
+  }
+
+  // Back to the position the game started from (or another FEN).
+  reset(fen = this.startFen ?? START_FEN) {
+    this.pos = new Position(fen);
+    this.startFen = this.pos.fen();
     this.sanHistory = [];
     this.resigned = null; // 'w' or 'b' once a side resigns
     this._refresh();
@@ -136,11 +191,20 @@ export class Game {
     return this.pos.history().map((m) => this.pos.toUci(m));
   }
 
-  // Moves paired up the way a paper scoresheet lists them.
+  // Whether the game started with Black to move (from a FEN): the first
+  // scoresheet row then has "…" for White's move.
+  get startsWithBlack() {
+    return / b /.test(this.startFen);
+  }
+
+  // Moves paired up the way a paper scoresheet lists them, numbered from
+  // the starting position.
   scoresheet() {
+    const first = Number(this.startFen.split(' ')[5]) || 1;
+    const sans = this.startsWithBlack ? ['…', ...this.sanHistory] : this.sanHistory;
     const rows = [];
-    for (let i = 0; i < this.sanHistory.length; i += 2) {
-      rows.push({ number: i / 2 + 1, white: this.sanHistory[i], black: this.sanHistory[i + 1] ?? '' });
+    for (let i = 0; i < sans.length; i += 2) {
+      rows.push({ number: first + i / 2, white: sans[i], black: sans[i + 1] ?? '' });
     }
     return rows;
   }
@@ -199,11 +263,19 @@ export class Game {
       stalemate: 'Stalemate', 'insufficient material': 'Insufficient material',
       'fifty-move rule': 'Fifty-move rule', 'threefold repetition': 'Threefold repetition' }[this.status.reason];
     if (termination) tags.push(['Termination', termination]);
+    if (this.startFen !== START_FEN) tags.push(['SetUp', '1'], ['FEN', this.startFen]);
     const header = tags.map(([k, v]) => `[${k} "${String(v).replace(/["\\]/g, '')}"]`).join('\n');
 
     // Movetext, wrapped at 80 characters as the PGN standard asks.
     const tokens = [];
-    this.sanHistory.forEach((san, i) => tokens.push(i % 2 === 0 ? `${i / 2 + 1}. ${san}` : san));
+    const first = Number(this.startFen.split(' ')[5]) || 1;
+    const offset = this.startsWithBlack ? 1 : 0;
+    this.sanHistory.forEach((san, i) => {
+      const ply = i + offset;
+      const number = first + Math.floor(ply / 2);
+      if (ply % 2 === 0) tokens.push(`${number}. ${san}`);
+      else tokens.push(i === 0 ? `${number}... ${san}` : san);
+    });
     tokens.push(result);
     const lines = [];
     let line = '';

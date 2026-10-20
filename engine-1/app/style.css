@@ -311,8 +311,9 @@ body {
 .controls button:active:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .controls button:disabled { opacity: 0.35; cursor: default; }
 .controls button { grid-column: span 2; }
-.controls #resign,
-.controls #export-pgn { grid-column: span 3; }
+/* Two rows of three, in a game and on the analysis board. */
+[data-mode="play"] [data-mode-only="analysis"],
+[data-mode="analysis"] [data-mode-only="play"] { display: none; }
 #resign[data-confirm] { background: var(--danger); border-color: var(--danger); color: var(--danger-fg); }
 
 .pgn-text {
@@ -517,7 +518,87 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   overflow-wrap: anywhere;
 }
 .eval-line .best { color: var(--fg); font-weight: 500; }
+#eval-line > span { white-space: nowrap; } /* a move never splits across lines */
+.line-label,
+.best-label {
+  font: 700 0.68rem/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.line-label { margin-right: 0.4em; }
+
+.best-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.best-move {
+  font: 800 1.6rem/1.05 var(--font-display);
+  font-stretch: 125%;
+  letter-spacing: -0.01em;
+}
+
+/* On the analysis board the panel is the point: right under the board. */
+.layout[data-mode="analysis"] { grid-template-areas: "status" "board" "analysis" "controls" "moves"; }
 .eval-line .num { color: var(--muted); }
+
+/* ------------------------------------------------------------------ home */
+
+.home {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 34rem);
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.home-kicker {
+  margin: 0;
+  font: 500 0.72rem/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.home-title {
+  margin: 6px 0 0;
+  font: 800 clamp(2.3rem, 11vw, 3.4rem)/0.95 var(--font-display);
+  font-stretch: 125%;
+  letter-spacing: -0.02em;
+}
+.home-lede { margin: 12px 0 0; color: var(--muted); text-wrap: pretty; }
+
+.home-card {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 2px solid var(--fg);
+}
+.home-card-title { margin: 0; font: 800 1.15rem/1 var(--font-display); font-stretch: 125%; }
+.home-card-text { margin: 0; color: var(--muted); font-size: 0.92rem; text-wrap: pretty; }
+
+.continue-button {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 12px 14px;
+  border: 2px solid var(--fg);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.continue-label {
+  font: 700 0.8rem/1 var(--font-ui);
+  font-stretch: 112%;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.continue-detail { font: 400 0.75rem/1 var(--font-mono); color: var(--muted); }
+@media (hover: hover) {
+  .continue-button:hover { background: var(--fg); color: var(--bg); }
+  .continue-button:hover .continue-detail { color: inherit; }
+}
 
 /* ------------------------------------------------------------------ new game */
 
@@ -543,6 +624,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 .engine-settings { display: grid; gap: 10px; }
 .sheet-note { margin: -4px 0 0; font-size: 0.8rem; color: var(--muted); }
+.sheet-note.is-error { color: var(--danger); }
 
 .start-button {
   min-height: 48px;
@@ -556,6 +638,10 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   letter-spacing: 0.09em;
   text-transform: uppercase;
   cursor: pointer;
+}
+.start-button.is-secondary { margin-top: 0; background: transparent; color: var(--fg); }
+@media (hover: hover) {
+  .start-button.is-secondary:hover { background: var(--fg); color: var(--bg); }
 }
 
 /* ------------------------------------------------------------------ board schemes */
@@ -735,6 +821,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     row-gap: 20px;
     height: calc(var(--board-size) + var(--margin));
   }
+  .layout[data-mode="analysis"] { grid-template-areas: "board status" "board analysis" "board moves" "board controls"; }
   .status,
   .controls { padding-left: 0; }
   .status-headline { font-size: 1.4rem; font-stretch: 110%; } /* fits beside the Style button */

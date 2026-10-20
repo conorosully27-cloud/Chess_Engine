@@ -324,10 +324,29 @@ under "Engine" in the New game sheet. Pieces:
   its time, analysis reaches depth 17-18 in 4 s, Engine 1.6 still works, no
   console errors.
 
-**For the next app build (owner's request; 2.6 and 2.7 were released without
-one):** rebuild the WebAssembly and APK from the latest release (2.7), and show
-the engine's version in the app's "Engine" choice ("Engine 2.7" rather than
-"Engine 2"), taken from the build so it updates with each release.
+**App update for 2.7 (owner's requests, Oct 2026; WebAssembly rebuilt from
+2.7, APK not built yet — the owner asked to wait):**
+- **Home page** on launch (`#home` in `engine-1/index.html`): the New game
+  options (the sheet is gone), Continue game, and an Analysis board card.
+  The game screen's "Home" button returns to it.
+- **Engine version in the labels**, from the build: `build_wasm.sh` writes
+  `engine-1/app/engine2/version.js` (`ENGINE2_NAME`, read from
+  `src/uci.cpp`'s `ENGINE_NAME`).
+- **Analysis board** (`mode` 'analysis' in `app/ui.js`): both sides move,
+  analysis always on, panel under the board with **Best move** large, the
+  score and the line. "Analyse" in a game opens it on the game's position.
+  Reset = standard start. Its moves (and starting FEN) are saved apart from
+  the game's.
+- **Import FEN or PGN** on the analysis board (`Game.fromText` in
+  `app/game.js`, tested in `test/game.test.js`): PGN comments, variations
+  and NAGs are skipped, a `[FEN]` tag is honoured, a bad move or FEN is
+  reported in the sheet. Games can start from a FEN (`new Game(fen)`,
+  scoresheet "3. … Nf6", PGN export with SetUp/FEN). Both workers take a
+  `fen`; `engine_go` in `src/wasm.cpp` accepts "fen <FEN> moves ...".
+- Checked in Chromium at phone and desktop size (Playwright): play, continue,
+  analyse, import FEN/PGN (mate in one found by both engines), errors,
+  reload; no console errors.
+- Android: bump `versionCode` to 4 / `versionName` "2.7" when building.
 
 Next for the app, in order (owner's phone is Android):
 1. **Installable web app (PWA):** a manifest and a service worker so it

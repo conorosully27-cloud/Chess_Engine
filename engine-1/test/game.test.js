@@ -144,3 +144,55 @@ test('PGN export', () => {
   const movetext = long.pgn({ date }).split('\n\n')[1].trim().split('\n');
   assert.ok(movetext.length > 1 && movetext.every((l) => l.length <= 80 && !/\d\.$/.test(l)));
 });
+
+test('a game can start from a FEN, Black to move', () => {
+  const fen = 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 3 3';
+  const game = new Game(fen);
+  assert.equal(game.startFen, fen);
+  assert.equal(game.turn, 'b');
+  playMoves(game, 'g8-f6 f3-e5');
+  assert.deepEqual(game.scoresheet(), [
+    { number: 3, white: '…', black: 'Nf6' },
+    { number: 4, white: 'Nxe5', black: '' },
+  ]);
+  const date = new Date(2026, 9, 20);
+  const pgn = game.pgn({ date });
+  assert.match(pgn, /\[SetUp "1"\]\n\[FEN "r1bqkbnr\/pppp1ppp\/2n5\/4p3\/4P3\/5N2\/PPPP1PPP\/RNBQKB1R b KQkq - 3 3"\]/);
+  assert.match(pgn, /\n\n3\.\.\. Nf6 4\. Nxe5 \*\n$/);
+  // The exported PGN imports back to the same game.
+  const again = Game.fromText(pgn);
+  assert.equal(again.pos.fen(), game.pos.fen());
+  assert.deepEqual(again.uciHistory(), game.uciHistory());
+  // A saved game from a FEN restores; a bad saved FEN falls back to the start.
+  assert.equal(Game.fromUci(game.uciHistory(), fen).pos.fen(), game.pos.fen());
+  assert.equal(Game.fromUci([], 'nonsense').startFen, new Game().startFen);
+  game.reset();
+  assert.equal(game.pos.fen(), fen);
+  assert.equal(new Game().startFen, 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+});
+
+test('fromText reads a FEN', () => {
+  const game = Game.fromText('  8/8/8/4k3/8/8/4P3/4K3 w - - 0 50\n');
+  assert.equal(game.pos.fen(), '8/8/8/4k3/8/8/4P3/4K3 w - - 0 50');
+  assert.equal(Game.fromText('8/8/8/4k3/8/8/4P3/4K3 w - -').pos.fen(), '8/8/8/4k3/8/8/4P3/4K3 w - - 0 1');
+  assert.throws(() => Game.fromText('8/8/8/8/8/8/8/8 w - - 0 1'), /That FEN can't be read: each side must have exactly one king/);
+  assert.throws(() => Game.fromText('   '), /Paste a FEN or a PGN first/);
+});
+
+test('fromText reads a PGN, skipping comments, variations and annotations', () => {
+  const pgn = `[Event "Casual game"]
+[White "Someone"]
+[Result "1-0"]
+
+1. e4 {best by test} e5 2.Nf3 (2. f4 exf4 (2... d5) 3. Nf3) Nc6 $1 3. Bb5 a6!? ; the Morphy
+4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 1-0`;
+  const game = Game.fromText(pgn);
+  assert.equal(game.ply, 16);
+  assert.equal(game.sanHistory.slice(0, 6).join(' '), 'e4 e5 Nf3 Nc6 Bb5 a6');
+  assert.equal(game.sanHistory.at(-1), 'O-O');
+  // Bare movetext works too, and a wrong move says which one.
+  assert.equal(Game.fromText('1. d4 d5 2. c4').ply, 3);
+  assert.throws(() => Game.fromText('1. e4 e5 2. Ke3'), /Move 2\. Ke3 isn't legal in that position/);
+  assert.throws(() => Game.fromText('1. e4 Nf3'), /Move 1… Nf3 isn't legal/);
+  assert.throws(() => Game.fromText('[Event "x"]\n\n*'), /No moves found/);
+});

@@ -9,11 +9,17 @@
 //
 // The engine runs in background workers (see engine-client.js): one plays its
 // side when you play against it, the other powers the analysis panel.
+//
+// Three screens: the home page (the app opens on it: new game options,
+// continue, analysis board), the game, and the analysis board, where both
+// sides move freely and the analysis is always on. The game and the
+// analysis board each keep their own moves.
 
 import { Game, PROMOTION_PIECES } from './game.js';
 import { EngineClient } from './engine-client.js';
+import { ENGINE2_NAME } from './engine2/version.js';
 import {
-  Position, parseUci, EMPTY, QUEEN, ROOK, BISHOP, KNIGHT, PIECE_CHARS,
+  Position, START_FEN, parseUci, EMPTY, QUEEN, ROOK, BISHOP, KNIGHT, PIECE_CHARS,
   makeSquare, fileOf, rankOf, squareName, moveFrom, moveTo, movePromotion,
 } from '../src/index.js';
 
@@ -41,7 +47,11 @@ const movesEl = $('moves');
 const movesEmptyEl = $('moves-empty');
 const takeBackButton = $('take-back');
 const flipButton = $('flip');
-const newGameButton = $('new-game');
+const homeEl = $('home');
+const gameEl = $('game');
+const homeButton = $('home-button');
+const continueButton = $('continue-game');
+const bestMoveEl = $('best-move');
 const styleButton = $('style-button');
 const styleSheetEl = $('style-sheet');
 const pieceOptionsEl = $('piece-options');
@@ -53,11 +63,13 @@ const analysisMetaEl = $('analysis-meta');
 const evalScoreEl = $('eval-score');
 const evalFillEl = $('eval-fill');
 const evalLineEl = $('eval-line');
-const newGameSheetEl = $('new-game-sheet');
 const resignButton = $('resign');
 const pgnSheetEl = $('pgn-sheet');
 const pgnTextEl = $('pgn-text');
 const pgnCopyButton = $('pgn-copy');
+const importSheetEl = $('import-sheet');
+const importTextEl = $('import-text');
+const importNoteEl = $('import-note');
 
 // Piece sets live in app/pieces/<id>/ (drawn by scripts/build-pieces.js);
 // board schemes are defined in style.css under [data-board="<id>"].
@@ -125,17 +137,22 @@ function loadSaved() {
   return { ...DEFAULT_SAVE };
 }
 
-const DEFAULT_SAVE = { moves: [], flipped: false, opponent: 'friend', human: 'w', thinkMs: 5000, engine: '2', analysis: false };
+const DEFAULT_SAVE = {
+  moves: [], analysisMoves: [], analysisFen: undefined, flipped: false, opponent: 'engine', human: 'w', thinkMs: 5000, engine: '2', analysis: false,
+};
 
-// The worker running each engine choice in the New game sheet.
+// The worker running each engine choice on the home page, and its name.
 const ENGINE_SCRIPTS = { 2: 'engine2-worker.js', '1.6': 'engine-worker.js' };
+const ENGINE_NAMES = { 2: ENGINE2_NAME, '1.6': 'Engine 1.6' };
 const engineScript = (engine) => ENGINE_SCRIPTS[engine] ?? ENGINE_SCRIPTS[2];
 
 class BoardUI {
   constructor() {
     const saved = loadSaved();
-    this.game = Game.fromUci(saved.moves);
-    if (saved.resigned) this.game.resign(saved.resigned);
+    // 'home', 'play' (the game) or 'analysis' (the analysis board).
+    this.mode = 'home';
+    this.games = { play: Game.fromUci(saved.moves), analysis: Game.fromUci(saved.analysisMoves, saved.analysisFen) };
+    if (saved.resigned) this.games.play.resign(saved.resigned);
     this.resignTimer = 0;
     this.flipped = Boolean(saved.flipped);
     // opponent: 'friend' (both sides on this device) or 'engine'.
@@ -167,8 +184,8 @@ class BoardUI {
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if (!styleSheetEl.hidden) this.closeStyle();
-      else if (!newGameSheetEl.hidden) this.closeNewGame();
       else if (!pgnSheetEl.hidden) this.closePgn();
+      else if (!importSheetEl.hidden) this.closeImport();
       else if (this.pendingPromotion) this.cancelPromotion();
       else if (this.selected >= 0 && !this.drag) this.select(-1);
     });
@@ -181,12 +198,22 @@ class BoardUI {
     pgnSheetEl.addEventListener('click', (e) => {
       if (e.target === pgnSheetEl) this.closePgn();
     });
-    newGameButton.addEventListener('click', () => this.openNewGame());
+    homeButton.addEventListener('click', () => this.showHome());
+    continueButton.addEventListener('click', () => this.show('play'));
+    $('open-analysis').addEventListener('click', () => this.show('analysis'));
+    $('analyse-game').addEventListener('click', () => this.analyseGame());
+    $('reset-board').addEventListener('click', () => this.resetAnalysisBoard());
+    $('import-button').addEventListener('click', () => this.openImport());
+    $('import-cancel').addEventListener('click', () => this.closeImport());
+    $('import-load').addEventListener('click', () => this.loadImport());
+    importSheetEl.addEventListener('click', (e) => {
+      if (e.target === importSheetEl) this.closeImport();
+    });
     analysisToggle.addEventListener('click', () => this.setAnalysis(!this.analysisOn));
-    $('new-game-cancel').addEventListener('click', () => this.closeNewGame());
     $('start-game').addEventListener('click', () => this.startNewGame());
-    newGameSheetEl.addEventListener('click', (e) => {
-      if (e.target === newGameSheetEl) this.closeNewGame();
+    $('engine2-option').textContent = ENGINE2_NAME;
+    $('home-engine').textContent = ENGINE2_NAME;
+    homeEl.addEventListener('click', (e) => {
       const choice = e.target.closest('.segmented button');
       if (choice) {
         for (const b of choice.parentElement.children) b.setAttribute('aria-pressed', String(b === choice));
@@ -204,7 +231,12 @@ class BoardUI {
     });
 
     this.buildBoard();
-    this.render();
+    this.showHome();
+  }
+
+  // The game or the analysis board, whichever is on screen.
+  get game() {
+    return this.mode === 'analysis' ? this.games.analysis : this.games.play;
   }
 
   // ---------------------------------------------------------------- geometry
@@ -258,6 +290,14 @@ class BoardUI {
   }
 
   render() {
+    homeEl.hidden = this.mode !== 'home';
+    gameEl.hidden = this.mode === 'home';
+    gameEl.dataset.mode = this.mode;
+    if (this.mode === 'home') {
+      this.save();
+      this.syncEngines();
+      return;
+    }
     const game = this.game;
     const board = game.pos.board;
     const targets = this.selected >= 0 ? game.targets(this.selected) : new Set();
@@ -292,7 +332,7 @@ class BoardUI {
     statusHeadlineEl.textContent = headline;
     statusDetailEl.textContent = detail;
     statusEl.dataset.tone = tone;
-    statusMoveEl.textContent = `Move ${game.pos.fullmoveNumber}`;
+    statusMoveEl.textContent = `${this.mode === 'analysis' ? 'Analysis · ' : ''}Move ${game.pos.fullmoveNumber}`;
     turnMarkEl.dataset.side = side;
     boardEl.setAttribute('aria-label', `Chess board. ${headline}${detail ? `. ${detail}` : ''}`);
 
@@ -308,6 +348,7 @@ class BoardUI {
   renderScoresheet() {
     const rows = this.game.scoresheet();
     const total = this.game.sanHistory.length;
+    const offset = this.game.startsWithBlack ? 1 : 0; // the "…" cell before Black's first move
     movesEmptyEl.hidden = rows.length > 0;
     movesEl.replaceChildren(...rows.map((row, i) => {
       const li = document.createElement('li');
@@ -319,8 +360,8 @@ class BoardUI {
       };
       li.append(
         Object.assign(document.createElement('span'), { className: 'num', textContent: `${row.number}.` }),
-        cell(row.white, i * 2),
-        cell(row.black, i * 2 + 1),
+        cell(row.white, i * 2 - offset),
+        cell(row.black, i * 2 + 1 - offset),
       );
       return li;
     }));
@@ -345,11 +386,13 @@ class BoardUI {
   save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        moves: this.game.uciHistory(),
+        moves: this.games.play.uciHistory(),
+        analysisMoves: this.games.analysis.uciHistory(),
+        analysisFen: this.games.analysis.startFen,
         flipped: this.flipped,
         ...this.settings,
         analysis: this.analysisOn,
-        resigned: this.game.resigned,
+        resigned: this.games.play.resigned,
       }));
     } catch {
       // Storage unavailable (private browsing): the game just won't survive a reload.
@@ -563,7 +606,8 @@ class BoardUI {
     const names = this.vsEngine
       ? (this.settings.human === 'w' ? { white: 'You', black: 'Engine' } : { white: 'Engine', black: 'You' })
       : { white: 'White', black: 'Black' };
-    pgnTextEl.value = this.game.pgn({ ...names, event: this.vsEngine ? 'Game vs engine' : 'Casual game' });
+    const event = this.mode === 'analysis' ? 'Analysis' : this.vsEngine ? 'Game vs engine' : 'Casual game';
+    pgnTextEl.value = this.game.pgn({ ...names, event });
     pgnCopyButton.textContent = 'Copy PGN';
     $('pgn-note').textContent = 'Paste it into Lichess, Chess.com or any chess app to save or analyse the game.';
     pgnSheetEl.hidden = false;
@@ -587,9 +631,18 @@ class BoardUI {
     }
   }
 
-  // ---------------------------------------------------------------- new game
+  // ---------------------------------------------------------------- screens
 
-  openNewGame() {
+  show(mode) {
+    if (this.pendingPromotion) this.cancelPromotion();
+    this.mode = mode;
+    this.selected = -1;
+    this.render();
+    window.scrollTo(0, 0);
+  }
+
+  // The home page, its options set to the current game's.
+  showHome() {
     const press = (group, value) => {
       for (const b of $(group).children) b.setAttribute('aria-pressed', String(b.dataset.value === String(value)));
     };
@@ -598,8 +651,13 @@ class BoardUI {
     press('time-options', this.settings.thinkMs);
     press('engine-options', this.settings.engine);
     this.updateNewGameForm();
-    newGameSheetEl.hidden = false;
-    $('start-game').focus({ preventScroll: true });
+    const game = this.games.play;
+    continueButton.hidden = game.ply === 0 && !game.resigned;
+    continueButton.querySelector('.continue-label').textContent = game.isOver ? 'Back to last game' : 'Continue game';
+    const against = this.settings.opponent === 'engine' ? `vs ${ENGINE_NAMES[this.settings.engine] ?? ENGINE2_NAME}` : 'vs a friend';
+    $('continue-detail').textContent = `Move ${game.pos.fullmoveNumber} · ${against}`;
+    this.show('home');
+    (continueButton.hidden ? $('start-game') : continueButton).focus({ preventScroll: true });
   }
 
   updateNewGameForm() {
@@ -607,9 +665,47 @@ class BoardUI {
     $('engine-settings').hidden = opponent !== 'engine';
   }
 
-  closeNewGame() {
-    newGameSheetEl.hidden = true;
-    newGameButton.focus({ preventScroll: true });
+  // The analysis board, from the game's current position.
+  analyseGame() {
+    this.games.analysis = Game.fromUci(this.games.play.uciHistory());
+    this.show('analysis');
+  }
+
+  // Back to the standard starting position (also after an imported one).
+  resetAnalysisBoard() {
+    if (this.pendingPromotion) this.cancelPromotion();
+    this.games.analysis = new Game();
+    this.selected = -1;
+    this.render();
+  }
+
+  openImport() {
+    importNoteEl.classList.remove('is-error');
+    importNoteEl.textContent = 'A FEN sets up a position; a PGN replays its moves (comments and variations are skipped).';
+    importSheetEl.hidden = false;
+    importTextEl.focus({ preventScroll: true });
+  }
+
+  closeImport() {
+    importSheetEl.hidden = true;
+    $('import-button').focus({ preventScroll: true });
+  }
+
+  loadImport() {
+    let game;
+    try {
+      game = Game.fromText(importTextEl.value);
+    } catch (error) {
+      importNoteEl.classList.add('is-error');
+      importNoteEl.textContent = error.message;
+      return;
+    }
+    if (this.pendingPromotion) this.cancelPromotion();
+    this.games.analysis = game;
+    importTextEl.value = '';
+    this.closeImport();
+    this.selected = -1;
+    this.render();
   }
 
   startNewGame() {
@@ -620,7 +716,6 @@ class BoardUI {
       thinkMs: Number(chosen('time-options')),
       engine: chosen('engine-options'),
     };
-    newGameSheetEl.hidden = true;
     if (this.pendingPromotion) this.cancelPromotion();
     this.player.stop();
     this.analyst.stop();
@@ -628,22 +723,27 @@ class BoardUI {
     this.analyst.setScript(engineScript(this.settings.engine));
     this.thinkingFor = this.analysingFor = null;
     this.analysis = null;
-    this.game.reset();
+    this.games.play.reset();
     this.resetResignButton();
-    this.selected = -1;
     // Playing Black against the engine, see the board from Black's side.
-    const flipped = this.vsEngine && this.settings.human === 'b';
+    const flipped = this.settings.opponent === 'engine' && this.settings.human === 'b';
     if (flipped !== this.flipped) {
       this.flipped = flipped;
       this.buildBoard();
     }
-    this.render();
+    this.show('play');
   }
 
   // ---------------------------------------------------------------- engine
 
+  // Only on the game screen: on the home page the engine waits.
   get vsEngine() {
-    return this.settings.opponent === 'engine';
+    return this.mode === 'play' && this.settings.opponent === 'engine';
+  }
+
+  // The analysis panel: always on the analysis board, switchable in a game.
+  get analysisShown() {
+    return this.mode === 'analysis' || (this.mode === 'play' && this.analysisOn);
   }
 
   get engineToMove() {
@@ -663,15 +763,22 @@ class BoardUI {
   // Starts or stops the two engines to match the current position: the player
   // when it's the engine's turn, the analysis whenever it's switched on (but
   // not while the engine is thinking, so they don't share the CPU).
+  // Identifies the position on the board: where the game started, and its moves.
+  positionKey() {
+    return `${this.game.startFen}|${this.game.uciHistory().join(' ')}`;
+  }
+
   syncEngines() {
     const history = this.game.uciHistory();
-    const key = history.join(' ');
+    const key = this.positionKey();
+    // The workers take the moves from the standard start, or from a FEN.
+    const fen = this.game.startFen === START_FEN ? undefined : this.game.startFen;
 
     if (this.engineToMove) {
       if (this.thinkingFor !== key) {
         this.thinkingFor = key;
         const started = performance.now();
-        this.player.run({ type: 'play', history, timeMs: this.settings.thinkMs }, {
+        this.player.run({ type: 'play', history, fen, timeMs: this.settings.thinkMs }, {
           onDone: (result) => {
             const wait = Math.max(0, ENGINE_MIN_DELAY - (performance.now() - started));
             setTimeout(() => this.playEngineMove(key, result.bestMove), wait);
@@ -684,12 +791,12 @@ class BoardUI {
       this.thinkingFor = null;
     }
 
-    const analyse = this.analysisOn && !this.engineToMove && !this.game.isOver;
+    const analyse = this.analysisShown && !this.engineToMove && !this.game.isOver;
     if (analyse) {
       if (this.analysingFor !== key) {
         this.analysingFor = key;
         this.analysis = null;
-        this.analyst.run({ type: 'analyse', history, ...ANALYSIS_LIMITS }, {
+        this.analyst.run({ type: 'analyse', history, fen, ...ANALYSIS_LIMITS }, {
           onInfo: (info) => this.showAnalysis(key, info, false),
           onDone: (result) => this.showAnalysis(key, result, true),
           onError: () => this.engineFailed(),
@@ -704,7 +811,7 @@ class BoardUI {
 
   playEngineMove(key, uci) {
     // Ignore a reply to a position that has since changed (e.g. taken back).
-    if (this.thinkingFor !== key || this.game.uciHistory().join(' ') !== key) return;
+    if (this.thinkingFor !== key || this.positionKey() !== key) return;
     this.thinkingFor = null;
     const move = uci && parseUci(this.game.pos, uci);
     if (!move) return;
@@ -732,11 +839,13 @@ class BoardUI {
   }
 
   renderAnalysis() {
+    const shown = this.analysisShown;
+    analysisToggle.hidden = this.mode === 'analysis';
     analysisToggle.setAttribute('aria-checked', String(this.analysisOn));
-    analysisBodyEl.hidden = !this.analysisOn;
-    const info = this.analysisOn ? this.analysis : null;
+    analysisBodyEl.hidden = !shown;
+    const info = shown ? this.analysis : null;
     this.renderArrow(info?.bestMove ?? null);
-    if (!this.analysisOn) {
+    if (!shown) {
       analysisMetaEl.textContent = '';
       return;
     }
@@ -744,7 +853,8 @@ class BoardUI {
       evalScoreEl.textContent = '…';
       evalFillEl.style.width = '50%';
       analysisMetaEl.textContent = '';
-      evalLineEl.textContent = this.game.isOver ? 'The game is over.'
+      bestMoveEl.textContent = this.game.isOver ? '—' : '…';
+      evalLineEl.textContent = this.game.isOver ? 'No moves: the game is over.'
         : this.engineToMove ? 'Paused while the engine thinks.' : 'Thinking…';
       return;
     }
@@ -762,6 +872,8 @@ class BoardUI {
     }
     evalFillEl.style.width = `${(whiteShare * 100).toFixed(1)}%`;
     analysisMetaEl.textContent = `Depth ${info.depth}${info.done ? '' : '…'}`;
+    const best = parseUci(this.game.pos, info.bestMove);
+    bestMoveEl.replaceChildren(...(best === null ? [] : figurines(this.game.pos.toSan(best))));
     evalLineEl.replaceChildren(...this.lineNodes(info.pv));
   }
 

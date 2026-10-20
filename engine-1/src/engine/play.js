@@ -59,8 +59,8 @@ export function chooseMove(engine, pos, history, { timeMs = 3000, useBook = true
 
 // Builds a Position from the start, with `history` (UCI moves) played, so
 // repetitions earlier in the game are known to the search.
-export function positionFromHistory(history) {
-  const pos = new Position();
+export function positionFromHistory(history, fen = undefined) {
+  const pos = new Position(fen);
   for (const uci of history) {
     const move = parseUci(pos, uci);
     if (move === null) throw new Error(`Illegal move in history: ${uci}`);

@@ -41,13 +41,22 @@ EMSCRIPTEN_KEEPALIVE void engine_new_game() {
   worker->new_game();
 }
 
-// Searches the position reached by `moves` (UCI, space-separated, from the
-// start) for at most movetime_ms milliseconds, and to at most `depth` plies if
-// depth > 0. Returns "bestmove <move>" ("0000" if there is no legal move).
+// Searches the position reached by `moves` (UCI, space-separated) from the
+// start, or from a FEN if `moves` is "fen <FEN> moves <moves>", for at most
+// movetime_ms milliseconds, and to at most `depth` plies if depth > 0.
+// Returns "bestmove <move>" ("0000" if there is no legal move).
 EMSCRIPTEN_KEEPALIVE const char* engine_go(const char* moves, int movetime_ms, int depth) {
   Position pos;
   std::istringstream in(moves);
   std::string text;
+  if (in >> text && text == "fen") {
+    std::string fen, field;
+    while (in >> field && field != "moves") fen += (fen.empty() ? "" : " ") + field;
+    pos.set(fen);
+  } else {
+    in.clear();
+    in.seekg(0);
+  }
   while (in >> text) {
     const Move m = parse_uci_move(pos, text);
     if (!m) break;

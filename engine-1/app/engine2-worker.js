@@ -1,6 +1,6 @@
 // Runs Engine 2 (C++, compiled to WebAssembly by engine-2/scripts/build_wasm.sh)
 // in a background thread. Same messages as engine-worker.js (Engine 1.6):
-//   in:  { id, type: 'analyse' | 'play', history, timeMs, depth }
+//   in:  { id, type: 'analyse' | 'play', history, fen, timeMs, depth }
 //   out: { id, type: 'info', info } after each depth, then { id, type: 'done', result }
 // The search runs on this worker's thread; to stop early the page ends the
 // worker, as with Engine 1.6.
@@ -19,8 +19,8 @@ const ready = createEngine2({ onInfo: (line) => onLine?.(line) }).then((engine) 
 });
 
 self.onmessage = async ({ data }) => {
-  const { id, type, history, timeMs, depth } = data;
-  if (type === 'play') {
+  const { id, type, history, fen, timeMs, depth } = data;
+  if (type === 'play' && !fen) {
     // A book move in the opening, for variety, as Engine 1.6 does.
     const book = bookMove(history);
     if (book && parseUci(positionFromHistory(history), book) !== null) {
@@ -36,7 +36,8 @@ self.onmessage = async ({ data }) => {
     last = info;
     self.postMessage({ id, type: 'info', info });
   };
-  const reply = go(history.join(' '), timeMs, type === 'analyse' ? (depth ?? 0) : 0);
+  const moves = history.join(' ');
+  const reply = go(fen ? `fen ${fen} moves ${moves}` : moves, timeMs, type === 'analyse' ? (depth ?? 0) : 0);
   onLine = null;
   const move = reply.split(' ')[1];
   const bestMove = move && move !== '0000' ? move : null;
