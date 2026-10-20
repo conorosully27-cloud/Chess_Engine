@@ -35,6 +35,8 @@ history behind the search and evaluation.
 - **Engine 2.5** = 2.4 with the final network (net-20) built in,
   `nets/engine-2.5.nnue`: **+80 Elo (+/- 30)** over 2.4 (H1 after 332
   games). **The new baseline**, bench 3183003.
+- For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
+  +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
   search, UCI), a few seconds. **Bench signature: 3183003** (`build/engine2 bench`, with the
   built-in network; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
