@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "accumulator.h"
 #include "bitboard.h"
 #include "psqt.h"
 #include "types.h"
@@ -73,6 +74,11 @@ class Position {
   Move last_move() const { return st().move; }
   int game_ply() const { return int(states_.size()) - 1; }
 
+  // NNUE accumulators, one per entry of the history (index game_ply() is
+  // the current position's). A cache that nnue::evaluate fills in lazily,
+  // hence writable through a const Position.
+  nnue::Accumulator* accumulators() const { return accumulators_.data(); }
+
   // All pieces of both colors that attack s, given an occupancy.
   Bitboard attackers_to(Square s, Bitboard occ) const;
   bool is_attacked(Square s, Color by) const { return attackers_to(s, occ_) & pieces(by); }
@@ -107,6 +113,9 @@ class Position {
   void move_piece(Square from, Square to);
   void update_check_info(StateInfo& s) const;
   bool ep_capturable(Square ep, Color stm) const;
+  // Marks the accumulator of the position the next move (or null move)
+  // makes as not computed and returns its record of changes, emptied.
+  nnue::DirtyPieces& next_dirty_pieces();
 
   Piece board_[64];
   Bitboard by_type_[PIECE_TYPE_NB];
@@ -116,6 +125,9 @@ class Position {
   Key pawn_key_;
   Color side_;
   std::vector<StateInfo> states_;
+  // Never shrinks: entries past game_ply() are stale and overwritten by
+  // the next make_move.
+  mutable std::vector<nnue::Accumulator> accumulators_;
 };
 
 // Initializes attack tables and hash keys. Call once at startup.

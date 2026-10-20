@@ -8,7 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-option(ENGINE_AVX2 "Compile with AVX2 (needed for fast NNUE later)" ON)
+option(ENGINE_AVX2 "Compile with AVX2 (vectorizes the NNUE)" ON)
 
 # Flags shared by every target.
 add_library(engine2_options INTERFACE)
@@ -63,6 +63,10 @@ add_test(NAME position COMMAND position_test)
 add_executable(see_test tests/see_test.cpp)
 target_link_libraries(see_test PRIVATE engine2_core)
 add_test(NAME see COMMAND see_test)
+
+add_executable(nnue_test tests/nnue_test.cpp)
+target_link_libraries(nnue_test PRIVATE engine2_core)
+add_test(NAME nnue COMMAND nnue_test)
 
 add_executable(search_test tests/search_test.cpp)
 target_link_libraries(search_test PRIVATE engine2_core)

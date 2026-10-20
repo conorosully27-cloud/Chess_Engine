@@ -3,8 +3,9 @@
 //   768 inputs per side (piece kind x square, seen from that side)
 //   -> 128 hidden units, clipped to [0, QA]
 //   -> both sides' units, side to move first -> 1 output.
-// Integer arithmetic throughout. The hidden layer is recomputed from scratch
-// for each evaluation for now (no incremental updates yet).
+// Integer arithmetic throughout. The hidden layer's sums (accumulator.h) are
+// updated from the position before rather than recomputed: each move only
+// adds and removes a few pieces.
 //
 // The engine carries a default network (nets/engine-2.5.nnue, built in by
 // cmake/embed_net.cmake). The engine program loads it at startup; library

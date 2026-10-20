@@ -5,6 +5,31 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.6: incremental NNUE updates (speed)
+
+2.5's search and network, evaluated faster. **Against 2.5** (cloud,
+8+0.08, SPRT 0/10, 4 games at a time, adjudication on): **H1 accepted
+after 242 games**, 106 wins, 37 losses, 99 draws (64.3%), **+102 Elo
+(+/- 32)**, no time losses. Evaluations are unchanged: bench signature
+**3183003**, as 2.5.
+
+- **Incremental accumulators:** `make_move` records the pieces each move
+  adds and removes; the hidden layer's sums are kept per position
+  (`src/accumulator.h`) and updated lazily at evaluation from the nearest
+  computed position before, or from scratch when that is cheaper. Each
+  accumulator is tagged with its network, so a new `EvalFile` never
+  reuses stale sums.
+- **Vectorized output layer:** the clipped-units-times-weights loop is now
+  a plain 16-bit dot product the compiler vectorizes (`pmaddwd`); before,
+  it ran one unit at a time and was a quarter of all instructions.
+- **Speed:** bench about 1.14M -> 1.46M nodes/s on the cloud; NNUE went
+  from 42% of the instructions to 8%. WebAssembly (with `-msimd128`)
+  275k -> 1.25M nodes/s; the phone app is not rebuilt yet (still 2.5).
+- **Test:** `tests/nnue_test.cpp` compares ~60,000 incremental evaluations
+  with from-scratch ones (castling, en passant, promotions, null moves,
+  unmaking, a change of network); it catches a broken castling update and
+  a stale network.
+
 ## 2.5: the trained network
 
 2.4 with the final network of the same training run (epoch 20 of 20; 2.4
