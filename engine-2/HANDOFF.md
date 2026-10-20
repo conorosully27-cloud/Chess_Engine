@@ -288,7 +288,15 @@ square, per side) -> 128 hidden per side -> 1.
    after 242 games, +106 -37 =99 (64.3%), +102 Elo (+/- 32)** (cloud,
    8+0.08, 4 at a time, adjudication). **Released as 2.6.** The profile
    now puts move ordering on top (`pick_next` + `score_moves` ~22%):
-   staged move generation is the next speed job. Next for strength: more
+   staged move generation is the next speed job.
+8. **Staged move generation + lazy gives_check** (`src/movepick.h`;
+   commit `2d5f3b4`, bench 2870078): the hash move before any generation,
+   then good captures, quiets, bad captures; gives_check only when a
+   pruning rule needs it. ~7% fewer instructions per node; ties between
+   equal scores now come out in generation order, so the search differs.
+   **vs 2.6: H1 after 1,186 games, +381 -313 =492 (52.9%), +20 Elo
+   (+/- 14)** (cloud, 8+0.08, 4 at a time, adjudication). Not released
+   yet. Picking the next quiet (selection over long lists) is still ~12%. Next for strength: more
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
