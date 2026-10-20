@@ -221,7 +221,12 @@ square, per side) -> 128 hidden per side -> 1.
    (50M, 1.6 GB; the owner cut it from 100M), about 6M positions an hour
    in all. Survived a container restart at ~03:10 UTC (26.75M saved, no
    partial records); restarted with new seeds. **Resume with a new seed**
-   (a reused seed replays the same games); used: 1001-4, 2001-4, 3001-4. Moving data to the
+   (a reused seed replays the same games); used: 1001-4, 2001-4, 3001-4.
+   **Done 20 Oct ~09:00 UTC: 50,000,150 positions (1.6 GB)** in
+   `~/nnue-data/part-1..4.bin` (cloud; gone if the machine is reset, so
+   copy it off before relying on it). Checked: White wins 37.0%, draws
+   31.0%, Black wins 32.0%, mean score +31, all four parts alike; 93.8%
+   of positions distinct (only 41k seen 10+ times). Moving data to the
    laptop: compressed chunks sent to the owner, or generate there.
 2. Trainer (PyTorch, streaming), 3. inference in the engine, 4. SPRT.
 
