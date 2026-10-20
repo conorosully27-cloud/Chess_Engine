@@ -5,21 +5,12 @@
 #include <cmath>
 
 #include "evaluate.h"
+#include "movepick.h"
 #include "uci.h"
 
 namespace chess {
 
 namespace {
-
-constexpr int TT_MOVE_SCORE = 3000000;
-constexpr int CAPTURE_SCORE = 2000000;
-constexpr int PROMOTION_SCORE = 1900000;
-constexpr int KILLER1_SCORE = 1800000;
-constexpr int KILLER2_SCORE = 1700000;
-constexpr int HISTORY_LIMIT = 500000;
-// Captures that lose material by SEE: after every quiet move (history stays
-// within +/-HISTORY_LIMIT).
-constexpr int BAD_CAPTURE_SCORE = -2000000;
 
 // Late move pruning: near the leaves, after this many quiet moves have been
 // tried at a given depth, the remaining quiet moves are skipped.
@@ -40,9 +31,6 @@ const auto LMR = [] {
   return t;
 }();
 
-// Piece values for move ordering and quiescence pruning only.
-constexpr int ORDER_VALUE[6] = {100, 320, 330, 500, 900, 2000};
-
 // Mate scores are stored relative to the position, not the root, so they
 // stay correct when the position is reached at a different depth.
 int to_tt(int score, int ply) {
@@ -57,29 +45,10 @@ int from_tt(int score, int ply) {
   return score;
 }
 
-// Moves the highest-scored remaining move to index i and returns it (the
-// first one, if several share the highest score). Two passes, the first of
-// which the compiler vectorizes: it is cheaper than one branchy pass.
-Move pick_next(MoveList& list, int* scores, int i) {
-  int top = scores[i];
-  for (int j = i + 1; j < list.count; j++) top = std::max(top, scores[j]);
-  int best = i;
-  while (scores[best] != top) best++;
-  if (best != i) {
-    std::swap(list.moves[i], list.moves[best]);
-    std::swap(scores[i], scores[best]);
-  }
-  return list.moves[i];
-}
-
 // Does the side to move have anything besides pawns and its king?
 bool has_pieces(const Position& pos) {
   const Color us = pos.side_to_move();
   return pos.pieces(us) & ~pos.pieces(us, PAWN) & ~pos.pieces(us, KING);
-}
-
-PieceType captured_type(const Position& pos, Move m) {
-  return m.is_ep() ? PAWN : type_of(pos.piece_on(m.to()));
 }
 
 std::string score_to_uci(int score) {
@@ -277,33 +246,35 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
   int quiets_count = 0;
 
-  MoveList moves;
-  generate_pseudo_legal(pos, moves);
-  int scores[MoveList::MAX_MOVES];
-  score_moves(moves, scores, tt_move, ply);
-
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
+  MovePicker picker(pos, tt_move, killer1, killer2, history_);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
   int legal = 0;
 
-  for (int i = 0; i < moves.count; i++) {
-    const Move move = pick_next(moves, scores, i);
+  while (const Move move = picker.next()) {
     if (!pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
     legal++;
-    const bool gives_check = pos.gives_check(move);
 
-    // Pruned moves are decided before making them, which is cheaper.
-    if (futile && legal > 1 && quiet && !gives_check) continue;
-    // Late move pruning: moves ordered this late almost never matter here.
-    if (quiet && !gives_check && prune_late && legal > 1 && ++quiets_tried > LMP_QUIETS[depth]) continue;
-    // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
-    if (see_prune && legal > 1 && !gives_check &&
-        !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth))
-      continue;
+    // Pruned moves are decided before making them, which is cheaper. None
+    // that give check, which is worked out only when a rule gets that far.
+    if (legal > 1) {
+      int checks = -1;  // whether the move gives check; -1: not known yet
+      const auto gives_check = [&] {
+        if (checks < 0) checks = pos.gives_check(move);
+        return checks == 1;
+      };
+      if (futile && quiet && !gives_check()) continue;
+      // Late move pruning: moves ordered this late almost never matter here.
+      if (prune_late && quiet && !gives_check() && ++quiets_tried > LMP_QUIETS[depth]) continue;
+      // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
+      if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
+          !gives_check())
+        continue;
+    }
 
     pos.make_move(move);
 
@@ -315,7 +286,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       // them shallower first and only re-search if they surprise us.
       // Not at the root: reducing there can miss a quicker mate.
       int reduction = 0;
-      if (depth >= 3 && legal > 2 && quiet && !in_check && !gives_check && ply > 0) {
+      if (depth >= 3 && legal > 2 && quiet && !in_check && !pos.in_check() && ply > 0) {  // pos: after the move
         reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
@@ -393,7 +364,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   MoveList moves;
   generate_pseudo_legal(pos, moves, !in_check);
   int scores[MoveList::MAX_MOVES];
-  score_moves(moves, scores, Move(), ply);
+  score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
 
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
@@ -423,29 +394,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   }
   if (in_check && legal == 0) return -MATE + ply;
   return best_score;
-}
-
-// Orders moves: the remembered best move, then captures by most valuable
-// victim / least valuable attacker, promotions, killer moves (quiet moves
-// that refuted another line at this ply), then by history, and last the
-// captures that lose material by SEE.
-void SearchWorker::score_moves(const MoveList& list, int* scores, Move tt_move, int ply) const {
-  const Position& pos = *pos_;
-  const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
-  for (int i = 0; i < list.count; i++) {
-    const Move m = list.moves[i];
-    const int promo = m.is_promotion() ? ORDER_VALUE[m.promotion_type()] : 0;
-    int score;
-    if (m == tt_move) score = TT_MOVE_SCORE;
-    else if (m.is_capture())
-      score = (pos.see_ge(m, 0) ? CAPTURE_SCORE : BAD_CAPTURE_SCORE) + ORDER_VALUE[captured_type(pos, m)] * 10 -
-              ORDER_VALUE[type_of(pos.piece_on(m.from()))] + promo;
-    else if (m.is_promotion()) score = PROMOTION_SCORE + promo;
-    else if (m == killer1) score = KILLER1_SCORE;
-    else if (m == killer2) score = KILLER2_SCORE;
-    else score = history_[pos.piece_on(m.from())][m.to()];
-    scores[i] = score;
-  }
 }
 
 void SearchWorker::update_pv(int ply, Move m) {

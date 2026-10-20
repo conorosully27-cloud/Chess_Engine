@@ -40,11 +40,15 @@ history behind the search and evaluation.
   WebAssembly): **+102 Elo (+/- 32)** over 2.5 (H1 after 242 games).
   **The new baseline**, bench 3183003 (unchanged from 2.5). The phone app
   is still 2.5 until the owner asks for an app build.
+- **Engine 2.7** = 2.6 with staged move generation and lazy gives_check:
+  **+20 Elo (+/- 14)** over 2.6 (H1 after 1,186 games). **The new
+  baseline**, bench 2870078. The phone app is still 2.5 (the owner wants a
+  tweak to it before the next APK).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
-- **Tests:** `ctest --test-dir build`, 6 suites (perft, position, SEE,
-  NNUE, search, UCI), a few seconds. **Bench signature: 3183003** (`build/engine2 bench`, with the
-  built-in network; 2.6 and 2.5 alike; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+- **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2870078** (`build/engine2 bench`, with the
+  built-in network; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -288,7 +292,15 @@ square, per side) -> 128 hidden per side -> 1.
    after 242 games, +106 -37 =99 (64.3%), +102 Elo (+/- 32)** (cloud,
    8+0.08, 4 at a time, adjudication). **Released as 2.6.** The profile
    now puts move ordering on top (`pick_next` + `score_moves` ~22%):
-   staged move generation is the next speed job. Next for strength: more
+   staged move generation is the next speed job.
+8. **Staged move generation + lazy gives_check** (`src/movepick.h`;
+   commit `2d5f3b4`, bench 2870078): the hash move before any generation,
+   then good captures, quiets, bad captures; gives_check only when a
+   pruning rule needs it. ~7% fewer instructions per node; ties between
+   equal scores now come out in generation order, so the search differs.
+   **vs 2.6: H1 after 1,186 games, +381 -313 =492 (52.9%), +20 Elo
+   (+/- 14)** (cloud, 8+0.08, 4 at a time, adjudication). **Released as
+   2.7.** Picking the next quiet (selection over long lists) is still ~12%. Next for strength: more
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
@@ -301,7 +313,7 @@ under "Engine" in the New game sheet. Pieces:
   on the calling thread (the app's Web Worker). Built by
   `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
   `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
-  build only** (now 2.6, bench 3183003; built with `-msimd128` since 2.6): check with
+  build only** (now 2.7, bench 2870078; built with `-msimd128` since 2.6): check with
   `node scripts/wasm_bench.mjs`, whose node count must match the native
   bench. About 85% of native speed.
 - `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,
@@ -312,9 +324,9 @@ under "Engine" in the New game sheet. Pieces:
   its time, analysis reaches depth 17-18 in 4 s, Engine 1.6 still works, no
   console errors.
 
-**For the next app build (owner's request; 2.6 was released without
-one):** rebuild the WebAssembly and APK from 2.6, and show the engine's
-version in the app's "Engine" choice ("Engine 2.6" rather than
+**For the next app build (owner's request; 2.6 and 2.7 were released without
+one):** rebuild the WebAssembly and APK from the latest release (2.7), and show
+the engine's version in the app's "Engine" choice ("Engine 2.7" rather than
 "Engine 2"), taken from the build so it updates with each release.
 
 Next for the app, in order (owner's phone is Android):

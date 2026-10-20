@@ -2,7 +2,7 @@
 // iterative deepening negamax alpha-beta with aspiration windows, principal
 // variation search, quiescence, a transposition table, null-move pruning,
 // reverse futility, futility and late move pruning, late move reductions,
-// and killer/history move ordering.
+// and killer/history move ordering (movepick.h).
 //
 // It runs on its own thread so the UCI loop keeps answering while it thinks.
 #pragma once
@@ -74,7 +74,6 @@ class SearchWorker {
  private:
   int negamax(int depth, int alpha, int beta, int ply, bool after_null);
   int quiesce(int alpha, int beta, int ply);
-  void score_moves(const MoveList& list, int* scores, Move tt_move, int ply) const;
   void update_pv(int ply, Move m);
   void check_limits();
   std::int64_t elapsed_ms() const;
