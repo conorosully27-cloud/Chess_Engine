@@ -2,7 +2,7 @@
 
 New session? Start with [`HANDOFF.md`](HANDOFF.md).
 
-C++20 engine (bitboards, magic bitboards, later NNUE). Built with CMake; the
+C++20 engine (bitboards, magic bitboards, NNUE evaluation). Built with CMake; the
 goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 `../engine-1`) is the baseline it is measured against.
 
@@ -13,8 +13,8 @@ goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 | 1. Position: bitboards, legal move generation, make/unmake, Zobrist, FEN | done, perft matches the standard counts |
 | 2. UCI front end | done |
 | 3. Search and transposition table, evaluation ported from Engine 1 | done: **Engine 2.0**, same algorithms as 1.6, about 6x faster, +372 Elo over 1.6 |
-| 4. Speed and search improvements (2.1: speed; 2.2: SEE) | in progress; see HANDOFF.md |
-| 5. NNUE evaluation | after that |
+| 4. Speed and search improvements (2.1: speed; 2.2: SEE; 2.3: IIR and LMR) | in progress; see HANDOFF.md |
+| 5. NNUE evaluation | **Engine 2.4**: first network, +181 Elo over 2.3; trainer and data generator in `scripts/nnue/`, network in `nets/` |
 
 ## Build and test
 

@@ -23,6 +23,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   endif()
 endif()
 
+# The NNUE network built into the engine (nets/, see src/nnue.h).
+set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.4.nnue)
+set(DEFAULT_NET_CPP ${CMAKE_CURRENT_BINARY_DIR}/default_net.cpp)
+add_custom_command(
+  OUTPUT ${DEFAULT_NET_CPP}
+  COMMAND ${CMAKE_COMMAND} -DNET=${ENGINE_NET} -DOUT=${DEFAULT_NET_CPP} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_net.cmake
+  DEPENDS ${ENGINE_NET} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_net.cmake
+  COMMENT "Embedding the NNUE network")
+
 add_library(engine2_core STATIC
   src/bench.cpp
   src/bitboard.cpp
@@ -33,7 +42,8 @@ add_library(engine2_core STATIC
   src/evaluate.cpp
   src/search.cpp
   src/tt.cpp
-  src/uci.cpp)
+  src/uci.cpp
+  ${DEFAULT_NET_CPP})
 target_include_directories(engine2_core PUBLIC src)
 find_package(Threads REQUIRED)
 target_link_libraries(engine2_core PUBLIC engine2_options Threads::Threads)

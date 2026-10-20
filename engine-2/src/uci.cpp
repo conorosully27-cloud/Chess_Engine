@@ -16,7 +16,7 @@ namespace chess {
 
 namespace {
 
-constexpr const char* ENGINE_NAME = "Engine 2.3";
+constexpr const char* ENGINE_NAME = "Engine 2.4";
 constexpr const char* ENGINE_AUTHOR = "Conor O'Sullivan";
 
 std::mutex output_mutex;
@@ -68,11 +68,15 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
   while (in >> token && token != "value") name += (name.empty() ? "" : " ") + token;
   while (in >> token) value += (value.empty() ? "" : " ") + token;
   if (name == "EvalFile") {
-    // An NNUE network file; empty (or "<empty>") goes back to the hand-written evaluation.
+    // An NNUE network file; empty (or "<empty>") is the built-in network,
+    // "classical" the hand-written evaluation.
     if (value.empty() || value == "<empty>") {
+      nnue::load_default();
+    } else if (value == "classical") {
       nnue::unload();
     } else if (!nnue::load(value)) {
-      uci_send("info string cannot load network " + value + "; using the hand-written evaluation");
+      nnue::load_default();
+      uci_send("info string cannot load network " + value + "; using the built-in one");
     }
     clear_eval_cache();
     return;

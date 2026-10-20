@@ -4,8 +4,9 @@
 //   engine2 divide <depth> [fen]   node count per root move
 //   engine2 bench [depth]          fixed-depth searches: node signature and speed
 //   engine2 perftbench             perft speed on the start position
-//   engine2 eval [network]         static evaluation of each FEN read from stdin
-//                                  (with an NNUE network file: the network's)
+//   engine2 eval [network|classical]  static evaluation of each FEN read from stdin:
+//                                  the built-in network's, another network
+//                                  file's, or the hand-written evaluation's
 //   engine2 datagen <file> <positions> [nodes] [seed]
 //                                  self-play training data for NNUE (datagen.h)
 #include <chrono>
@@ -40,6 +41,7 @@ int usage() {
 
 int main(int argc, char** argv) {
   init_all();
+  nnue::load_default();
   if (argc < 2) {
     uci_loop();
     return 0;
@@ -59,7 +61,9 @@ int main(int argc, char** argv) {
   }
 
   if (cmd == "eval") {
-    if (argc >= 3 && !nnue::load(argv[2])) {
+    if (argc >= 3 && std::string(argv[2]) == "classical") {
+      nnue::unload();
+    } else if (argc >= 3 && !nnue::load(argv[2])) {
       std::cerr << "cannot load network " << argv[2] << "\n";
       return 1;
     }

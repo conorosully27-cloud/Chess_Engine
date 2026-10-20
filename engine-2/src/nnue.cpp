@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <vector>
 
 namespace chess::nnue {
@@ -26,6 +27,14 @@ struct Network {
 Network net;
 bool have_net = false;
 
+// Reads `size` bytes into dst from data + *pos.
+bool take(const unsigned char* data, std::size_t size, std::size_t& pos, void* dst, std::size_t n) {
+  if (pos + n > size) return false;
+  std::memcpy(dst, data + pos, n);
+  pos += n;
+  return true;
+}
+
 // The feature for a piece on a square, seen from White's or Black's side:
 // from Black's side the colors swap and the board flips.
 inline int feature(Piece pc, Square s, Color side) {
@@ -34,24 +43,37 @@ inline int feature(Piece pc, Square s, Color side) {
 
 }  // namespace
 
-bool load(const std::string& path) {
+extern const unsigned char default_net_data[];
+extern const std::size_t default_net_size;
+
+bool load(const unsigned char* data, std::size_t size) {
   have_net = false;
-  std::ifstream in(path, std::ios::binary);
-  if (!in) return false;
   char magic[4];
   std::uint32_t version = 0, hidden = 0;
-  in.read(magic, 4);
-  in.read(reinterpret_cast<char*>(&version), 4);
-  in.read(reinterpret_cast<char*>(&hidden), 4);
-  if (!in || std::memcmp(magic, "E2NN", 4) != 0 || version != 1 || hidden != HIDDEN) return false;
-  in.read(reinterpret_cast<char*>(net.ft_weight), sizeof(net.ft_weight));
-  in.read(reinterpret_cast<char*>(net.ft_bias), sizeof(net.ft_bias));
-  in.read(reinterpret_cast<char*>(net.out_weight), sizeof(net.out_weight));
-  in.read(reinterpret_cast<char*>(&net.out_bias), sizeof(net.out_bias));
-  if (!in || in.peek() != std::ifstream::traits_type::eof()) return false;
+  std::size_t pos = 0;
+  if (!take(data, size, pos, magic, 4) || !take(data, size, pos, &version, 4) || !take(data, size, pos, &hidden, 4))
+    return false;
+  if (std::memcmp(magic, "E2NN", 4) != 0 || version != 1 || hidden != HIDDEN) return false;
+  if (!take(data, size, pos, net.ft_weight, sizeof(net.ft_weight)) ||
+      !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)) ||
+      !take(data, size, pos, net.out_weight, sizeof(net.out_weight)) ||
+      !take(data, size, pos, &net.out_bias, sizeof(net.out_bias)) || pos != size)
+    return false;
   have_net = true;
   return true;
 }
+
+bool load(const std::string& path) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) {
+    have_net = false;
+    return false;
+  }
+  const std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return load(bytes.data(), bytes.size());
+}
+
+void load_default() { load(default_net_data, default_net_size); }
 
 void unload() { have_net = false; }
 bool loaded() { return have_net; }

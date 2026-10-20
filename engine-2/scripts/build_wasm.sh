@@ -16,7 +16,11 @@ command -v em++ > /dev/null || source "$emsdk/emsdk_env.sh" > /dev/null 2>&1
 mkdir -p "$out"
 
 # Every source except main.cpp (the native program); wasm.cpp is the entry.
-sources=()
+# Plus the built-in NNUE network, as the native build embeds it.
+gen="$(mktemp -d)"
+trap 'rm -rf "$gen"' EXIT
+cmake -DNET="$here/nets/engine-2.4.nnue" -DOUT="$gen/default_net.cpp" -P "$here/cmake/embed_net.cmake"
+sources=("$gen/default_net.cpp")
 for f in "$here"/src/*.cpp; do
   [ "$(basename "$f")" = "main.cpp" ] || sources+=("$f")
 done

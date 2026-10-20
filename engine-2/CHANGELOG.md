@@ -5,13 +5,33 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Next release (accepted, not yet released)
+## 2.4: NNUE evaluation
 
-- **NNUE evaluation** (768 -> 128x2 -> 1, trained on 50M positions of
-  2.3's self-play; `src/nnue.h`, `scripts/nnue/`). First network (epoch 3
-  of 20) against 2.3, cloud, 8+0.08: **H1 accepted after 234 games**, 147
-  wins, 35 losses, 52 draws (73.9%), **+181 Elo (+/- 42)**. The released
-  network will be a later epoch, embedded in the binary.
+2.3's search with a neural-network evaluation in place of the hand-written
+one. **Against 2.3** (cloud, 8+0.08, SPRT 0/10, 4 games at a time,
+adjudication on): **H1 accepted after 234 games**, 147 wins, 35 losses, 52
+draws (73.9%), **+181 Elo (+/- 42)**, LOS 100%, no time losses. That test
+ran 2.3's search with the network loaded from a file; the release build
+(network built in) searches identically: same scores and node counts at
+fixed depth on four test positions. Released on the owner's call without
+a separate release match. New bench signature **3116434** (2.3: 3601124).
+
+- **Network:** 768 inputs per side (piece kind x square, seen from that
+  side) -> 128 hidden units (shared, clipped) -> both sides' units, side
+  to move first -> 1 output. Integer inference (`src/nnue.h`), the hidden
+  layer recomputed per evaluation (incremental updates are a later speed
+  gain). About 20% fewer nodes/s than the hand-written evaluation, and
+  more nodes per depth (pruning margins were tuned for the old scale).
+- **Training data:** 50M quiet positions from 2.3's self-play at 5,000
+  nodes a move (`engine2 datagen`, cloud, ~10 hours on 4 cores).
+- **Training:** `scripts/nnue/train.py` (PyTorch) on the owner's laptop GPU
+  (RTX A2000): target 75% search score, 25% game result; this network is
+  epoch 3 of a 20-epoch run (about 13 minutes of training).
+- **Built in:** `nets/engine-2.4.nnue`, embedded at build time
+  (`cmake/embed_net.cmake`). UCI `EvalFile`: a network file, `<empty>` for
+  the built-in one, `classical` for the hand-written evaluation.
+- **Phone app:** the WebAssembly build carries the network too (same bench
+  node count); analysis reaches about depth 13 in 4 s.
 
 ## 2.3: internal iterative reduction and logarithmic LMR
 

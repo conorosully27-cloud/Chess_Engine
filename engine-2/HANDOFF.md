@@ -28,9 +28,14 @@ history behind the search and evaluation.
   games: **+37 Elo (+/- 18)**. Merged to `main`
   ([conorosully27-cloud/Chess_Engine#5](https://github.com/conorosully27-cloud/Chess_Engine/pull/5)).
   Commit `836fe46`; **the next baseline**, bench 3601124.
+- **Engine 2.4** = 2.3 + NNUE evaluation (network built in,
+  `nets/engine-2.4.nnue`): **+181 Elo (+/- 42)** over 2.3 (H1 after 234
+  games). **The new baseline**, bench 3116434. Details in `CHANGELOG.md`
+  and the NNUE section below.
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
-  search, UCI), a few seconds. **Bench signature: 3601124** (`build/engine2 bench`;
-  2.2 was 6533990, 2.1 9557353, 2.0 9559579), the same on Linux/gcc and Windows/MinGW.
+  search, UCI), a few seconds. **Bench signature: 3116434** (`build/engine2 bench`, with the
+  built-in network; 2.3 was 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  The tests use the hand-written evaluation (no network loaded), the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
   (prebuilt Windows release, `C:\Users\conor\fastchess-bin\...`) and runs
@@ -255,10 +260,11 @@ square, per side) -> 128 hidden per side -> 1.
    +181 Elo (+/- 42)**, LOS 100%, no time losses. With the network the
    search reaches a given depth on ~2.6x the nodes (pruning margins tuned
    for the old evaluation's scale): retuning them is a likely further gain.
-   Next: the final net from the laptop (net-20) vs net-3; embed the
-   chosen net in the binary (fastchess, Cute Chess and the phone app need
-   no separate file); release as 2.4. Later: incremental accumulator
-   updates (speed), margin retuning, bigger nets and more data.
+   **Released as 2.4** with net-3 built in (owner's call, without waiting
+   for the 20-epoch net). Next: the later epochs of the laptop run vs
+   2.4 (`EvalFile` = the candidate net), incremental accumulator updates
+   (speed), retuning the pruning margins for the network's scale, then
+   bigger nets and more data (generated with 2.4, so better labels).
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
