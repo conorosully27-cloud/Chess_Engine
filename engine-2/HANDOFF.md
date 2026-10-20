@@ -24,13 +24,18 @@ history behind the search and evaluation.
   the owner's laptop: **+19 Elo (+/- 14)** over 1,366 games at 8+0.08.
   It is the next baseline; details in `CHANGELOG.md`.
 - **Engine 2.3** (2.2 + IIR + mild LMR) passed its release SPRT against
-  2.2: **+39 Elo (+/- 21)** after 586 games at 8+0.08 (H1), extended to
-  1,000 games (`scripts/release_match.sh status release-2.3`; the final
-  figure goes in `CHANGELOG.md`). Commit `836fe46`; **the next
-  baseline**, bench 3601124.
+  2.2: H1 after 586 games at 8+0.08, then extended and stopped at 760
+  games: **+37 Elo (+/- 18)**. Merged to `main`
+  ([conorosully27-cloud/Chess_Engine#5](https://github.com/conorosully27-cloud/Chess_Engine/pull/5)).
+  Commit `836fe46`; **the next baseline**, bench 3601124.
+- **Engine 2.4** = 2.3 + NNUE evaluation (network built in,
+  `nets/engine-2.4.nnue`): **+181 Elo (+/- 42)** over 2.3 (H1 after 234
+  games). **The new baseline**, bench 3116434. Details in `CHANGELOG.md`
+  and the NNUE section below.
 - **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
-  search, UCI), a few seconds. **Bench signature: 3601124** (`build/engine2 bench`;
-  2.2 was 6533990, 2.1 9557353, 2.0 9559579), the same on Linux/gcc and Windows/MinGW.
+  search, UCI), a few seconds. **Bench signature: 3116434** (`build/engine2 bench`, with the
+  built-in network; 2.3 was 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  The tests use the hand-written evaluation (no network loaded), the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
   (prebuilt Windows release, `C:\Users\conor\fastchess-bin\...`) and runs
@@ -186,8 +191,12 @@ SPRT against the best build at the time:
       - 8+0.08 (owner's laptop, 12 at a time): 1,204 games, +366 -377
         =461, Elo -3 +/- 15, LOS 34%, LLR -1.37; stopped as flat (the 64 MB
         table hardly fills at this speed, and the probes cost ~5% speed).
-      - **Now under SPRT at 40+0.4 on the laptop**, where the table fills
-        and replacement matters. If flat there too, take both out.
+      - 40+0.4 (laptop): 1,076 games, +317 -293 =466, Elo +8 +/- 14, LOS
+        86%, LLR 0.53; stopped. Probably a small gain at longer time
+        controls (the table fills), unproven.
+      - In a "2.4 bundle" with continuation history, vs 2.3 at 40+0.4:
+        +4 +/- 19 over 638 games. **Parked until after NNUE**
+        (`FAILED_EXPERIMENTS.md`); code in `31fddc5`, `d2d1303`.
    3. Store the static evaluation, and reuse it instead of re-evaluating.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
    reverse futility, futility and late move pruning when not improving.
@@ -203,6 +212,59 @@ SPRT against the best build at the time:
 12. **Lazy SMP (threads)**: big gain on the owner's laptop in Cute Chess;
     hard to test here with 3 of 4 cores in use. Do last, confirm on the
     laptop.
+
+**NNUE (started Oct 2026).** Plan: self-play data from Engine 2 (cloud,
+and the owner's laptop when free), a PyTorch trainer on the owner's laptop
+GPU (NVIDIA RTX A2000 8 GB, CUDA; Python 3.12 and PyTorch 2.11+cu128
+installed and checked; 16 GB RAM, so the trainer streams data from disk),
+then NNUE inference in the engine, checked against the trainer, and an
+SPRT against the best build. Network to start with: 768 inputs (piece x
+square, per side) -> 128 hidden per side -> 1.
+1. **Data:** `engine2 datagen` (`src/datagen.h` for the 32-byte format;
+   reader `scripts/nnue/data.py`). First run: 2.3's search plus datagen
+   (`~/nnue-data/engine2-2.3-datagen`, bench 3601124), 4 processes, 5,000
+   nodes a move, writing `~/nnue-data/part-1..4.bin`, 12.5M positions each
+   (50M, 1.6 GB; the owner cut it from 100M), about 6M positions an hour
+   in all. Survived a container restart at ~03:10 UTC (26.75M saved, no
+   partial records); restarted with new seeds. **Resume with a new seed**
+   (a reused seed replays the same games); used: 1001-4, 2001-4, 3001-4.
+   **Done 20 Oct ~09:00 UTC: 50,000,150 positions (1.6 GB)** in
+   `~/nnue-data/part-1..4.bin` (cloud; gone if the machine is reset, so
+   copy it off before relying on it). Checked: White wins 37.0%, draws
+   31.0%, Black wins 32.0%, mean score +31, all four parts alike; 93.8%
+   of positions distinct (only 41k seen 10+ times). Moving data to the
+   laptop: compressed chunks sent to the owner, or generate there.
+2. **Trainer: done**, `scripts/nnue/train.py` (PyTorch; memory-mapped
+   data, so the 16 GB laptop copes; GPU if present; checkpoint and
+   `net-<epoch>.nnue` every epoch, `--resume` to continue). Target: 75%
+   sigmoid(score / 400) + 25% game result (`--wdl`). Adam 1e-3, cosine
+   to 1e-4, batch 16384. On the cloud CPU ~65k positions/s.
+3. **Inference in the engine: done**, `src/nnue.h/.cpp`: integer (first
+   layer x255 in 16-bit accumulators, output x64), hidden layer
+   recomputed per evaluation for now (incremental updates later: a speed
+   gain once a net is worth keeping). Loaded with the UCI option
+   `EvalFile` or `engine2 eval <net>`; no network = the hand-written
+   evaluation, bench unchanged (3601124). With a net about 8% fewer
+   nodes/s. `scripts/nnue/check_net.py` compares engine and trainer:
+   mean 2.9 cp apart, max 14 (rounding).
+   End-to-end test: a 30-second CPU net (2M positions) played 20 clean
+   games vs 2.3 (lost 1.5-18.5, as expected from so little training).
+4. **Training run on the laptop GPU** (RTX A2000): ~197k positions/s,
+   ~252 s an epoch on the 49.5M training positions, 20 epochs planned.
+   Epoch 3: train loss 0.00804, validation 0.00824. `check_net.py`: engine
+   within 6.2 cp of the trainer on average (max 29, ~1% of the eval
+   spread: rounding; the check's fixed thresholds are too tight for
+   stronger nets and should become relative).
+5. **First SPRT: 2.3 + net-3 vs 2.3** (cloud, 8+0.08, 4 at a time,
+   adjudication): **H1 accepted after 234 games, +147 -35 =52 (73.9%),
+   +181 Elo (+/- 42)**, LOS 100%, no time losses. With the network the
+   search reaches a given depth on ~2.6x the nodes (pruning margins tuned
+   for the old evaluation's scale): retuning them is a likely further gain.
+   **Released as 2.4** with net-3 built in (owner's call, without waiting
+   for the 20-epoch net). Next: the later epochs of the laptop run vs
+   2.4 (`EvalFile` = the candidate net), incremental accumulator updates
+   (speed), retuning the pruning margins for the network's scale, then
+   bigger nets and more data (generated with 2.4, so better labels).
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)

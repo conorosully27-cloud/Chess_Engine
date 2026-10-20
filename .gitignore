@@ -3,3 +3,4 @@ build*/
 matches/
 *.o
 *.exe
+__pycache__/

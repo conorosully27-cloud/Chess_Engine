@@ -1,5 +1,7 @@
 #include "evaluate.h"
 
+#include "nnue.h"
+
 #include <algorithm>
 #include <cstdlib>
 
@@ -379,7 +381,12 @@ int evaluate_uncached(const Position& pos) {
 int evaluate(const Position& pos) {
   EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
   if (e.key == pos.key()) return e.score;
-  const int score = std::clamp(evaluate_uncached(pos), -EVAL_LIMIT, EVAL_LIMIT);
+  int raw;
+  if (nnue::loaded())
+    raw = !pos.pieces(PAWN) && pos.insufficient_material() ? 0 : nnue::evaluate(pos);
+  else
+    raw = evaluate_uncached(pos);
+  const int score = std::clamp(raw, -EVAL_LIMIT, EVAL_LIMIT);
   e.key = pos.key();
   e.score = score;
   return score;
@@ -399,6 +406,8 @@ constexpr int LAZY_MARGIN = 300;
 int evaluate_lazy(const Position& pos, int alpha, int beta) {
   const EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
   if (e.key == pos.key()) return e.score;
+  // The shortcut uses the hand-written material values, not the network's scale.
+  if (nnue::loaded()) return evaluate(pos);
   const int quick = evaluate_material(pos);
   if (quick - LAZY_MARGIN >= beta || quick + LAZY_MARGIN <= alpha) return quick;
   return evaluate(pos);

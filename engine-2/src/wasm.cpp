@@ -8,6 +8,7 @@
 #include <string>
 
 #include "movegen.h"
+#include "nnue.h"
 #include "search.h"
 #include "uci.h"
 
@@ -30,6 +31,7 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE void engine_init(int hash_mb) {
   init_all();
+  nnue::load_default();
   tt = new TranspositionTable(hash_mb);
   worker = new SearchWorker(*tt);
 }

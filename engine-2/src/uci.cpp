@@ -8,6 +8,7 @@
 
 #include "evaluate.h"
 #include "movegen.h"
+#include "nnue.h"
 #include "position.h"
 #include "search.h"
 
@@ -15,7 +16,7 @@ namespace chess {
 
 namespace {
 
-constexpr const char* ENGINE_NAME = "Engine 2.3";
+constexpr const char* ENGINE_NAME = "Engine 2.4";
 constexpr const char* ENGINE_AUTHOR = "Conor O'Sullivan";
 
 std::mutex output_mutex;
@@ -66,6 +67,20 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
   in >> token;  // "name"
   while (in >> token && token != "value") name += (name.empty() ? "" : " ") + token;
   while (in >> token) value += (value.empty() ? "" : " ") + token;
+  if (name == "EvalFile") {
+    // An NNUE network file; empty (or "<empty>") is the built-in network,
+    // "classical" the hand-written evaluation.
+    if (value.empty() || value == "<empty>") {
+      nnue::load_default();
+    } else if (value == "classical") {
+      nnue::unload();
+    } else if (!nnue::load(value)) {
+      nnue::load_default();
+      uci_send("info string cannot load network " + value + "; using the built-in one");
+    }
+    clear_eval_cache();
+    return;
+  }
   int n = 0;
   try {
     n = std::stoi(value);
@@ -132,6 +147,7 @@ void uci_loop() {
       uci_send(std::string("id author ") + ENGINE_AUTHOR);
       uci_send("option name Hash type spin default 64 min 1 max 65536");
       uci_send("option name Move Overhead type spin default 50 min 0 max 5000");
+      uci_send("option name EvalFile type string default <empty>");
       uci_send("uciok");
     } else if (cmd == "isready") {
       uci_send("readyok");

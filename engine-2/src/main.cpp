@@ -4,14 +4,20 @@
 //   engine2 divide <depth> [fen]   node count per root move
 //   engine2 bench [depth]          fixed-depth searches: node signature and speed
 //   engine2 perftbench             perft speed on the start position
-//   engine2 eval                   static evaluation of each FEN read from stdin
+//   engine2 eval [network|classical]  static evaluation of each FEN read from stdin:
+//                                  the built-in network's, another network
+//                                  file's, or the hand-written evaluation's
+//   engine2 datagen <file> <positions> [nodes] [seed]
+//                                  self-play training data for NNUE (datagen.h)
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include "datagen.h"
 #include "evaluate.h"
 #include "movegen.h"
+#include "nnue.h"
 #include "position.h"
 #include "uci.h"
 
@@ -26,7 +32,8 @@ std::string join_fen(int argc, char** argv, int first) {
 }
 
 int usage() {
-  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n";
+  std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n"
+               "       engine2 datagen <file> <positions> [nodes] [seed]\n";
   return 2;
 }
 
@@ -34,6 +41,7 @@ int usage() {
 
 int main(int argc, char** argv) {
   init_all();
+  nnue::load_default();
   if (argc < 2) {
     uci_loop();
     return 0;
@@ -45,7 +53,20 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  if (cmd == "datagen") {
+    if (argc < 4) return usage();
+    run_datagen(argv[2], std::strtoull(argv[3], nullptr, 10), argc >= 5 ? std::atoi(argv[4]) : 5000,
+                argc >= 6 ? std::strtoull(argv[5], nullptr, 10) : 1);
+    return 0;
+  }
+
   if (cmd == "eval") {
+    if (argc >= 3 && std::string(argv[2]) == "classical") {
+      nnue::unload();
+    } else if (argc >= 3 && !nnue::load(argv[2])) {
+      std::cerr << "cannot load network " << argv[2] << "\n";
+      return 1;
+    }
     std::string line;
     Position pos;
     while (std::getline(std::cin, line)) {

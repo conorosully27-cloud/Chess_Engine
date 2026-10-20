@@ -131,15 +131,15 @@
     ],
     "stats": {
         "new-836fe46 vs old-d0acbf0": {
-            "wins": 203,
-            "losses": 138,
-            "draws": 245,
-            "penta_WW": 28,
-            "penta_WD": 95,
-            "penta_WL": 52,
-            "penta_DD": 45,
-            "penta_LD": 60,
-            "penta_LL": 13
+            "wins": 264,
+            "losses": 181,
+            "draws": 321,
+            "penta_WW": 36,
+            "penta_WD": 121,
+            "penta_WL": 71,
+            "penta_DD": 61,
+            "penta_LD": 78,
+            "penta_LL": 16
         }
     }
 }

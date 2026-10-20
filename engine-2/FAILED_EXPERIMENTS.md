@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## 2.4 bundle: TT (quiescence + buckets) + continuation history (Oct 2026) — parked until after NNUE
+
+**Change:** on top of 2.3, the transposition-table change (quiescence
+probes and stores; 5-entry, 64-byte buckets with age-based replacement)
+and continuation history (see the entries below). Commit `0218a0a` (taken
+out again); bench 3974756 (2.3: 3601124).
+
+**Result:** vs 2.3 at 40+0.4 on the owner's laptop (10 games at a time,
+adjudication on): 638 games (the laptop shut down overnight), +189 -182
+=267, Elo +4 +/- 19, LOS 65%, LLR -0.13. Separately: the TT change was -3
++/- 15 at 8+0.08 (1,204 games) and +8 +/- 14 at 40+0.4 (1,076 games);
+continuation history -7 +/- 17 at 8+0.08 (880 games).
+
+**Prior:** 6/10.
+
+**Commentary:** at best a few Elo, even at the longer time control.
+Parked by the owner until after NNUE: refinements to the search often
+change in value when the evaluation changes, so retry both on the NNUE
+build.
+
 ## Continuation history, at 8+0.08 (Oct 2026) — parked for a longer TC
 
 **Change:** a 768 x 768 table (2.4 MB) of how well a quiet move did after
