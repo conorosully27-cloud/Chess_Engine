@@ -294,6 +294,10 @@ under "Engine" in the New game sheet. Pieces:
   its time, analysis reaches depth 17-18 in 4 s, Engine 1.6 still works, no
   console errors.
 
+**For the next release (owner's request):** show the engine's version in
+the app's "Engine" choice ("Engine 2.5" rather than "Engine 2"), taken
+from the build so it updates with each release.
+
 Next for the app, in order (owner's phone is Android):
 1. **Installable web app (PWA):** a manifest and a service worker so it
    installs to the home screen and works offline.
