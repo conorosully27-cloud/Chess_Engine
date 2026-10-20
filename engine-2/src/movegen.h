@@ -28,8 +28,20 @@ struct MoveList {
   int count = 0;
 };
 
-// With tactical, only captures and queen promotions (for quiescence search).
+// What to generate: every move; captures only (en passant and capturing
+// promotions included); everything else (pushes, quiet promotions,
+// castling); or captures and promotions to a queen only (for quiescence).
+// CAPTURES and QUIETS together are exactly ALL, each in ALL's relative order.
+enum GenType { ALL, CAPTURES, QUIETS, TACTICAL };
+
+template <GenType Type>
+void generate(const Position& pos, MoveList& list);
+
+// With tactical, generate<TACTICAL>; else generate<ALL>.
 void generate_pseudo_legal(const Position& pos, MoveList& list, bool tactical = false);
+// Whether generate<ALL> would produce m (for a move from the hash table,
+// which may come from another position).
+bool pseudo_legal(const Position& pos, Move m);
 void generate_legal(const Position& pos, MoveList& list);
 
 // Finds the legal move written in UCI notation (e.g. "e2e4", "e7e8q"), or an

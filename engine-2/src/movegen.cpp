@@ -4,54 +4,60 @@ namespace chess {
 
 namespace {
 
-void add_promotions(MoveList& list, Square from, Square to, bool capture, bool tactical) {
+void add_promotions(MoveList& list, Square from, Square to, bool capture, bool queen_only) {
   int base = Move::PROMO | (capture ? Move::CAPTURE : 0);
-  for (int i = 3; i >= (tactical ? 3 : 0); i--) list.add(Move(from, to, base + i));  // queen first
+  for (int i = 3; i >= (queen_only ? 3 : 0); i--) list.add(Move(from, to, base + i));  // queen first
 }
 
-template <Color Us>
-void generate_pawn_moves(const Position& pos, MoveList& list, bool tactical) {
+template <Color Us, GenType Type>
+void generate_pawn_moves(const Position& pos, MoveList& list) {
   constexpr Color Them = ~Us;
   constexpr int Up = Us == WHITE ? 8 : -8;
   constexpr Bitboard PromoRank = Us == WHITE ? RANK_8 : RANK_1;
   constexpr Bitboard DoubleFrom = Us == WHITE ? RANK_3 : RANK_6;  // rank reached by a single push
+  constexpr bool queen_only = Type == TACTICAL;
 
   const Bitboard pawns = pos.pieces(Us, PAWN);
   const Bitboard empty = ~pos.pieces();
   const Bitboard enemy = pos.pieces(Them);
 
-  Bitboard single = shift<Up>(pawns) & empty;
-  Bitboard dbl = tactical ? 0 : shift<Up>(single & DoubleFrom) & empty;
-  if (tactical) single &= PromoRank;
+  if constexpr (Type != CAPTURES) {
+    Bitboard single = shift<Up>(pawns) & empty;
+    Bitboard dbl = Type == TACTICAL ? 0 : shift<Up>(single & DoubleFrom) & empty;
+    if (Type == TACTICAL) single &= PromoRank;
 
-  while (single) {
-    Square to = pop_lsb(single);
-    if (square_bb(to) & PromoRank) add_promotions(list, to - Up, to, false, tactical);
-    else list.add(Move(to - Up, to, Move::QUIET));
-  }
-  while (dbl) {
-    Square to = pop_lsb(dbl);
-    list.add(Move(to - 2 * Up, to, Move::DOUBLE_PUSH));
-  }
-
-  Bitboard p = pawns;
-  while (p) {
-    Square from = pop_lsb(p);
-    Bitboard caps = PawnAttacks[Us][from] & enemy;
-    while (caps) {
-      Square to = pop_lsb(caps);
-      if (square_bb(to) & PromoRank) add_promotions(list, from, to, true, tactical);
-      else list.add(Move(from, to, Move::CAPTURE));
+    while (single) {
+      Square to = pop_lsb(single);
+      if (square_bb(to) & PromoRank) add_promotions(list, to - Up, to, false, queen_only);
+      else list.add(Move(to - Up, to, Move::QUIET));
     }
-    if (pos.ep_square() != NO_SQUARE && (PawnAttacks[Us][from] & square_bb(pos.ep_square())))
-      list.add(Move(from, pos.ep_square(), Move::EP));
+    while (dbl) {
+      Square to = pop_lsb(dbl);
+      list.add(Move(to - 2 * Up, to, Move::DOUBLE_PUSH));
+    }
+  }
+
+  if constexpr (Type != QUIETS) {
+    Bitboard p = pawns;
+    while (p) {
+      Square from = pop_lsb(p);
+      Bitboard caps = PawnAttacks[Us][from] & enemy;
+      while (caps) {
+        Square to = pop_lsb(caps);
+        if (square_bb(to) & PromoRank) add_promotions(list, from, to, true, queen_only);
+        else list.add(Move(from, to, Move::CAPTURE));
+      }
+      if (pos.ep_square() != NO_SQUARE && (PawnAttacks[Us][from] & square_bb(pos.ep_square())))
+        list.add(Move(from, pos.ep_square(), Move::EP));
+    }
   }
 }
 
-void generate_piece_moves(const Position& pos, MoveList& list, Color us, bool tactical) {
+template <GenType Type>
+void generate_piece_moves(const Position& pos, MoveList& list, Color us) {
   const Bitboard occ = pos.pieces();
   const Bitboard enemy = pos.pieces(~us);
-  const Bitboard targets_mask = tactical ? enemy : ~pos.pieces(us);
+  const Bitboard targets_mask = Type == ALL ? ~pos.pieces(us) : Type == QUIETS ? ~occ : enemy;
   for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN, KING}) {
     Bitboard from_bb = pos.pieces(us, pt);
     while (from_bb) {
@@ -84,12 +90,42 @@ void generate_castling(const Position& pos, MoveList& list, Color us) {
 
 }  // namespace
 
-void generate_pseudo_legal(const Position& pos, MoveList& list, bool tactical) {
+template <GenType Type>
+void generate(const Position& pos, MoveList& list) {
   const Color us = pos.side_to_move();
-  if (us == WHITE) generate_pawn_moves<WHITE>(pos, list, tactical);
-  else generate_pawn_moves<BLACK>(pos, list, tactical);
-  generate_piece_moves(pos, list, us, tactical);
-  if (!tactical) generate_castling(pos, list, us);
+  if (us == WHITE) generate_pawn_moves<WHITE, Type>(pos, list);
+  else generate_pawn_moves<BLACK, Type>(pos, list);
+  generate_piece_moves<Type>(pos, list, us);
+  if (Type == ALL || Type == QUIETS) generate_castling(pos, list, us);
+}
+
+template void generate<ALL>(const Position&, MoveList&);
+template void generate<CAPTURES>(const Position&, MoveList&);
+template void generate<QUIETS>(const Position&, MoveList&);
+template void generate<TACTICAL>(const Position&, MoveList&);
+
+void generate_pseudo_legal(const Position& pos, MoveList& list, bool tactical) {
+  if (tactical) generate<TACTICAL>(pos, list);
+  else generate<ALL>(pos, list);
+}
+
+bool pseudo_legal(const Position& pos, Move m) {
+  const Square from = m.from(), to = m.to();
+  const Piece pc = pos.piece_on(from);
+  if (!m || pc == NO_PIECE || color_of(pc) != pos.side_to_move()) return false;
+  if (type_of(pc) == PAWN || m.is_castle()) {
+    // Fiddly special cases (pushes, en passant, promotions, castling): ask
+    // the generator, for that kind of move only.
+    MoveList list;
+    if (m.is_castle()) generate_castling(pos, list, pos.side_to_move());
+    else if (pos.side_to_move() == WHITE) generate_pawn_moves<WHITE, ALL>(pos, list);
+    else generate_pawn_moves<BLACK, ALL>(pos, list);
+    for (Move x : list)
+      if (x == m) return true;
+    return false;
+  }
+  const int flags = pos.piece_on(to) == NO_PIECE ? Move::QUIET : Move::CAPTURE;
+  return m.flags() == flags && (attacks_bb(type_of(pc), from, pos.pieces()) & ~pos.pieces(pos.side_to_move()) & square_bb(to));
 }
 
 void generate_legal(const Position& pos, MoveList& list) {

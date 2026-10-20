@@ -38,6 +38,7 @@ add_library(engine2_core STATIC
   src/datagen.cpp
   src/position.cpp
   src/movegen.cpp
+  src/movepick.cpp
   src/nnue.cpp
   src/evaluate.cpp
   src/search.cpp
@@ -63,6 +64,10 @@ add_test(NAME position COMMAND position_test)
 add_executable(see_test tests/see_test.cpp)
 target_link_libraries(see_test PRIVATE engine2_core)
 add_test(NAME see COMMAND see_test)
+
+add_executable(movepick_test tests/movepick_test.cpp)
+target_link_libraries(movepick_test PRIVATE engine2_core)
+add_test(NAME movepick COMMAND movepick_test)
 
 add_executable(nnue_test tests/nnue_test.cpp)
 target_link_libraries(nnue_test PRIVATE engine2_core)
