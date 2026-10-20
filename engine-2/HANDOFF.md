@@ -189,8 +189,9 @@ SPRT against the best build at the time:
       - 40+0.4 (laptop): 1,076 games, +317 -293 =466, Elo +8 +/- 14, LOS
         86%, LLR 0.53; stopped. Probably a small gain at longer time
         controls (the table fills), unproven.
-      - **Now in the 2.4 bundle**: 2.3 + steps 1-2 + continuation history
-        (item 8), bench 3974756, vs 2.3 at 40+0.4 on the owner's laptop.
+      - In a "2.4 bundle" with continuation history, vs 2.3 at 40+0.4:
+        +4 +/- 19 over 638 games. **Parked until after NNUE**
+        (`FAILED_EXPERIMENTS.md`); code in `31fddc5`, `d2d1303`.
    3. Store the static evaluation, and reuse it instead of re-evaluating.
 7. **"Improving" flag** (static eval better than two plies ago) to tighten
    reverse futility, futility and late move pruning when not improving.

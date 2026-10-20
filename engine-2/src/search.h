@@ -61,7 +61,7 @@ struct SearchResult {
 // or through Searcher (UCI, threaded).
 class SearchWorker {
  public:
-  explicit SearchWorker(TranspositionTable& tt) : tt_(tt), cont_history_(CONT_INDEX * CONT_INDEX) {}
+  explicit SearchWorker(TranspositionTable& tt) : tt_(tt) {}
 
   // Searches pos (left unchanged) within the limits. stop is polled and may
   // be set from another thread. on_info gets a UCI "info" line per depth.
@@ -76,9 +76,6 @@ class SearchWorker {
   int quiesce(int alpha, int beta, int ply);
   void score_moves(const MoveList& list, int* scores, Move tt_move, int ply) const;
   void update_pv(int ply, Move m);
-  // Index in cont_history_ of a quiet move (piece * 64 + to) after the move
-  // made `back` plies earlier, or -1 if there was none (root, null move).
-  int cont_index(int ply, int back, int move_index) const;
   void check_limits();
   std::int64_t elapsed_ms() const;
 
@@ -86,12 +83,6 @@ class SearchWorker {
   Position* pos_ = nullptr;
   Move killers_[MAX_PLY][2] = {};
   int history_[PIECE_NB][64] = {};
-  // Continuation history: how well a quiet move did right after a given
-  // move, indexed [earlier move][this move] by piece * 64 + to. Used for the
-  // move one ply earlier (the opponent's) and two plies earlier (our own).
-  static constexpr int CONT_INDEX = PIECE_NB * 64;
-  std::vector<int> cont_history_;
-  int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
 
