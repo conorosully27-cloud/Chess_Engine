@@ -27,8 +27,10 @@ static_assert(sizeof(PackedPosition) == 32, "the data format is 32 bytes a posit
 
 // Plays games against itself (`nodes` per move) and appends positions to
 // `path` until it holds at least `positions` of them. Safe to stop at any
-// time: each game's positions are written together once it ends, and a
-// reader ignores a partial record at the end of the file.
+// time: each game's positions are written together once it ends, a reader
+// ignores a partial record at the end of the file, and a resumed run trims
+// one before appending. Resume with a different seed: the same seed replays
+// the same games.
 void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed);
 
 }  // namespace chess

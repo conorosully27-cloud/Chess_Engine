@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <random>
 #include <vector>
 
@@ -37,13 +38,17 @@ PackedPosition pack(const Position& pos, int white_score) {
 }  // namespace
 
 void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed) {
+  // Resuming: drop a partial record left by a run stopped mid-write, so the
+  // records appended next stay aligned.
+  std::error_code ec;
+  const std::uintmax_t size = std::filesystem::exists(path) ? std::filesystem::file_size(path) : 0;
+  if (size % sizeof(PackedPosition)) std::filesystem::resize_file(path, size - size % sizeof(PackedPosition), ec);
   std::FILE* out = std::fopen(path.c_str(), "ab");
-  if (!out) {
+  if (!out || ec) {
     std::fprintf(stderr, "cannot open %s\n", path.c_str());
     return;
   }
-  std::fseek(out, 0, SEEK_END);
-  std::uint64_t written = std::uint64_t(std::ftell(out)) / sizeof(PackedPosition);
+  std::uint64_t written = size / sizeof(PackedPosition);
 
   std::mt19937_64 rng(seed);
   TranspositionTable tt(16);

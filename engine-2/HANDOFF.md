@@ -219,7 +219,9 @@ square, per side) -> 128 hidden per side -> 1.
    (`~/nnue-data/engine2-2.3-datagen`, bench 3601124), 4 processes, 5,000
    nodes a move, writing `~/nnue-data/part-1..4.bin`, 12.5M positions each
    (50M, 1.6 GB; the owner cut it from 100M), about 6M positions an hour
-   in all. Moving data to the
+   in all. Survived a container restart at ~03:10 UTC (26.75M saved, no
+   partial records); restarted with new seeds. **Resume with a new seed**
+   (a reused seed replays the same games); used: 1001-4, 2001-4, 3001-4. Moving data to the
    laptop: compressed chunks sent to the owner, or generate there.
 2. Trainer (PyTorch, streaming), 3. inference in the engine, 4. SPRT.
 
