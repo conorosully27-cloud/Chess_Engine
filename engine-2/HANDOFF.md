@@ -35,12 +35,17 @@ history behind the search and evaluation.
 - **Engine 2.5** = 2.4 with the final network (net-20) built in,
   `nets/engine-2.5.nnue`: **+80 Elo (+/- 30)** over 2.4 (H1 after 332
   games). **The new baseline**, bench 3183003.
+- **Engine 2.6** = 2.5 with incremental NNUE updates and a vectorized
+  output layer (same evaluations, about 1.3x the nodes/s natively, 4.5x in
+  WebAssembly): **+102 Elo (+/- 32)** over 2.5 (H1 after 242 games).
+  **The new baseline**, bench 3183003 (unchanged from 2.5). The phone app
+  is still 2.5 until the owner asks for an app build.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
-- **Tests:** `ctest --test-dir build`, 5 suites (perft, position, SEE,
-  search, UCI), a few seconds. **Bench signature: 3183003** (`build/engine2 bench`, with the
-  built-in network; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
-  The tests use the hand-written evaluation (no network loaded), the same on Linux/gcc and Windows/MinGW.
+- **Tests:** `ctest --test-dir build`, 6 suites (perft, position, SEE,
+  NNUE, search, UCI), a few seconds. **Bench signature: 3183003** (`build/engine2 bench`, with the
+  built-in network; 2.6 and 2.5 alike; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
   (prebuilt Windows release, `C:\Users\conor\fastchess-bin\...`) and runs
@@ -276,6 +281,17 @@ square, per side) -> 128 hidden per side -> 1.
    2.4 (`EvalFile` = the candidate net), incremental accumulator updates
    (speed), retuning the pruning margins for the network's scale, then
    bigger nets and more data (generated with 2.4, so better labels).
+7. **Incremental accumulator updates + vectorized output layer** (pure
+   speed, same evaluations, bench unchanged at 3183003): bench 1.14M ->
+   1.46M nodes/s; the profile showed the scalar output layer, not the
+   from-scratch accumulators, was most of the NNUE's cost. **vs 2.5: H1
+   after 242 games, +106 -37 =99 (64.3%), +102 Elo (+/- 32)** (cloud,
+   8+0.08, 4 at a time, adjudication). **Released as 2.6.** The profile
+   now puts move ordering on top (`pick_next` + `score_moves` ~22%):
+   staged move generation is the next speed job. Next for strength: more
+   data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
+   256-unit net, retuning the pruning margins, the parked TT and
+   continuation-history changes.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
@@ -285,7 +301,7 @@ under "Engine" in the New game sheet. Pieces:
   on the calling thread (the app's Web Worker). Built by
   `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
   `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
-  build only** (now 2.2 + IIR + mild LMR, bench 3601124): check with
+  build only** (now 2.6, bench 3183003; built with `-msimd128` since 2.6): check with
   `node scripts/wasm_bench.mjs`, whose node count must match the native
   bench. About 85% of native speed.
 - `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,
@@ -296,9 +312,10 @@ under "Engine" in the New game sheet. Pieces:
   its time, analysis reaches depth 17-18 in 4 s, Engine 1.6 still works, no
   console errors.
 
-**For the next release (owner's request):** show the engine's version in
-the app's "Engine" choice ("Engine 2.5" rather than "Engine 2"), taken
-from the build so it updates with each release.
+**For the next app build (owner's request; 2.6 was released without
+one):** rebuild the WebAssembly and APK from 2.6, and show the engine's
+version in the app's "Engine" choice ("Engine 2.6" rather than
+"Engine 2"), taken from the build so it updates with each release.
 
 Next for the app, in order (owner's phone is Android):
 1. **Installable web app (PWA):** a manifest and a service worker so it
