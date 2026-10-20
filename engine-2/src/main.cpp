@@ -4,7 +4,8 @@
 //   engine2 divide <depth> [fen]   node count per root move
 //   engine2 bench [depth]          fixed-depth searches: node signature and speed
 //   engine2 perftbench             perft speed on the start position
-//   engine2 eval                   static evaluation of each FEN read from stdin
+//   engine2 eval [network]         static evaluation of each FEN read from stdin
+//                                  (with an NNUE network file: the network's)
 //   engine2 datagen <file> <positions> [nodes] [seed]
 //                                  self-play training data for NNUE (datagen.h)
 #include <chrono>
@@ -15,6 +16,7 @@
 #include "datagen.h"
 #include "evaluate.h"
 #include "movegen.h"
+#include "nnue.h"
 #include "position.h"
 #include "uci.h"
 
@@ -57,6 +59,10 @@ int main(int argc, char** argv) {
   }
 
   if (cmd == "eval") {
+    if (argc >= 3 && !nnue::load(argv[2])) {
+      std::cerr << "cannot load network " << argv[2] << "\n";
+      return 1;
+    }
     std::string line;
     Position pos;
     while (std::getline(std::cin, line)) {

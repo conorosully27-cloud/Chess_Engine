@@ -229,7 +229,24 @@ square, per side) -> 128 hidden per side -> 1.
    31.0%, Black wins 32.0%, mean score +31, all four parts alike; 93.8%
    of positions distinct (only 41k seen 10+ times). Moving data to the
    laptop: compressed chunks sent to the owner, or generate there.
-2. Trainer (PyTorch, streaming), 3. inference in the engine, 4. SPRT.
+2. **Trainer: done**, `scripts/nnue/train.py` (PyTorch; memory-mapped
+   data, so the 16 GB laptop copes; GPU if present; checkpoint and
+   `net-<epoch>.nnue` every epoch, `--resume` to continue). Target: 75%
+   sigmoid(score / 400) + 25% game result (`--wdl`). Adam 1e-3, cosine
+   to 1e-4, batch 16384. On the cloud CPU ~65k positions/s.
+3. **Inference in the engine: done**, `src/nnue.h/.cpp`: integer (first
+   layer x255 in 16-bit accumulators, output x64), hidden layer
+   recomputed per evaluation for now (incremental updates later: a speed
+   gain once a net is worth keeping). Loaded with the UCI option
+   `EvalFile` or `engine2 eval <net>`; no network = the hand-written
+   evaluation, bench unchanged (3601124). With a net about 8% fewer
+   nodes/s. `scripts/nnue/check_net.py` compares engine and trainer:
+   mean 2.9 cp apart, max 14 (rounding).
+   End-to-end test: a 30-second CPU net (2M positions) played 20 clean
+   games vs 2.3 (lost 1.5-18.5, as expected from so little training).
+4. **Next: the real training run on the laptop GPU** (data in
+   `C:\Users\conor\nnue-data`), then `check_net.py`, then an SPRT of
+   2.3 + net vs 2.3 (fastchess `option.EvalFile=<net>` on the NNUE side).
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)

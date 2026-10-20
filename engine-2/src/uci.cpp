@@ -8,6 +8,7 @@
 
 #include "evaluate.h"
 #include "movegen.h"
+#include "nnue.h"
 #include "position.h"
 #include "search.h"
 
@@ -66,6 +67,16 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
   in >> token;  // "name"
   while (in >> token && token != "value") name += (name.empty() ? "" : " ") + token;
   while (in >> token) value += (value.empty() ? "" : " ") + token;
+  if (name == "EvalFile") {
+    // An NNUE network file; empty (or "<empty>") goes back to the hand-written evaluation.
+    if (value.empty() || value == "<empty>") {
+      nnue::unload();
+    } else if (!nnue::load(value)) {
+      uci_send("info string cannot load network " + value + "; using the hand-written evaluation");
+    }
+    clear_eval_cache();
+    return;
+  }
   int n = 0;
   try {
     n = std::stoi(value);
@@ -132,6 +143,7 @@ void uci_loop() {
       uci_send(std::string("id author ") + ENGINE_AUTHOR);
       uci_send("option name Hash type spin default 64 min 1 max 65536");
       uci_send("option name Move Overhead type spin default 50 min 0 max 5000");
+      uci_send("option name EvalFile type string default <empty>");
       uci_send("uciok");
     } else if (cmd == "isready") {
       uci_send("readyok");

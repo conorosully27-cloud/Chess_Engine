@@ -29,6 +29,7 @@ add_library(engine2_core STATIC
   src/datagen.cpp
   src/position.cpp
   src/movegen.cpp
+  src/nnue.cpp
   src/evaluate.cpp
   src/search.cpp
   src/tt.cpp

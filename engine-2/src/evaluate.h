@@ -1,6 +1,7 @@
 // Static evaluation, ported term for term from Engine 1.6 (engine-1/src/engine/
 // evaluate.js), with its Texel-tuned weights. Scores are in centipawns from
-// the side to move's point of view. This is the stand-in until NNUE.
+// the side to move's point of view. With an NNUE network loaded (nnue.h),
+// evaluate() uses the network instead.
 #pragma once
 
 #include "position.h"
