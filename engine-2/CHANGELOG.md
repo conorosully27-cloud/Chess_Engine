@@ -5,11 +5,16 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Next release (accepted, not yet released)
+## 2.5: the trained network
 
-- **The final epoch's network (net-20)** of the same training run, in
-  place of epoch 3: against 2.4 (cloud, 8+0.08): **H1 accepted after 332
-  games**, 156 wins, 81 losses, 95 draws (61.3%), **+80 Elo (+/- 30)**.
+2.4 with the final network of the same training run (epoch 20 of 20; 2.4
+had epoch 3). **Against 2.4** (cloud, 8+0.08, SPRT 0/10, 4 games at a
+time, adjudication on): **H1 accepted after 332 games**, 156 wins, 81
+losses, 95 draws (61.3%), **+80 Elo (+/- 30)**, LOS 100%, no time losses.
+The release build (network built in, `nets/engine-2.5.nnue`) searches
+identically to the tested setup (same scores and node counts at fixed depth
+on four positions). New bench signature **3183003** (2.4: 3116434). Also
+in the phone app (Android app version 2.5).
 
 ## 2.4: NNUE evaluation
 
@@ -33,7 +38,7 @@ a separate release match. New bench signature **3116434** (2.3: 3601124).
 - **Training:** `scripts/nnue/train.py` (PyTorch) on the owner's laptop GPU
   (RTX A2000): target 75% search score, 25% game result; this network is
   epoch 3 of a 20-epoch run (about 13 minutes of training).
-- **Built in:** `nets/engine-2.4.nnue`, embedded at build time
+- **Built in:** `nets/engine-2.4.nnue` (now `nets/engine-2.5.nnue`, 2.5's network), embedded at build time
   (`cmake/embed_net.cmake`). UCI `EvalFile`: a network file, `<empty>` for
   the built-in one, `classical` for the hand-written evaluation.
 - **Phone app:** the WebAssembly build carries the network too (same bench

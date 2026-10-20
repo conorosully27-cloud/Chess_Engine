@@ -24,7 +24,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # The NNUE network built into the engine (nets/, see src/nnue.h).
-set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.4.nnue)
+set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.5.nnue)
 set(DEFAULT_NET_CPP ${CMAKE_CURRENT_BINARY_DIR}/default_net.cpp)
 add_custom_command(
   OUTPUT ${DEFAULT_NET_CPP}
