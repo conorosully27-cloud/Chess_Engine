@@ -311,7 +311,35 @@ body {
 .controls button:active:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .controls button:disabled { opacity: 0.35; cursor: default; }
 .controls button { grid-column: span 2; }
-/* Two rows of three, in a game and on the analysis board. */
+/* Two rows of three in a game; on the analysis board Import and Export
+   share the second row. */
+[data-mode="analysis"] .controls #import-button,
+[data-mode="analysis"] .controls #export-pgn { grid-column: span 3; }
+
+/* Stepping through the analysis board's line. */
+.nav {
+  grid-area: nav;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding-left: var(--margin);
+}
+.nav button {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border: 2px solid var(--fg);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.nav svg { width: 22px; height: 22px; fill: currentColor; }
+@media (hover: hover) {
+  .nav button:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+}
+.nav button:active:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.nav button:disabled { opacity: 0.35; cursor: default; }
 [data-mode="play"] [data-mode-only="analysis"],
 [data-mode="analysis"] [data-mode-only="play"] { display: none; }
 #resign[data-confirm] { background: var(--danger); border-color: var(--danger); color: var(--danger-fg); }
@@ -360,6 +388,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 
 .moves {
+  position: relative; /* rows' offsetTop, for scrolling to the current move */
   margin: 0;
   padding: 0;
   list-style: none;
@@ -371,6 +400,19 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .moves li + li { border-top: 1px solid var(--line); }
 .moves:empty { display: none; }
 .moves .num { color: var(--muted); }
+/* On the analysis board every move is a button that goes to it. */
+.moves .move-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.moves .move-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.moves .is-future { color: var(--muted); }
 .moves .is-latest {
   justify-self: start;
   padding-bottom: 1px;
@@ -540,7 +582,7 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 }
 
 /* On the analysis board the panel is the point: right under the board. */
-.layout[data-mode="analysis"] { grid-template-areas: "status" "board" "analysis" "controls" "moves"; }
+.layout[data-mode="analysis"] { grid-template-areas: "status" "board" "nav" "analysis" "controls" "moves"; }
 .eval-line .num { color: var(--muted); }
 
 /* ------------------------------------------------------------------ home */
@@ -821,7 +863,11 @@ button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     row-gap: 20px;
     height: calc(var(--board-size) + var(--margin));
   }
-  .layout[data-mode="analysis"] { grid-template-areas: "board status" "board analysis" "board moves" "board controls"; }
+  .layout[data-mode="analysis"] {
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "board status" "board analysis" "board moves" "board nav" "board controls";
+  }
+  .nav { padding-left: 0; }
   .status,
   .controls { padding-left: 0; }
   .status-headline { font-size: 1.4rem; font-stretch: 110%; } /* fits beside the Style button */

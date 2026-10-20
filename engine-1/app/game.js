@@ -92,6 +92,9 @@ export class Game {
     this.pos = new Position(fen);
     this.startFen = this.pos.fen();
     this.sanHistory = [];
+    // Moves stepped back over (back()), the next one last: forward() replays
+    // them. For the analysis board; a game never has any.
+    this.future = [];
     this.resigned = null; // 'w' or 'b' once a side resigns
     this._refresh();
   }
@@ -112,6 +115,9 @@ export class Game {
   }
 
   _play(move) {
+    // The line's next move keeps the rest of the line; any other starts a new one.
+    if (this.future.length && this.future[this.future.length - 1].move === move) this.future.pop();
+    else this.future = [];
     this.sanHistory.push(this.pos.toSan(move)); // SAN must be computed before the move
     this.pos.makeMove(move);
     this._refresh();
@@ -178,8 +184,41 @@ export class Game {
     if (this.pos.ply === 0) return false;
     this.pos.unmakeMove();
     this.sanHistory.pop();
+    this.future = [];
     this._refresh();
     return true;
+  }
+
+  // Steps back a move, keeping it to step forward to again.
+  back() {
+    if (this.resigned || this.pos.ply === 0) return false;
+    const move = this.lastMove;
+    this.pos.unmakeMove();
+    this.future.push({ move, san: this.sanHistory.pop() });
+    this._refresh();
+    return true;
+  }
+
+  forward() {
+    if (this.future.length === 0) return false;
+    this._play(this.future[this.future.length - 1].move);
+    return true;
+  }
+
+  // Steps to the position after `ply` moves of the line (0: the start).
+  goTo(ply) {
+    while (this.pos.ply > ply && this.back());
+    while (this.pos.ply < ply && this.forward());
+  }
+
+  // Moves in the whole line, played and stepped back over.
+  get lineLength() {
+    return this.pos.ply + this.future.length;
+  }
+
+  // The whole line as UCI, for saving (restore with fromUci and goTo).
+  lineUci() {
+    return [...this.uciHistory(), ...this.future.map((f) => this.pos.toUci(f.move)).reverse()];
   }
 
   // Square of the king in check (or checkmated), or -1.
@@ -197,11 +236,12 @@ export class Game {
     return / b /.test(this.startFen);
   }
 
-  // Moves paired up the way a paper scoresheet lists them, numbered from
-  // the starting position.
+  // The line's moves (including any stepped back over) paired up the way a
+  // paper scoresheet lists them, numbered from the starting position.
   scoresheet() {
     const first = Number(this.startFen.split(' ')[5]) || 1;
-    const sans = this.startsWithBlack ? ['…', ...this.sanHistory] : this.sanHistory;
+    const line = [...this.sanHistory, ...this.future.map((f) => f.san).reverse()];
+    const sans = this.startsWithBlack ? ['…', ...line] : line;
     const rows = [];
     for (let i = 0; i < sans.length; i += 2) {
       rows.push({ number: first + i / 2, white: sans[i], black: sans[i + 1] ?? '' });

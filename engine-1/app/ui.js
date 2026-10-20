@@ -152,6 +152,7 @@ class BoardUI {
     // 'home', 'play' (the game) or 'analysis' (the analysis board).
     this.mode = 'home';
     this.games = { play: Game.fromUci(saved.moves), analysis: Game.fromUci(saved.analysisMoves, saved.analysisFen) };
+    this.games.analysis.goTo(saved.analysisPly ?? Infinity);
     if (saved.resigned) this.games.play.resign(saved.resigned);
     this.resignTimer = 0;
     this.flipped = Boolean(saved.flipped);
@@ -182,6 +183,14 @@ class BoardUI {
       else this.cancelPromotion();
     });
     document.addEventListener('keydown', (e) => {
+      // Arrow keys step through the analysis board's line.
+      const typing = e.target.closest?.('textarea, input');
+      const sheetOpen = !styleSheetEl.hidden || !pgnSheetEl.hidden || !importSheetEl.hidden;
+      if (this.mode === 'analysis' && !typing && !sheetOpen && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        this.navigate(this.game.ply + (e.key === 'ArrowLeft' ? -1 : 1));
+        return;
+      }
       if (e.key !== 'Escape') return;
       if (!styleSheetEl.hidden) this.closeStyle();
       else if (!pgnSheetEl.hidden) this.closePgn();
@@ -203,6 +212,14 @@ class BoardUI {
     $('open-analysis').addEventListener('click', () => this.show('analysis'));
     $('analyse-game').addEventListener('click', () => this.analyseGame());
     $('reset-board').addEventListener('click', () => this.resetAnalysisBoard());
+    $('nav-start').addEventListener('click', () => this.navigate(0));
+    $('nav-back').addEventListener('click', () => this.navigate(this.game.ply - 1));
+    $('nav-forward').addEventListener('click', () => this.navigate(this.game.ply + 1));
+    $('nav-end').addEventListener('click', () => this.navigate(this.game.lineLength));
+    movesEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('[data-ply]');
+      if (cell) this.navigate(Number(cell.dataset.ply) + 1);
+    });
     $('import-button').addEventListener('click', () => this.openImport());
     $('import-cancel').addEventListener('click', () => this.closeImport());
     $('import-load').addEventListener('click', () => this.loadImport());
@@ -338,6 +355,8 @@ class BoardUI {
 
     this.renderScoresheet();
     takeBackButton.disabled = !game.resigned && (this.vsEngine ? this.humanPlies() === 0 : game.ply === 0);
+    $('nav-start').disabled = $('nav-back').disabled = game.ply === 0;
+    $('nav-forward').disabled = $('nav-end').disabled = game.ply === game.lineLength;
     resignButton.disabled = game.isOver;
     if (game.isOver) this.resetResignButton();
     this.save();
@@ -345,18 +364,28 @@ class BoardUI {
     this.renderAnalysis();
   }
 
+  // On the analysis board each move is a button to go to it, and moves
+  // after the current position (stepped back over) are dimmed.
   renderScoresheet() {
     const rows = this.game.scoresheet();
-    const total = this.game.sanHistory.length;
+    const current = this.game.ply - 1; // index of the move that led here
     const offset = this.game.startsWithBlack ? 1 : 0; // the "…" cell before Black's first move
+    const analysis = this.mode === 'analysis';
     movesEmptyEl.hidden = rows.length > 0;
     movesEl.replaceChildren(...rows.map((row, i) => {
       const li = document.createElement('li');
       const cell = (san, ply) => {
-        const span = document.createElement('span');
-        span.append(...figurines(san));
-        if (ply === total - 1) span.className = 'is-latest';
-        return span;
+        const isMove = san && ply >= 0;
+        const el = document.createElement(analysis && isMove ? 'button' : 'span');
+        el.append(...figurines(san));
+        if (analysis && isMove) {
+          el.type = 'button';
+          el.className = 'move-button';
+          el.dataset.ply = ply;
+          if (ply > current) el.classList.add('is-future');
+        }
+        if (isMove && ply === current) el.classList.add('is-latest');
+        return el;
       };
       li.append(
         Object.assign(document.createElement('span'), { className: 'num', textContent: `${row.number}.` }),
@@ -365,7 +394,23 @@ class BoardUI {
       );
       return li;
     }));
-    movesEl.scrollTop = movesEl.scrollHeight;
+    // Keep the current move in view (the latest one, in a game).
+    const latest = movesEl.querySelector('.is-latest')?.closest('li');
+    if (!analysis || !latest) movesEl.scrollTop = analysis ? 0 : movesEl.scrollHeight;
+    else movesEl.scrollTop = latest.offsetTop - (movesEl.clientHeight - latest.offsetHeight) / 2;
+  }
+
+  // Goes to the position after `ply` moves of the analysis board's line.
+  navigate(ply) {
+    const game = this.game;
+    const target = Math.max(0, Math.min(ply, game.lineLength));
+    if (this.mode !== 'analysis' || target === game.ply) return;
+    if (this.pendingPromotion) this.cancelPromotion();
+    const stepForward = target === game.ply + 1;
+    game.goTo(target);
+    this.selected = -1;
+    this.render();
+    if (stepForward) this.animateMove(moveFrom(game.lastMove), moveTo(game.lastMove));
   }
 
   // Slides the piece that just landed on `to` from `from`, for tap moves.
@@ -387,8 +432,9 @@ class BoardUI {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         moves: this.games.play.uciHistory(),
-        analysisMoves: this.games.analysis.uciHistory(),
+        analysisMoves: this.games.analysis.lineUci(),
         analysisFen: this.games.analysis.startFen,
+        analysisPly: this.games.analysis.ply,
         flipped: this.flipped,
         ...this.settings,
         analysis: this.analysisOn,

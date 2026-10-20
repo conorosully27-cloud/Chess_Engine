@@ -346,7 +346,12 @@ under "Engine" in the New game sheet. Pieces:
 - Checked in Chromium at phone and desktop size (Playwright): play, continue,
   analyse, import FEN/PGN (mate in one found by both engines), errors,
   reload; no console errors.
-- Android: bump `versionCode` to 4 / `versionName` "2.7" when building.
+- **Move navigation on the analysis board:** ⏮ ◀ ▶ ⏭ under the board,
+  every scoresheet move tappable (later moves dimmed), arrow keys. Stepping
+  back keeps the line (`Game.back/forward/goTo`, `future`); playing the
+  line's next move keeps the rest, another move starts a new line. The line
+  and current move are saved. Take back is game-only now.
+- Android: `versionCode` 4 / `versionName` "2.7".
 
 Next for the app, in order (owner's phone is Android):
 1. **Installable web app (PWA):** a manifest and a service worker so it

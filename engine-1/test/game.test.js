@@ -196,3 +196,35 @@ test('fromText reads a PGN, skipping comments, variations and annotations', () =
   assert.throws(() => Game.fromText('1. e4 Nf3'), /Move 1… Nf3 isn't legal/);
   assert.throws(() => Game.fromText('[Event "x"]\n\n*'), /No moves found/);
 });
+
+test('stepping back and forward through a line, and branching off it', () => {
+  const game = Game.fromText('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6');
+  const end = game.pos.fen();
+  assert.equal(game.lineLength, 6);
+  assert.ok(game.back() && game.back());
+  assert.equal(game.ply, 4);
+  assert.equal(game.lineLength, 6);
+  assert.equal(game.scoresheet().at(-1).white, 'Bb5'); // the scoresheet still shows the whole line
+  assert.deepEqual(game.lineUci(), ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'a7a6']);
+  game.goTo(0);
+  assert.equal(game.ply, 0);
+  assert.equal(game.back(), false);
+  game.goTo(99);
+  assert.equal(game.pos.fen(), end);
+  assert.equal(game.forward(), false);
+  // Playing the line's next move keeps the rest of it...
+  game.goTo(2);
+  playMoves(game, 'g1-f3');
+  assert.equal(game.lineLength, 6);
+  // ...and another move starts a new line.
+  playMoves(game, 'd7-d6');
+  assert.equal(game.lineLength, 4);
+  assert.equal(game.forward(), false);
+  assert.deepEqual(game.lineUci(), ['e2e4', 'e7e5', 'g1f3', 'd7d6']);
+  // A saved line restores at the same move.
+  game.goTo(1);
+  const again = Game.fromUci(game.lineUci());
+  again.goTo(1);
+  assert.equal(again.pos.fen(), game.pos.fen());
+  assert.equal(again.lineLength, 4);
+});
