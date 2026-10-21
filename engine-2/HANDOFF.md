@@ -306,8 +306,13 @@ square, per side) -> 128 hidden per side -> 1.
    move, 4 cores, ~4M positions an hour (~25 h). Writing
    `~/nnue-data/v2/part-1..4.bin` (25M each, logs beside them), seeds
    **5001-5004** (resume with new seeds, e.g. 6001-6004). Binary
-   `~/engines/engine2-2.7-datagen`. Plan: train a net on old 50M + new
-   100M on the laptop (try 256 hidden units too).
+   `~/engines/engine2-2.7-datagen`. **Training queued on the cloud CPU**
+   (the laptop is away; data stays put, nets are small enough for git):
+   `~/nnue-nets/run2/queue.sh` (detached, log `queue.log`) waits for the
+   datagen, checks all four parts reached 25M, then trains **A-new** (new
+   100M only) and **B-mix** (new 100M + old 50M), 20 epochs each, ~65k
+   positions/s: ~9 h + ~13 h. Restartable (resumes from checkpoints). Then
+   SPRT A vs B, the winner vs 2.7. 256 hidden units later (engine change).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
