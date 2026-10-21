@@ -313,13 +313,6 @@ square, per side) -> 128 hidden per side -> 1.
    100M only) and **B-mix** (new 100M + old 50M), 20 epochs each, ~65k
    positions/s: ~9 h + ~13 h. Restartable (resumes from checkpoints). Then
    SPRT A vs B, the winner vs 2.7. 256 hidden units later (engine change).
-   **Then (owner's request): estimate the CCRL-scale rating** of the best
-   engine with a gauntlet against Stockfish 17 at `UCI_LimitStrength` /
-   `UCI_Elo` 2400, 2600, 2800 (8+0.08; ~±100 Elo, its calibration is at
-   longer time controls). Stockfish is in
-   `~/tools/stockfish-dl/stockfish/stockfish-ubuntu-x86-64-avx2`; match.sh
-   has no per-engine options yet, so run fastchess directly or add them.
-   In this session, not a separate one (owner).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
