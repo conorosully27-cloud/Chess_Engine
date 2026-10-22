@@ -327,7 +327,10 @@ square, per side) -> 128 hidden per side -> 1.
    `~/engines/engine2-2.7-{A-new,B-mix}` (bench 2801732 / 2933981).
    **B-mix vs A-new: H1 after 1,734 games, +579 -498 =657 (52.3%), +16 Elo
    (+/- 12)**: keeping the old 2.3 data helps (owner had asked whether to
-   drop it). Next: B-mix vs 2.7 (started 16:10).
+   drop it). **B-mix vs 2.7: H1 after 242 games, +116 -45 =81 (64.7%),
+   +105 Elo (+/- 33)** (cloud, 8+0.08, 4 at a time, adjudication). Release
+   candidate for 2.8 (awaiting the owner's go): net in
+   `~/nnue-nets/run2/B-mix/net-20.nnue`, binary `~/engines/engine2-2.7-B-mix`.
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
