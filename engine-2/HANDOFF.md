@@ -316,7 +316,11 @@ square, per side) -> 128 hidden per side -> 1.
    **Datagen done 21 Oct 23:38 UTC: 100,000,067 positions** (3.2 GB),
    ~3.9M an hour. Sample of 1M per part: White wins 32%, draws 35%, Black
    wins 32%, White to move 50.0%, mean score about 0 (the old set: 37/31/32,
-   +31). Training A started 23:38, ~88k positions/s (19 min an epoch).
+   +31). Training A started 23:38, ~88k positions/s (19 min an epoch). A
+   container restart at ~03:40 on 22 Oct stopped it in epoch 14; the queue
+   was restarted and resumed from the epoch-13 checkpoint. **A done 05:23:
+   validation 0.00909 (epoch 1) -> 0.00837 (epoch 20)**; net-20 loads and
+   evaluates sensibly. B-mix started 05:23 (~8 h).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
