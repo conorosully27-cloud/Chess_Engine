@@ -59,6 +59,16 @@ scripts/match.sh build/engine2 engine1            # 200 games vs Engine 1.6 at 8
 SPRT=1 scripts/match.sh new/engine2 old/engine2   # SPRT between two builds
 ```
 
+`scripts/strength_match.sh` estimates playing strength against Stockfish
+held to a rating (`UCI_Elo`), on Stockfish's `8moves_v3` opening book:
+
+```sh
+scripts/strength_match.sh build/engine2 2900      # SPRT vs Stockfish at 2900, 10+0.1
+```
+
+Stockfish and the book are not in the repo; see the script's header.
+Results go in `CHANGELOG.md` under the version tested.
+
 ### In the browser (the phone app)
 
 `scripts/build_wasm.sh` compiles the engine to WebAssembly with Emscripten
