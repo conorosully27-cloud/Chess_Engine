@@ -5,6 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Candidate for 2.9: keep the hash move after a fail low (not yet released)
+
+2.8 plus two fixes (commits `48d9824`, `d8641a9`). **Against 2.8**
+(`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3 games at a time,
+no adjudication): **H1 accepted after 462 games**, 145 wins, 103 losses,
+214 draws (54.5%), **+32 Elo (+/- 19)**. New bench signature **1820176**
+(2.8: 2933981).
+
+- **Hash move after a fail low** (`src/search.cpp`): at a node where every
+  move scored below alpha, the highest of those scores picks a move more
+  or less at random, and storing it overwrote the table's move for the
+  position. Now a fail low keeps the move already stored for the same
+  position and stores none for a new one (Stockfish's rule), so a revisit
+  with no known best move also gets IIR. 38% fewer nodes on bench, 44% at
+  bench 13; most of that is the extra IIR. Keeping the old move while
+  still storing the noisy one for new positions saved only 3% (bench
+  2856600, not match-tested).
+- **FEN en passant square** (`src/position.cpp`): a square no pawn can
+  have just passed (e.g. `4k3/8/8/3P4/8/8/8/4K3 w - e6`) is now dropped.
+  Before, en passant "captured" from an empty square and read past the
+  piece tables. No change to the search (bench unchanged).
+
 ## 2.8: a network trained on 2.7's games
 
 2.7's search with a new network (`nets/engine-2.8.nnue`). **Against 2.7**

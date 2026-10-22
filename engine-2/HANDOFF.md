@@ -53,6 +53,11 @@ history behind the search and evaluation.
 - **Engine 2.8** = 2.7 with a network trained on 2.7's games (100M new +
   50M old positions, `nets/engine-2.8.nnue`): **+105 Elo (+/- 33)** over
   2.7 (H1 after 242 games). **The new baseline**, bench 2933981.
+- **Candidate for 2.9** = 2.8 keeping the hash move after a fail low (and
+  storing none for a new position), plus a FEN en passant fix: **+32 Elo
+  (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). Bench
+  1820176. Not released yet: the owner decides. Details in
+  `CHANGELOG.md`.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
