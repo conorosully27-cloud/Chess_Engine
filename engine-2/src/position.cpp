@@ -144,8 +144,15 @@ bool Position::set(const std::string& fen) {
     if (board_[60] != B_KING) s.castling &= ~(BLACK_OO | BLACK_OOO);
     if (board_[63] != B_ROOK) s.castling &= ~BLACK_OO;
     if (board_[56] != B_ROOK) s.castling &= ~BLACK_OOO;
-    if (ep.size() == 2 && ep[0] >= 'a' && ep[0] <= 'h' && (ep[1] == '3' || ep[1] == '6')) {
-      s.ep = (ep[1] - '1') * 8 + (ep[0] - 'a');
+    // Keep the en passant square only if a pawn can just have pushed two
+    // squares past it: on the side to move's sixth rank, with an enemy pawn
+    // in front and the square and the pawn's start square empty. Anything
+    // else would make en passant "capture" a pawn that isn't there.
+    if (ep.size() == 2 && ep[0] >= 'a' && ep[0] <= 'h' && ep[1] == (side_ == WHITE ? '6' : '3')) {
+      const Square sq = (ep[1] - '1') * 8 + (ep[0] - 'a');
+      const int up = side_ == WHITE ? 8 : -8;  // toward the pushed pawn's start square
+      if (board_[sq - up] == make_piece(~side_, PAWN) && board_[sq] == NO_PIECE && board_[sq + up] == NO_PIECE)
+        s.ep = sq;
     }
   }
   states_.push_back(s);
