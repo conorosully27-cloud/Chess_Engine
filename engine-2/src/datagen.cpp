@@ -13,7 +13,8 @@ namespace chess {
 
 namespace {
 
-constexpr int RANDOM_PLIES = 8;          // random moves from the start, for variety
+constexpr int MIN_RANDOM_PLIES = 6;      // random moves from the start, for variety: a
+constexpr int MAX_RANDOM_PLIES = 11;     // number in this range (odd and even, so either side moves first)
 constexpr int MAX_OPENING_SCORE = 200;   // skip openings already this lopsided (2 pawns)
 constexpr int WIN_SCORE = 2000;          // adjudicate a win at this score...
 constexpr int WIN_PLIES = 4;             // ...held for this many plies in a row
@@ -66,7 +67,8 @@ void run_datagen(const std::string& path, std::uint64_t positions, int nodes, st
 
     // A random opening; start again if it ends the game or is already lopsided.
     bool ok = true;
-    for (int i = 0; i < RANDOM_PLIES && ok; i++) {
+    const int random_plies = MIN_RANDOM_PLIES + int(rng() % (MAX_RANDOM_PLIES - MIN_RANDOM_PLIES + 1));
+    for (int i = 0; i < random_plies && ok; i++) {
       legal.count = 0;
       generate_legal(pos, legal);
       if (legal.size() == 0) ok = false;

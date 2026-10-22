@@ -38,12 +38,11 @@ history behind the search and evaluation.
 - **Engine 2.6** = 2.5 with incremental NNUE updates and a vectorized
   output layer (same evaluations, about 1.3x the nodes/s natively, 4.5x in
   WebAssembly): **+102 Elo (+/- 32)** over 2.5 (H1 after 242 games).
-  **The new baseline**, bench 3183003 (unchanged from 2.5). The phone app
-  is still 2.5 until the owner asks for an app build.
+  **The new baseline**, bench 3183003 (unchanged from 2.5).
 - **Engine 2.7** = 2.6 with staged move generation and lazy gives_check:
   **+20 Elo (+/- 14)** over 2.6 (H1 after 1,186 games). **The new
-  baseline**, bench 2870078. The phone app is still 2.5 (the owner wants a
-  tweak to it before the next APK).
+  baseline**, bench 2870078. (The phone app went 2.5 -> 2.8, skipping 2.6
+  and 2.7.)
 - **2.7's playing strength: about 2920 (2900-2940) on Stockfish's
   `UCI_Elo` scale (CCRL Blitz).** vs Stockfish 18 at `UCI_Elo` 2900, 10+0.1,
   `8moves_v3` openings: H1 (stronger) after 724 games, +285 -246 =193,
@@ -51,11 +50,14 @@ history behind the search and evaluation.
   with `scripts/strength_match.sh` (at 3000 once they pass 2950 or so).
   The owner prefers this standard book over our random openings for
   ratings.
+- **Engine 2.8** = 2.7 with a network trained on 2.7's games (100M new +
+  50M old positions, `nets/engine-2.8.nnue`): **+105 Elo (+/- 33)** over
+  2.7 (H1 after 242 games). **The new baseline**, bench 2933981.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2870078** (`build/engine2 bench`, with the
-  built-in network; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2933981** (`build/engine2 bench`, with the
+  built-in network; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -308,6 +310,38 @@ square, per side) -> 128 hidden per side -> 1.
    **vs 2.6: H1 after 1,186 games, +381 -313 =492 (52.9%), +20 Elo
    (+/- 14)** (cloud, 8+0.08, 4 at a time, adjudication). **Released as
    2.7.** Picking the next quiet (selection over long lists) is still ~12%. Next for strength: more
+9. **Data run 2 (Oct 20, 22:24 UTC):** 100M positions from **2.7** (commit
+   `5ba42d6`: random opening of 6-11 plies instead of 8), 5,000 nodes a
+   move, 4 cores, ~4M positions an hour (~25 h). Writing
+   `~/nnue-data/v2/part-1..4.bin` (25M each, logs beside them), seeds
+   **5001-5004** (resume with new seeds, e.g. 6001-6004). Binary
+   `~/engines/engine2-2.7-datagen`. **Training queued on the cloud CPU**
+   (the laptop is away; data stays put, nets are small enough for git):
+   `~/nnue-nets/run2/queue.sh` (detached, log `queue.log`) waits for the
+   datagen, checks all four parts reached 25M, then trains **A-new** (new
+   100M only) and **B-mix** (new 100M + old 50M), 20 epochs each, ~65k
+   positions/s: ~9 h + ~13 h. Restartable (resumes from checkpoints). Then
+   SPRT A vs B, the winner vs 2.7. 256 hidden units later (engine change).
+   **Datagen done 21 Oct 23:38 UTC: 100,000,067 positions** (3.2 GB),
+   ~3.9M an hour. Sample of 1M per part: White wins 32%, draws 35%, Black
+   wins 32%, White to move 50.0%, mean score about 0 (the old set: 37/31/32,
+   +31). Training A started 23:38, ~88k positions/s (19 min an epoch). A
+   container restart at ~03:40 on 22 Oct stopped it in epoch 14; the queue
+   was restarted and resumed from the epoch-13 checkpoint. **A done 05:23:
+   validation 0.00909 (epoch 1) -> 0.00837 (epoch 20)**; net-20 loads and
+   evaluates sensibly. B-mix started 05:23 (~8 h); another container
+   restart (~09:30) resumed it from epoch 10. **B done 13:18: validation
+   0.00813** (its validation set includes old-data positions, so not
+   comparable with A's). Built with `-DENGINE_NET=<net>`:
+   `~/engines/engine2-2.7-{A-new,B-mix}` (bench 2801732 / 2933981).
+   **B-mix vs A-new: H1 after 1,734 games, +579 -498 =657 (52.3%), +16 Elo
+   (+/- 12)**: keeping the old 2.3 data helps (owner had asked whether to
+   drop it). **B-mix vs 2.7: H1 after 242 games, +116 -45 =81 (64.7%),
+   +105 Elo (+/- 33)** (cloud, 8+0.08, 4 at a time, adjudication). Release
+   candidate, **released as 2.8** (`nets/engine-2.8.nnue`). Data stays in
+   `~/nnue-data/` (old 50M) and `~/nnue-data/v2/` (new 100M) on this cloud
+   machine only. Next ideas: a 256-unit net on the same 150M (engine
+   change: HIDDEN), more data from 2.8, retuning pruning margins for NNUE.
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
@@ -320,7 +354,7 @@ under "Engine" in the New game sheet. Pieces:
   on the calling thread (the app's Web Worker). Built by
   `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
   `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
-  build only** (now 2.7, bench 2870078; built with `-msimd128` since 2.6): check with
+  build only** (now 2.8, bench 2933981; built with `-msimd128` since 2.6): check with
   `node scripts/wasm_bench.mjs`, whose node count must match the native
   bench. About 85% of native speed.
 - `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,

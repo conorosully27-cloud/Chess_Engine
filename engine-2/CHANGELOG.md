@@ -5,6 +5,25 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.8: a network trained on 2.7's games
+
+2.7's search with a new network (`nets/engine-2.8.nnue`). **Against 2.7**
+(cloud, 8+0.08, SPRT 0/10, 4 games at a time, adjudication on): **H1
+accepted after 242 games**, 116 wins, 45 losses, 81 draws (64.7%), **+105
+Elo (+/- 33)**. The release build searches identically to the tested one
+(same bench). New bench signature **2933981** (2.7: 2870078).
+
+- **Data:** 100M new positions from 2.7's self-play at 5,000 nodes a move,
+  with a random opening of 6-11 moves (was always 8, so either side can
+  move first): 32% White wins, 35% draws, 32% Black wins (the 2.3 data
+  leaned White, 37/31/32). About 26 hours on the cloud's 4 cores.
+- **Training:** on the cloud CPU this time (the laptop was away), 20
+  epochs, same network shape (768 -> 128x2 -> 1) and settings as 2.5.
+- **Old data kept:** a net on the new 100M plus the old 50M (2.3's)
+  beat one on the new 100M alone by **+16 Elo (+/- 12)** (H1 after 1,734
+  games), so 2.8 uses all 150M.
+- `-DENGINE_NET=<file>` now builds the engine with another network.
+
 ## 2.7: staged move generation (speed)
 
 2.6 with moves generated and scored a stage at a time. **Against 2.6**
