@@ -38,8 +38,7 @@ history behind the search and evaluation.
 - **Engine 2.6** = 2.5 with incremental NNUE updates and a vectorized
   output layer (same evaluations, about 1.3x the nodes/s natively, 4.5x in
   WebAssembly): **+102 Elo (+/- 32)** over 2.5 (H1 after 242 games).
-  **The new baseline**, bench 3183003 (unchanged from 2.5). The phone app
-  is still 2.5 until the owner asks for an app build.
+  **The new baseline**, bench 3183003 (unchanged from 2.5).
 - **Engine 2.7** = 2.6 with staged move generation and lazy gives_check:
   **+20 Elo (+/- 14)** over 2.6 (H1 after 1,186 games). **The new
   baseline**, bench 2870078. (The phone app went 2.5 -> 2.8, skipping 2.6
