@@ -320,7 +320,14 @@ square, per side) -> 128 hidden per side -> 1.
    container restart at ~03:40 on 22 Oct stopped it in epoch 14; the queue
    was restarted and resumed from the epoch-13 checkpoint. **A done 05:23:
    validation 0.00909 (epoch 1) -> 0.00837 (epoch 20)**; net-20 loads and
-   evaluates sensibly. B-mix started 05:23 (~8 h).
+   evaluates sensibly. B-mix started 05:23 (~8 h); another container
+   restart (~09:30) resumed it from epoch 10. **B done 13:18: validation
+   0.00813** (its validation set includes old-data positions, so not
+   comparable with A's). Built with `-DENGINE_NET=<net>`:
+   `~/engines/engine2-2.7-{A-new,B-mix}` (bench 2801732 / 2933981).
+   **B-mix vs A-new: H1 after 1,734 games, +579 -498 =657 (52.3%), +16 Elo
+   (+/- 12)**: keeping the old 2.3 data helps (owner had asked whether to
+   drop it). Next: B-mix vs 2.7 (started 16:10).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
