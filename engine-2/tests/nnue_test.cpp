@@ -95,9 +95,9 @@ void test_network_change() {
   std::memcpy(bytes.data() + bytes.size() - 4, &bias, 4);
   // And the first-layer row of "own king on e1" (both kings are home, so
   // both sides' sums use it) raised, so stale accumulators would show.
-  for (int j = 0; j < 128; j++) {
+  for (int j = 0; j < nnue::HIDDEN; j++) {
     std::int16_t w;
-    unsigned char* p = bytes.data() + 12 + ((KING * 64 + 4) * 128 + j) * 2;
+    unsigned char* p = bytes.data() + 12 + ((KING * 64 + 4) * nnue::HIDDEN + j) * 2;
     std::memcpy(&w, p, 2);
     w += 20;
     std::memcpy(p, &w, 2);

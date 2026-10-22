@@ -5,7 +5,7 @@
 The network (the engine's src/nnue.h must match):
   768 inputs per side, one per (piece kind, square) seen from that side
   (its own pieces first, squares flipped for Black)
-  -> 128 hidden units, shared weights for both sides, clipped to [0, 1]
+  -> --hidden units (128 by default), shared weights for both sides, clipped to [0, 1]
   -> both sides' units, side to move first -> 1 output, the evaluation in
      units of SCALE centipawns.
 Loss: squared error between win probabilities, sigmoid(eval / K), and a
@@ -28,7 +28,7 @@ import torch
 
 from data import RECORD
 
-HIDDEN = 128
+HIDDEN = 128  # default; --hidden changes it (the engine must be built to match)
 INPUTS = 768
 QA = 255     # first layer: weights and biases times QA, accumulators in [0, QA]
 QB = 64      # output weights times QB
@@ -102,10 +102,10 @@ def features(pieces, device):
 
 
 class NNUE(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, hidden=HIDDEN):
         super().__init__()
-        self.ft = torch.nn.Linear(INPUTS, HIDDEN)
-        self.out = torch.nn.Linear(2 * HIDDEN, 1)
+        self.ft = torch.nn.Linear(INPUTS, hidden)
+        self.out = torch.nn.Linear(2 * hidden, 1)
 
     def forward(self, xw, xb, stm):
         w, b = self.ft(xw), self.ft(xb)
@@ -135,15 +135,15 @@ def batch_loss(model, records, device, wdl):
 
 def export(model, path):
     """The engine's network file (little-endian):
-    b"E2NN", u32 version 1, u32 HIDDEN,
-    i16 ft_weight[768][HIDDEN] (input-major), i16 ft_bias[HIDDEN],
-    i16 out_weight[2 * HIDDEN] (side to move first), i32 out_bias."""
+    b"E2NN", u32 version 1, u32 hidden,
+    i16 ft_weight[768][hidden] (input-major), i16 ft_bias[hidden],
+    i16 out_weight[2 * hidden] (side to move first), i32 out_bias."""
     ft_w = torch.round(model.ft.weight.detach().cpu().T * QA).to(torch.int16).numpy()
     ft_b = torch.round(model.ft.bias.detach().cpu() * QA).to(torch.int16).numpy()
     out_w = torch.round(model.out.weight.detach().cpu().squeeze(0) * QB).to(torch.int16).numpy()
     out_b = int(round(model.out.bias.item() * QA * QB))
     with open(path, "wb") as f:
-        f.write(b"E2NN" + struct.pack("<II", 1, HIDDEN))
+        f.write(b"E2NN" + struct.pack("<II", 1, model.ft.out_features))
         f.write(ft_w.astype("<i2").tobytes())
         f.write(ft_b.astype("<i2").tobytes())
         f.write(out_w.astype("<i2").tobytes())
@@ -161,6 +161,7 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="use only this many positions per epoch (for a quick test)")
     ap.add_argument("--resume", help="checkpoint to continue from")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--hidden", type=int, default=HIDDEN, help="hidden units per side (the engine is built to match)")
     args = ap.parse_args()
 
     paths = sorted(p for pattern in args.data for p in glob.glob(pattern))
@@ -170,10 +171,10 @@ def main():
     data = Dataset(paths)
     val = data.validation()
     os.makedirs(args.out, exist_ok=True)
-    print(f"{len(paths)} files, {data.size:,} training positions, device {device}")
+    print(f"{len(paths)} files, {data.size:,} training positions, {args.hidden} hidden units, device {device}")
 
     torch.manual_seed(args.seed)
-    model = NNUE().to(device)
+    model = NNUE(args.hidden).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     # The learning rate falls by 10x over the run, on a cosine.
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs, eta_min=args.lr / 10)

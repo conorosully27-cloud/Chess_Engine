@@ -25,8 +25,9 @@ def main():
     idx = np.random.default_rng(7).choice(len(records), count, replace=False)
     records = records[np.sort(idx)]
 
-    model = NNUE()
-    model.load_state_dict(torch.load(checkpoint, map_location="cpu")["model"])
+    state = torch.load(checkpoint, map_location="cpu")["model"]
+    model = NNUE(state["ft.weight"].shape[0])  # hidden units, from the checkpoint
+    model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
     xw, xb = features(pieces, "cpu")
