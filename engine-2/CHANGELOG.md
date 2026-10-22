@@ -31,6 +31,17 @@ Elo (+/- 33)**. The release build searches identically to the tested one
 accepted after 1,186 games**, 381 wins, 313 losses, 492 draws (52.9%),
 **+20 Elo (+/- 14)**. New bench signature **2870078** (2.6: 3183003).
 
+**Playing strength: about 2920 (2900-2940) on Stockfish's scale.** Against
+Stockfish 18 held to `UCI_Elo` 2900 (`scripts/strength_match.sh`; cloud,
+10+0.1, 3 games at a time, 1 thread and 64 MB each, Stockfish's
+`8moves_v3` openings, adjudication on, SPRT -10/+10): **H1 accepted after
+724 games**, 285 wins, 246 losses, 193 draws (52.7%), **+19 Elo (+/- 22)**
+over Stockfish-2900. `UCI_Elo` is mapped to CCRL Blitz and calibrated at
+longer time controls, so this is an estimate, not a list rating. One time
+loss, Stockfish's (10 ms over). An earlier start on the random openings
+(`engine-1/test/openings.epd`), stopped at 96 games to switch books, stood
+at +45 -40 =11.
+
 - **Staged move generation** (`src/movepick.h`, `MovePicker`): the hash
   move first, before anything is generated (checked with the new
   `pseudo_legal`), then the captures that don't lose material by SEE, the

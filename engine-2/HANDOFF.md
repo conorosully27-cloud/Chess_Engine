@@ -42,8 +42,15 @@ history behind the search and evaluation.
   is still 2.5 until the owner asks for an app build.
 - **Engine 2.7** = 2.6 with staged move generation and lazy gives_check:
   **+20 Elo (+/- 14)** over 2.6 (H1 after 1,186 games). **The new
-  baseline**, bench 2870078. The phone app is still 2.5 (the owner wants a
-  tweak to it before the next APK).
+  baseline**, bench 2870078. (The phone app went 2.5 -> 2.8, skipping 2.6
+  and 2.7.)
+- **2.7's playing strength: about 2920 (2900-2940) on Stockfish's
+  `UCI_Elo` scale (CCRL Blitz).** vs Stockfish 18 at `UCI_Elo` 2900, 10+0.1,
+  `8moves_v3` openings: H1 (stronger) after 724 games, +285 -246 =193,
+  +19 Elo (+/- 22). Details in `CHANGELOG.md`; rerun for later versions
+  with `scripts/strength_match.sh` (at 3000 once they pass 2950 or so).
+  The owner prefers this standard book over our random openings for
+  ratings.
 - **Engine 2.8** = 2.7 with a network trained on 2.7's games (100M new +
   50M old positions, `nets/engine-2.8.nnue`): **+105 Elo (+/- 33)** over
   2.7 (H1 after 242 games). **The new baseline**, bench 2933981.
