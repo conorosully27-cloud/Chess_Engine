@@ -44,6 +44,13 @@ history behind the search and evaluation.
   **+20 Elo (+/- 14)** over 2.6 (H1 after 1,186 games). **The new
   baseline**, bench 2870078. The phone app is still 2.5 (the owner wants a
   tweak to it before the next APK).
+- **2.7's playing strength: about 2920 (2900-2940) on Stockfish's
+  `UCI_Elo` scale (CCRL Blitz).** vs Stockfish 18 at `UCI_Elo` 2900, 10+0.1,
+  `8moves_v3` openings: H1 (stronger) after 724 games, +285 -246 =193,
+  +19 Elo (+/- 22). Details in `CHANGELOG.md`; rerun for later versions
+  with `scripts/strength_match.sh` (at 3000 once they pass 2950 or so).
+  The owner prefers this standard book over our random openings for
+  ratings.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
