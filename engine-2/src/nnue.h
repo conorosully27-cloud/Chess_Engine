@@ -7,7 +7,7 @@
 // updated from the position before rather than recomputed: each move only
 // adds and removes a few pieces.
 //
-// The engine carries a default network (nets/engine-2.5.nnue, built in by
+// The engine carries a default network (nets/engine-2.8.nnue, built in by
 // cmake/embed_net.cmake). The engine program loads it at startup; library
 // users (tests, tools) start with none, i.e. the hand-written evaluation.
 #pragma once

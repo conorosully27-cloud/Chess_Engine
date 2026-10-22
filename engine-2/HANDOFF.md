@@ -44,11 +44,14 @@ history behind the search and evaluation.
   **+20 Elo (+/- 14)** over 2.6 (H1 after 1,186 games). **The new
   baseline**, bench 2870078. The phone app is still 2.5 (the owner wants a
   tweak to it before the next APK).
+- **Engine 2.8** = 2.7 with a network trained on 2.7's games (100M new +
+  50M old positions, `nets/engine-2.8.nnue`): **+105 Elo (+/- 33)** over
+  2.7 (H1 after 242 games). **The new baseline**, bench 2933981.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2870078** (`build/engine2 bench`, with the
-  built-in network; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2933981** (`build/engine2 bench`, with the
+  built-in network; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -329,8 +332,10 @@ square, per side) -> 128 hidden per side -> 1.
    (+/- 12)**: keeping the old 2.3 data helps (owner had asked whether to
    drop it). **B-mix vs 2.7: H1 after 242 games, +116 -45 =81 (64.7%),
    +105 Elo (+/- 33)** (cloud, 8+0.08, 4 at a time, adjudication). Release
-   candidate for 2.8 (awaiting the owner's go): net in
-   `~/nnue-nets/run2/B-mix/net-20.nnue`, binary `~/engines/engine2-2.7-B-mix`.
+   candidate, **released as 2.8** (`nets/engine-2.8.nnue`). Data stays in
+   `~/nnue-data/` (old 50M) and `~/nnue-data/v2/` (new 100M) on this cloud
+   machine only. Next ideas: a 256-unit net on the same 150M (engine
+   change: HIDDEN), more data from 2.8, retuning pruning margins for NNUE.
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
@@ -343,7 +348,7 @@ under "Engine" in the New game sheet. Pieces:
   on the calling thread (the app's Web Worker). Built by
   `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
   `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
-  build only** (now 2.7, bench 2870078; built with `-msimd128` since 2.6): check with
+  build only** (now 2.8, bench 2933981; built with `-msimd128` since 2.6): check with
   `node scripts/wasm_bench.mjs`, whose node count must match the native
   bench. About 85% of native speed.
 - `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,
