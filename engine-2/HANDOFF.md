@@ -342,6 +342,14 @@ square, per side) -> 128 hidden per side -> 1.
    `~/nnue-data/` (old 50M) and `~/nnue-data/v2/` (new 100M) on this cloud
    machine only. Next ideas: a 256-unit net on the same 150M (engine
    change: HIDDEN), more data from 2.8, retuning pruning margins for NNUE.
+10. **256 hidden units (owner's go, 22 Oct ~19:00 UTC).** Size is now an
+   option: `train.py --hidden 256`, engine `-DENGINE_NNUE_HIDDEN=256` (the
+   default stays 128 until a 256 net is released; then change the default
+   in `src/accumulator.h`, which the WebAssembly build also uses). Training
+   on the cloud CPU: `~/nnue-nets/run3/queue.sh` (detached, restartable,
+   log `queue.log`), out `~/nnue-nets/run3/C-256`, same 150M positions as
+   2.8, 20 epochs. Then SPRT vs 2.8 (build with both -D options). If it
+   passes clearly, try 512 (likely with more data), then king buckets.
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
