@@ -313,6 +313,10 @@ square, per side) -> 128 hidden per side -> 1.
    100M only) and **B-mix** (new 100M + old 50M), 20 epochs each, ~65k
    positions/s: ~9 h + ~13 h. Restartable (resumes from checkpoints). Then
    SPRT A vs B, the winner vs 2.7. 256 hidden units later (engine change).
+   **Datagen done 21 Oct 23:38 UTC: 100,000,067 positions** (3.2 GB),
+   ~3.9M an hour. Sample of 1M per part: White wins 32%, draws 35%, Black
+   wins 32%, White to move 50.0%, mean score about 0 (the old set: 37/31/32,
+   +31). Training A started 23:38, ~88k positions/s (19 min an epoch).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
