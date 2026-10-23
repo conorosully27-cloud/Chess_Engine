@@ -5,6 +5,27 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Stricter repetition draws, on 2.10 (Oct 2026)
+
+**Change:** Stockfish's repetition rule in the search: a position is a
+draw if it occurred once before strictly inside the search, or twice
+before in all (2.10: once before anywhere, including the game before the
+root); and the look-back stops at the last null move
+(`StateInfo::plies_from_null`). Commit `c942d0a`, with tests; bench
+1963115 (2.10: 1962997).
+
+**Result:** vs 2.10 at 8+0.08 (cloud, 4 games at a time, no
+adjudication): stopped at 1,120 games, +296 -307 =517, Elo -3 +/- 13,
+LLR -1.99. Taken out by the owner as neutral. State in
+`release-matches/rep-2.10/`.
+
+**Prior:** 5/10.
+
+**Commentary:** about a third of the games (376 of 1,133) ended by
+threefold repetition, so the rule was in play constantly, and it made no
+difference: the old rule's misjudgments rarely decided a real game. The
+null-move part is a correctness fix with no measurable effect.
+
 ## TT buckets alone, on 2.10 (Oct 2026) — parked for a long time control
 
 **Change:** 5-entry, 64-byte buckets with age-based replacement (the

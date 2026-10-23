@@ -188,8 +188,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   const bool pv_node = beta - alpha > 1;
 
   if (ply > 0) {
-    // A repetition (see Position::is_repetition_draw) or the fifty-move rule is a draw.
-    if (pos.is_fifty_move() || pos.is_repetition_draw(ply)) return 0;
+    // A repeated position or the fifty-move rule is a draw.
+    if (pos.is_fifty_move() || pos.is_repetition()) return 0;
     if (ply >= MAX_PLY - 1) return evaluate(pos);
     // Mate distance pruning: no line from here beats a mate already found nearer the root.
     alpha = std::max(alpha, -MATE + ply);

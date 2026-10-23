@@ -321,7 +321,6 @@ void Position::make_move(Move m) {
   s.captured = NO_PIECE;
   s.ep = NO_SQUARE;
   s.halfmove++;
-  s.plies_from_null++;
   if (us == BLACK) s.fullmove++;
 
   if (m.is_capture()) {
@@ -409,7 +408,6 @@ void Position::make_null_move() {
   s.captured = NO_PIECE;
   s.ep = NO_SQUARE;
   s.halfmove++;
-  s.plies_from_null = 0;  // a position before the pass can't repeat one after it
   if (side_ == BLACK) s.fullmove++;
   side_ = ~side_;
   s.key = k ^ Zobrist::side;
@@ -482,22 +480,11 @@ bool Position::gives_check(Move m) const {
 
 int Position::repetitions() const {
   const int n = int(states_.size());
-  const int limit = std::min(st().halfmove, st().plies_from_null);
+  const int limit = std::min(st().halfmove, n - 1);
   int count = 0;
   for (int i = 4; i <= limit; i += 2)
     if (states_[n - 1 - i].key == st().key) count++;
   return count;
-}
-
-bool Position::is_repetition_draw(int ply) const {
-  const int n = int(states_.size());
-  const int limit = std::min(st().halfmove, st().plies_from_null);
-  int count = 0;
-  for (int i = 4; i <= limit; i += 2) {
-    if (states_[n - 1 - i].key != st().key) continue;
-    if (i < ply || ++count == 2) return true;
-  }
-  return false;
 }
 
 bool Position::insufficient_material() const {
