@@ -52,17 +52,21 @@ history behind the search and evaluation.
   ratings.
 - **Engine 2.8** = 2.7 with a network trained on 2.7's games (100M new +
   50M old positions, `nets/engine-2.8.nnue`): **+105 Elo (+/- 33)** over
-  2.7 (H1 after 242 games). **The new baseline**, bench 2933981.
-- **Candidate for 2.9** = 2.8 keeping the hash move after a fail low (and
-  storing none for a new position), plus a FEN en passant fix: **+32 Elo
-  (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). Bench
-  1820176. Not released yet: the owner decides. Details in
-  `CHANGELOG.md`.
+  2.7 (H1 after 242 games). Bench 2933981. The phone app has 2.8.
+- **Engine 2.9** = 2.8 with a 256-unit network (`nets/engine-2.9.nnue`,
+  same 150M positions): **+25 Elo (+/- 16)** over 2.8 (H1 after 760
+  games). **The new baseline**, bench 3300701. Released as code only (the
+  owner's call): the app is still 2.8 until asked (`build_wasm.sh` would
+  now build 2.9).
+- **Candidate** = keeping the hash move after a fail low (and storing
+  none for a new position), plus a FEN en passant fix: on 2.8, **+32 Elo
+  (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). Now merged onto
+  2.9 and being tested against 2.9. Details in `CHANGELOG.md`.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2933981** (`build/engine2 bench`, with the
-  built-in network; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 3300701** (`build/engine2 bench`, with the
+  built-in network; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -347,6 +351,24 @@ square, per side) -> 128 hidden per side -> 1.
    `~/nnue-data/` (old 50M) and `~/nnue-data/v2/` (new 100M) on this cloud
    machine only. Next ideas: a 256-unit net on the same 150M (engine
    change: HIDDEN), more data from 2.8, retuning pruning margins for NNUE.
+10. **256 hidden units (owner's go, 22 Oct ~19:00 UTC).** Size is now an
+   option: `train.py --hidden 256`, engine `-DENGINE_NNUE_HIDDEN=256` (the
+   default stays 128 until a 256 net is released; then change the default
+   in `src/accumulator.h`, which the WebAssembly build also uses). Training
+   on the cloud CPU: `~/nnue-nets/run3/queue.sh` (detached, restartable,
+   log `queue.log`), out `~/nnue-nets/run3/C-256`, same 150M positions as
+   2.8, 20 epochs. Then SPRT vs 2.8 (build with both -D options). If it
+   passes clearly, try 512 (likely with more data), then king buckets.
+   Trainer note: the first minutes of a run read the data from disk (looked
+   like 27k positions/s); cached it is ~80-90k/s at 256. A sparse first
+   layer (embedding_bag) gave identical results but was slower on this CPU
+   (59k vs 89k/s), so the trainer stays dense. Two more container restarts
+   (resumed from epochs 10 and 19). **Done 23 Oct ~04:05: validation
+   0.00803** (2.8's run: 0.00813). Binary `~/engines/engine2-2.8-256`
+   (bench 3300701), all tests pass at 256. **vs 2.8: H1 after 760 games,
+   +263 -208 =289 (53.6%), +25 Elo (+/- 16)**. **Released as 2.9**
+   (default size now 256). Next: 512 units (probably with more data from
+   2.9), or king buckets.
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.

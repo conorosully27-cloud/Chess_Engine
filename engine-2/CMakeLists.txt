@@ -23,8 +23,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   endif()
 endif()
 
+# Hidden units per side of the NNUE (src/accumulator.h); empty keeps the
+# source's default. The built-in network must have this size.
+set(ENGINE_NNUE_HIDDEN "" CACHE STRING "NNUE hidden units per side (empty: the default in src/accumulator.h)")
+if(ENGINE_NNUE_HIDDEN)
+  target_compile_definitions(engine2_options INTERFACE NNUE_HIDDEN=${ENGINE_NNUE_HIDDEN})
+endif()
+
 # The NNUE network built into the engine (nets/, see src/nnue.h).
-set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.8.nnue CACHE FILEPATH "The network built into the engine")
+set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.9.nnue CACHE FILEPATH "The network built into the engine")
 set(DEFAULT_NET_CPP ${CMAKE_CURRENT_BINARY_DIR}/default_net.cpp)
 add_custom_command(
   OUTPUT ${DEFAULT_NET_CPP}

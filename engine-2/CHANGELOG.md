@@ -5,13 +5,14 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Candidate for 2.9: keep the hash move after a fail low (not yet released)
+## Candidate: keep the hash move after a fail low (not yet released)
 
-2.8 plus two fixes (commits `48d9824`, `d8641a9`). **Against 2.8**
+Two fixes (commits `48d9824`, `d8641a9`), now on top of 2.9 (bench
+**1962997**; 2.9: 3300701); the match against 2.9 is in progress. First tested on top of 2.8, **against 2.8**
 (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3 games at a time,
 no adjudication): **H1 accepted after 462 games**, 145 wins, 103 losses,
-214 draws (54.5%), **+32 Elo (+/- 19)**. New bench signature **1820176**
-(2.8: 2933981).
+214 draws (54.5%), **+32 Elo (+/- 19)**. Bench signature on 2.8
+**1820176** (2.8: 2933981).
 
 - **Hash move after a fail low** (`src/search.cpp`): at a node where every
   move scored below alpha, the highest of those scores picks a move more
@@ -26,6 +27,21 @@ no adjudication): **H1 accepted after 462 games**, 145 wins, 103 losses,
   have just passed (e.g. `4k3/8/8/3P4/8/8/8/4K3 w - e6`) is now dropped.
   Before, en passant "captured" from an empty square and read past the
   piece tables. No change to the search (bench unchanged).
+
+## 2.9: a 256-unit network
+
+2.8's search with a network twice as wide: 768 -> **256**x2 -> 1 (was
+128), trained on the same 150M positions as 2.8 (20 epochs, cloud CPU).
+**Against 2.8** (cloud, 8+0.08, SPRT 0/10, 4 games at a time,
+adjudication on): **H1 accepted after 760 games**, 263 wins, 208 losses,
+289 draws (53.6%), **+25 Elo (+/- 16)**. The release build searches
+identically to the tested one (same bench). New bench signature
+**3300701** (2.8: 2933981). Validation loss 0.00803 (2.8's net: 0.00813).
+
+- The size is an option: `train.py --hidden N`, engine
+  `-DENGINE_NNUE_HIDDEN=N` (the default, in `src/accumulator.h`, is now
+  256; the built-in network must match it).
+- Code only: the phone app stays on Engine 2.8 for now.
 
 ## 2.8: a network trained on 2.7's games
 
