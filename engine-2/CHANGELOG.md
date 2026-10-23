@@ -5,6 +5,27 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Candidate: singular extensions (not yet released)
+
+2.10 plus singular extensions (commit `0cf4005`). **Against 2.10**
+(`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 4 games at a time,
+no adjudication): **H1 accepted after 368 games**, 121 wins, 73 losses,
+174 draws (56.5%), **+46 Elo (+/- 22)**. No time losses. New bench
+signature **3044298** (2.10: 1962997). An SPRT that stops early tends to
+overstate the gain.
+
+- **Singular extensions** (`src/search.cpp`): from depth 8 (not at the
+  root, and not past twice the iteration's depth), when the hash move's
+  entry is a lower or exact bound at most 3 plies shallower and not a
+  mate score, the other moves are searched to (depth - 1) / 2 against the
+  table's score less 2 x depth, with the hash move left out. If none
+  reaches it the hash move gets a ply more; if they do and that margin is
+  at or above beta, the node cuts off (multi-cut). At bench 13: 44% of the
+  8,145 tests extend, 34% cut off, and the tests cost 5% of the nodes.
+- The tested build also has commit `a92cc44` (no change to the search):
+  the static evaluation kept in the table entry, and `nnue::update`
+  filling in the accumulators it passed over after a refresh.
+
 ## 2.10: keep the hash move after a fail low
 
 2.9 plus two fixes (commits `48d9824`, `d8641a9`; tested as merge
