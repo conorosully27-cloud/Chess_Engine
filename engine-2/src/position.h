@@ -27,6 +27,7 @@ struct StateInfo {
   int castling = 0;           // CastlingRight bits
   Square ep = NO_SQUARE;      // square a pawn could capture onto en passant
   int halfmove = 0;           // plies since the last capture or pawn move
+  int plies_from_null = 0;    // plies since the last null move (or the FEN)
   int fullmove = 1;
   Bitboard checkers = 0;      // enemy pieces giving check to the side to move
   Bitboard pinned = 0;        // pieces of the side to move pinned to their king
@@ -97,6 +98,10 @@ class Position {
   int repetitions() const;  // earlier occurrences of the current position
   bool is_repetition() const { return repetitions() >= 1; }
   bool is_threefold() const { return repetitions() >= 2; }
+  // The search's repetition draw, at `ply` plies from the root: the
+  // position occurred once before strictly inside the search, or twice
+  // before in all (at or before the root counts toward this only).
+  bool is_repetition_draw(int ply) const;
   bool is_fifty_move() const { return st().halfmove >= 100; }
   bool insufficient_material() const;
 

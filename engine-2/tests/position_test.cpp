@@ -123,6 +123,35 @@ void test_repetition_and_draws() {
   for (const char* m : shuffle) pos.make_move(parse_uci_move(pos, m));
   CHECK(pos.is_threefold());
 
+  // The search's rule: one earlier occurrence strictly inside the search,
+  // or two in all. `ply` is the distance from the root, here the position
+  // the shuffle starts from.
+  auto play = [&pos](std::initializer_list<const char*> moves) {
+    for (const char* m : moves) pos.make_move(parse_uci_move(pos, m));
+  };
+  pos.set(START_FEN);
+  play({"e2e4", "e7e5", "g1f3", "g8f6", "f3g1", "f6g8"});
+  CHECK(pos.is_repetition_draw(6));   // repeats the position at ply 2
+  CHECK(!pos.is_repetition_draw(4));  // ...which is the root at ply 4: once at the root isn't enough
+  pos.set(START_FEN);
+  play({"g1f3", "g8f6", "f3g1", "f6g8"});
+  CHECK(!pos.is_repetition_draw(1));  // one occurrence before the root (the game's start)
+  play({"g1f3", "g8f6", "f3g1", "f6g8"});
+  CHECK(pos.is_repetition_draw(1));   // two before the root: threefold
+  CHECK(pos.is_repetition_draw(4));   // one at the root, one before it
+  CHECK(pos.is_repetition_draw(5));   // one inside the search (4 plies back)
+
+  // Not across a null move: White passes, then wins the tempo back with a
+  // king triangle (a1-a2-b1-a1), reaching the starting position with White
+  // to move again. Positions before the pass don't count; after it they do.
+  pos.set("8/8/8/8/8/8/8/K6k w - - 0 1");
+  pos.make_null_move();
+  play({"h1h2", "a1a2", "h2h1", "a2b1", "h1h2", "b1a1", "h2h1"});
+  CHECK(pos.fen().rfind("8/8/8/8/8/8/8/K6k w", 0) == 0);
+  CHECK(pos.repetitions() == 0 && !pos.is_repetition_draw(8));
+  play({"a1a2", "h1h2", "a2a1", "h2h1"});
+  CHECK(pos.repetitions() == 1 && pos.is_repetition_draw(12));
+
   pos.set("8/8/8/4k3/8/8/8/R3K3 w - - 99 80");
   CHECK(!pos.is_fifty_move());
   pos.make_move(parse_uci_move(pos, "a1a2"));
