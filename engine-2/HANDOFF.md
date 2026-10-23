@@ -67,6 +67,12 @@ history behind the search and evaluation.
   +1 +/- 22), SPRT undecided, stopped at the cloud's 2-hour task limit.
   The owner kept 3.0 for a version that beats 3000. **The new baseline**,
   bench 1962997. Code only, like 2.9. Details in `CHANGELOG.md`.
+- **Candidate: singular extensions** (`0cf4005`, on 2.10 + `a92cc44`):
+  **+46 Elo (+/- 22)** over 2.10 (H1 after 368 games, cloud, 8+0.08, 4
+  at a time), bench 3044298. Not released yet. Another session is
+  retuning the pruning margins (reverse futility etc.) at the same time;
+  the two don't touch the same code, but whichever merges second should be
+  retested on top of the other.
 - **Phone app plan (owner):** the app stays on 2.8 until the next app
   build, which will be **Engine 3.0** (no 2.9 or 2.10 app builds).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):

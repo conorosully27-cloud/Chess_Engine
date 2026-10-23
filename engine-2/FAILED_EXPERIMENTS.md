@@ -44,6 +44,68 @@ reverse-futility margin at depth 1 when improving (any eval at or above
 beta returns) and halving the late move pruning counts in about half of
 all nodes. Next: the flag in late move reductions instead (one ply more
 when not improving), then a gentler pruning version.
+## Stricter repetition draws, on 2.10 (Oct 2026)
+
+**Change:** Stockfish's repetition rule in the search: a position is a
+draw if it occurred once before strictly inside the search, or twice
+before in all (2.10: once before anywhere, including the game before the
+root); and the look-back stops at the last null move
+(`StateInfo::plies_from_null`). Commit `c942d0a`, with tests; bench
+1963115 (2.10: 1962997).
+
+**Result:** vs 2.10 at 8+0.08 (cloud, 4 games at a time, no
+adjudication): stopped at 1,120 games, +296 -307 =517, Elo -3 +/- 13,
+LLR -1.99. Taken out by the owner as neutral. State in
+`release-matches/rep-2.10/`.
+
+**Prior:** 5/10.
+
+**Commentary:** about a third of the games (376 of 1,133) ended by
+threefold repetition, so the rule was in play constantly, and it made no
+difference: the old rule's misjudgments rarely decided a real game. The
+null-move part is a correctness fix with no measurable effect.
+
+## TT buckets alone, on 2.10 (Oct 2026) — parked for a long time control
+
+**Change:** 5-entry, 64-byte buckets with age-based replacement (the
+bundle below without its quiescence half); the table now fills the Hash
+setting (64 MB: 5.2M entries, 2.10's: 4M in 48 MB). Commit `0588eff`;
+bench 2006389 (2.10: 1962997), same speed.
+
+**Result:** vs 2.10 at 20+0.2 (cloud, 4 games at a time, no
+adjudication): stopped by the owner at 440 games, +110 -111 =219, Elo -1
++/- 20, LLR -0.54. It started at -17 +/- 32 (200 games), noise. State in
+`release-matches/buckets-2.10/`.
+
+**Prior:** 6/10 ("a free gain").
+
+**Commentary:** neutral, not harmful. Replaying a 120-ply game at depth
+14 with the table kept between moves: at 64 MB buckets and 2.10 had the
+same hits, cutoffs, IIR reductions and nodes within 0.3%, since at
+these speeds even the one-entry table rarely runs out of room. Under
+pressure (8 MB) buckets kept 11% more hits but needed 7% more nodes, and
+2.10 itself needs fewer nodes with 8 MB than with 64 MB: with this search
+a table that remembers more is not automatically cheaper. Worth a long
+overnight test on the laptop (40+0.4 or longer), where the table fills.
+
+## TT buckets + quiescence probes, retried on 2.10 (Oct 2026)
+
+**Change:** the parked transposition-table change (below) ported onto
+2.10: 5-entry, 64-byte buckets with age-based replacement, and
+quiescence probing the table and storing at depth 0. Commit `6d64ef6`;
+bench 1843187 (2.10: 1962997). At bench 13: 4% more nodes than 2.10 and
+about 8% fewer nodes/s, all from the quiescence half (buckets alone: 3%
+fewer nodes at 2.10's speed).
+
+**Result:** vs 2.10 at 20+0.2 (cloud, 4 games at a time, no
+adjudication): stopped by the owner at 440 games, +107 -109 =224, Elo -2
++/- 19, LLR -0.72. It stood at +9 at 280 games before evening out. State
+in `release-matches/ttb-2.10/`.
+
+**Prior:** 5/10 (flat at 8+0.08 and +8 at 40+0.4 on 2.3).
+
+**Commentary:** flat a third time. The quiescence half's probes cost
+about as much speed as the table gains; next, buckets alone.
 
 ## 2.4 bundle: TT (quiescence + buckets) + continuation history (Oct 2026) — parked until after NNUE
 

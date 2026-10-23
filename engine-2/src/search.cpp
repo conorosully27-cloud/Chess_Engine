@@ -46,6 +46,13 @@ TUNE_PARAM(SEE_CAPTURE_MARGIN, 100, 20, 300);
 TUNE_PARAM(LMR_BASE, 100, -50, 250);
 TUNE_PARAM(LMR_DIV, 200, 100, 500);
 
+// Singular extensions: from SINGULAR_DEPTH, a hash move that the table
+// rates well above every alternative is searched a ply deeper. The test
+// searches the other moves to half depth against the table's score less
+// SINGULAR_MARGIN / 10 per ply (default 2 x depth).
+TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
+TUNE_PARAM(SINGULAR_MARGIN, 20, 5, 80);
+
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
   LmrTable t{};
@@ -161,6 +168,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   const int max_depth = limits.depth > 0 ? std::min(limits.depth, MAX_PLY - 1) : MAX_PLY - 1;
   int previous = 0;
   for (int depth = 1; depth <= max_depth; depth++) {
+    root_depth_ = depth;
     int score;
     if (depth >= 5 && !is_mate_score(previous)) {
       // Aspiration window: expect a score near the last one, widen if wrong.
@@ -207,7 +215,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   return result;
 }
 
-int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_null) {
+int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
   if ((++nodes_ & 2047) == 0) check_limits();
@@ -232,11 +240,20 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // was searched deeply enough, or at least try its best move first.
   TTEntry& tte = tt_.entry(pos.key());
   const std::uint32_t check = TranspositionTable::check(pos.key());
+  // A test search with a move left out doesn't take the table's result,
+  // which counts every move.
+  const bool excluding = bool(excluded);
   Move tt_move;
+  int tt_eval = EVAL_NONE, tt_score = 0, tt_depth = 0;
+  Bound tt_bound = BOUND_NONE;
   if (tte.bound != BOUND_NONE && tte.key == check) {
     tt_move = Move::from_raw(tte.move);
-    if (!pv_node && tte.depth >= depth) {
-      const int score = from_tt(tte.score, ply);
+    tt_eval = tte.eval;
+    tt_score = from_tt(tte.score, ply);
+    tt_depth = tte.depth;
+    tt_bound = tte.bound;
+    if (!pv_node && !excluding && tte.depth >= depth) {
+      const int score = tt_score;
       if (tte.bound == BOUND_EXACT || (tte.bound == BOUND_LOWER && score >= beta) ||
           (tte.bound == BOUND_UPPER && score <= alpha))
         return score;
@@ -248,8 +265,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
   int static_eval = 0;
   if (!in_check) {
-    static_eval = evaluate(pos);
-    if (!pv_node && !is_mate_score(beta)) {
+    // The table keeps the static evaluation: reuse it rather than evaluate again.
+    static_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
+    if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
       if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
@@ -275,14 +293,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   int quiets_count = 0;
 
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
-  MovePicker picker(pos, tt_move, killer1, killer2, history_);
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
   int legal = 0;
 
   while (const Move move = picker.next()) {
-    if (!pos.legal(move)) continue;
+    if (move == excluded || !pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
     legal++;
@@ -304,11 +322,27 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         continue;
     }
 
+    // Singular extension: is the hash move the only good one here? Search
+    // the others, shallower, against the table's score less a margin. If
+    // none reaches it, the hash move gets a ply more. If they do and the
+    // margin is still at or above beta, several moves beat beta: cut off.
+    int extension = 0;
+    if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
+        tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
+      const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
+      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, false, move);
+      pv_length_[ply] = ply;  // the test search wrote this node's PV
+      if (stopped_) return 0;
+      if (score < singular_beta) extension = 1;
+      else if (singular_beta >= beta) return singular_beta;
+    }
+    const int new_depth = depth - 1 + extension;
+
     pos.make_move(move);
 
     int score;
     if (legal == 1) {
-      score = -negamax(depth - 1, -beta, -alpha, ply + 1, false);
+      score = -negamax(new_depth, -beta, -alpha, ply + 1, false);
     } else {
       // Late move reductions: moves ordered late are rarely best, so search
       // them shallower first and only re-search if they surprise us.
@@ -322,9 +356,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
-      score = -negamax(depth - 1 - reduction, -alpha - 1, -alpha, ply + 1, false);
-      if (reduction > 0 && score > alpha) score = -negamax(depth - 1, -alpha - 1, -alpha, ply + 1, false);
-      if (score > alpha && score < beta) score = -negamax(depth - 1, -beta, -alpha, ply + 1, false);
+      score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, false);
+      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, false);
+      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false);
     }
     pos.unmake_move();
     if (stopped_) return 0;
@@ -356,10 +390,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (quiet) quiets_searched[quiets_count++] = piece * 64 + move.to();
   }
 
-  if (legal == 0) return in_check ? -MATE + ply : 0;  // checkmate or stalemate
+  // Checkmate or stalemate; with a move left out, the only move was that one.
+  if (legal == 0) return excluding ? alpha : in_check ? -MATE + ply : 0;
 
   const Bound bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
-  if (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT) {
+  if (!excluding && (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT)) {
     // After a fail low every move scored below alpha and the "best" of them
     // is noise: keep the move already stored for this position, or store
     // none (so a revisit gets IIR, as a node with no known best move should).
@@ -369,6 +404,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
+    tte.eval = std::int16_t(in_check ? EVAL_NONE : static_eval);
   }
   return best_score;
 }

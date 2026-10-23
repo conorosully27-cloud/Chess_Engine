@@ -76,7 +76,8 @@ class SearchWorker {
   void new_game();  // clears history; the caller clears the TT
 
  private:
-  int negamax(int depth, int alpha, int beta, int ply, bool after_null);
+  // `excluded`: a move to leave out (the singular extension's test search).
+  int negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded = Move());
   int quiesce(int alpha, int beta, int ply);
   void update_pv(int ply, Move m);
   void check_limits();
@@ -92,6 +93,7 @@ class SearchWorker {
   std::uint64_t nodes_ = 0;
   std::uint64_t max_nodes_ = 0;
   std::int64_t hard_ms_ = -1;
+  int root_depth_ = 0;  // the iteration in progress
   bool stopped_ = false;
   bool can_stop_ = false;  // depth 1 always finishes, so there is always a move
   const std::atomic<bool>* stop_flag_ = nullptr;
