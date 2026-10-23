@@ -60,8 +60,9 @@ history behind the search and evaluation.
   now build 2.9).
 - **Candidate** = keeping the hash move after a fail low (and storing
   none for a new position), plus a FEN en passant fix: on 2.8, **+32 Elo
-  (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). Now merged onto
-  2.9 and being tested against 2.9. Details in `CHANGELOG.md`.
+  (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). On 2.9:
+  **+69 Elo (+/- 27)** over 2.9 (H1 after 296 games, cloud, 8+0.08), bench
+  1962997. Not released yet: the owner decides. Details in `CHANGELOG.md`.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,

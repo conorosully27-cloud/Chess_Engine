@@ -7,8 +7,14 @@ each played with both colors). Elo figures are fastchess's estimate with its
 
 ## Candidate: keep the hash move after a fail low (not yet released)
 
-Two fixes (commits `48d9824`, `d8641a9`), now on top of 2.9 (bench
-**1962997**; 2.9: 3300701); the match against 2.9 is in progress. First tested on top of 2.8, **against 2.8**
+Two fixes (commits `48d9824`, `d8641a9`) on top of 2.9 (merge `615c3c2`).
+**Against 2.9** (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3
+games at a time, no adjudication): **H1 accepted after 296 games**, 112
+wins, 54 losses, 130 draws (59.8%), **+69 Elo (+/- 27)**. New bench
+signature **1962997** (2.9: 3300701). An SPRT that stops early tends to
+overstate the gain.
+
+First tested on top of 2.8, **against 2.8**
 (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3 games at a time,
 no adjudication): **H1 accepted after 462 games**, 145 wins, 103 losses,
 214 draws (54.5%), **+32 Elo (+/- 19)**. Bench signature on 2.8
