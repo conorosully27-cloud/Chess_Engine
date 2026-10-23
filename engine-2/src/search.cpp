@@ -351,7 +351,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 // Searches only captures (or every move when in check) until the position
 // is quiet, then trusts the static evaluation. "Stand pat": the side to move
 // can usually decline to capture, so the evaluation is a lower bound.
-// Results go in the transposition table at depth 0.
 int SearchWorker::quiesce(int alpha, int beta, int ply) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
@@ -359,25 +358,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (stopped_) return 0;
   if (ply >= MAX_PLY - 1) return evaluate(pos);
 
-  // Transposition table: any earlier result for this position (from here or
-  // the main search) is deep enough to settle it off the main line, and its
-  // move is tried first.
-  const bool pv_node = beta - alpha > 1;
-  bool tt_hit;
-  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
-  const std::uint32_t check = TranspositionTable::check(pos.key());
-  Move tt_move;
-  if (tt_hit) {
-    tt_move = Move::from_raw(tte.move);
-    if (!pv_node) {
-      const int score = from_tt(tte.score, ply);
-      if (tte.bound == BOUND_EXACT || (tte.bound == BOUND_LOWER && score >= beta) ||
-          (tte.bound == BOUND_UPPER && score <= alpha))
-        return score;
-    }
-  }
-
-  const int alpha_at_start = alpha;
   const bool in_check = pos.in_check();
   int best_score;
   if (in_check) {
@@ -391,9 +371,8 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   MoveList moves;
   generate_pseudo_legal(pos, moves, !in_check);
   int scores[MoveList::MAX_MOVES];
-  score_moves(pos, moves, scores, tt_move, killers_[ply][0], killers_[ply][1], history_);
+  score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
 
-  Move best_move;
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
     const Move move = pick_next(moves, scores, i);
@@ -413,7 +392,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
     if (stopped_) return 0;
     if (score > best_score) {
       best_score = score;
-      best_move = move;
       if (score > alpha) {
         alpha = score;
         update_pv(ply, move);
@@ -422,17 +400,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
     }
   }
   if (in_check && legal == 0) return -MATE + ply;
-
-  // Never over a main-search entry (depth 1+) from this search: quiescence
-  // results are far more numerous and would push the deeper ones out.
-  if (tte.bound == BOUND_NONE || tte.depth <= 0 || (!tt_hit && tte.age != tt_.age())) {
-    tte.key = check;
-    tte.move = best_move.raw();
-    tte.score = std::int16_t(to_tt(best_score, ply));
-    tte.depth = 0;
-    tte.bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
-    tte.age = tt_.age();
-  }
   return best_score;
 }
 

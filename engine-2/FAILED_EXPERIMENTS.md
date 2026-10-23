@@ -5,6 +5,25 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## TT buckets + quiescence probes, retried on 2.10 (Oct 2026)
+
+**Change:** the parked transposition-table change (below) ported onto
+2.10: 5-entry, 64-byte buckets with age-based replacement, and
+quiescence probing the table and storing at depth 0. Commit `6d64ef6`;
+bench 1843187 (2.10: 1962997). At bench 13: 4% more nodes than 2.10 and
+about 8% fewer nodes/s, all from the quiescence half (buckets alone: 3%
+fewer nodes at 2.10's speed).
+
+**Result:** vs 2.10 at 20+0.2 (cloud, 4 games at a time, no
+adjudication): stopped by the owner at 440 games, +107 -109 =224, Elo -2
++/- 19, LLR -0.72. It stood at +9 at 280 games before evening out. State
+in `release-matches/ttb-2.10/`.
+
+**Prior:** 5/10 (flat at 8+0.08 and +8 at 40+0.4 on 2.3).
+
+**Commentary:** flat a third time. The quiescence half's probes cost
+about as much speed as the table gains; next, buckets alone.
+
 ## 2.4 bundle: TT (quiescence + buckets) + continuation history (Oct 2026) — parked until after NNUE
 
 **Change:** on top of 2.3, the transposition-table change (quiescence
