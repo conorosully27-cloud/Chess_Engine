@@ -5,6 +5,23 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## "Improving" flag in late move reductions, on 2.10 (Oct 2026)
+
+**Change:** the same flag as the entry below, used only in late move
+reductions: one ply more when not improving. Commit `f13b6a1` on
+`claude/loving-ramanujan-lewlp6`. Bench 1962997 -> 1717843 (12% fewer
+nodes).
+
+**Result:** SPRT against 2.10 (8+0.08, 0/10, 4 at a time, cloud), stopped
+by the owner at 240 games: +53 -65 =122, Elo -17 +/- 28, LLR -1.11.
+
+**Prior:** 6/10.
+
+**Commentary:** the second "improving" failure, and like the first it
+searches less. Both suggest the pruning and reduction margins, set for
+the hand-written evaluation, are already too tight with NNUE; next is
+tuning them all (SPSA) rather than adding more pruning.
+
 ## "Improving" flag in the pruning rules, on 2.10 (Oct 2026)
 
 **Change:** improving = the static evaluation is better than two plies

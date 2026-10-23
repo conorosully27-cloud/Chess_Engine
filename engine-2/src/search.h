@@ -84,7 +84,6 @@ class SearchWorker {
   int history_[PIECE_NB][64] = {};
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
-  int static_evals_[MAX_PLY] = {};  // per ply; NO_EVAL when in check
 
   std::uint64_t nodes_ = 0;
   std::uint64_t max_nodes_ = 0;

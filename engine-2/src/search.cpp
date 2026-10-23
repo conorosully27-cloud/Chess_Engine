@@ -16,9 +16,6 @@ namespace {
 // tried at a given depth, the remaining quiet moves are skipped.
 constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
 
-// Static evaluation of a node in check, which has none.
-constexpr int NO_EVAL = -INF;
-
 // SEE pruning: near the leaves, moves that lose more than this much material
 // on their square (static exchange) are skipped. Quiet moves get a margin
 // growing with depth squared, captures one growing with depth.
@@ -223,13 +220,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   if (ply > 0 && depth >= 4 && !tt_move) depth--;
 
   int static_eval = 0;
-  // Improving: the static evaluation is better than at our previous move.
-  // When it isn't, late moves are likelier to fail low: reduce them more.
-  bool improving = false;
   if (!in_check) {
     static_eval = evaluate(pos);
-    static_evals_[ply] = static_eval;
-    improving = ply >= 2 && static_evals_[ply - 2] != NO_EVAL && static_eval > static_evals_[ply - 2];
     if (!pv_node && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
       if (depth <= 4 && static_eval - 90 * depth >= beta) return static_eval;
@@ -244,8 +236,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         if (score >= beta) return is_mate_score(score) ? beta : score;
       }
     }
-  } else {
-    static_evals_[ply] = NO_EVAL;
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
@@ -300,7 +290,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
-        if (!improving) reduction++;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
