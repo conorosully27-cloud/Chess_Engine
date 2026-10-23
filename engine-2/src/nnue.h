@@ -1,13 +1,13 @@
 // NNUE evaluation: a small neural network trained on Engine 2's self-play
 // (scripts/nnue/train.py, which must match the sizes and scales here).
 //   768 inputs per side (piece kind x square, seen from that side)
-//   -> HIDDEN hidden units (accumulator.h; 128 by default), clipped to [0, QA]
+//   -> HIDDEN hidden units (accumulator.h; 256 by default), clipped to [0, QA]
 //   -> both sides' units, side to move first -> 1 output.
 // Integer arithmetic throughout. The hidden layer's sums (accumulator.h) are
 // updated from the position before rather than recomputed: each move only
 // adds and removes a few pieces.
 //
-// The engine carries a default network (nets/engine-2.8.nnue, built in by
+// The engine carries a default network (nets/engine-2.9.nnue, built in by
 // cmake/embed_net.cmake). The engine program loads it at startup; library
 // users (tests, tools) start with none, i.e. the hand-written evaluation.
 #pragma once
