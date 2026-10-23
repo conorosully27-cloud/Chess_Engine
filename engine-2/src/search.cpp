@@ -6,30 +6,55 @@
 
 #include "evaluate.h"
 #include "movepick.h"
+#include "tune.h"
 #include "uci.h"
 
 namespace chess {
 
 namespace {
 
-// Late move pruning: near the leaves, after this many quiet moves have been
-// tried at a given depth, the remaining quiet moves are skipped.
-constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
+// Pruning and reduction parameters (src/tune.h: constants, or UCI options
+// in a tuning build). Centipawns unless noted.
 
-// SEE pruning: near the leaves, moves that lose more than this much material
-// on their square (static exchange) are skipped. Quiet moves get a margin
-// growing with depth squared, captures one growing with depth.
-constexpr int SEE_PRUNE_DEPTH = 6;
-constexpr int SEE_QUIET_MARGIN = 25;
-constexpr int SEE_CAPTURE_MARGIN = 100;
+// Reverse futility: at depth <= RFP_DEPTH, return when the static
+// evaluation beats beta by RFP_MARGIN per ply.
+TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
+TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
 
-// Late move reductions by depth and move number: 1 + ln(depth) ln(move) / 2.
-const auto LMR = [] {
-  std::array<std::array<std::int8_t, 64>, 64> t{};
+// Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
+// evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
+TUNE_PARAM(FUT_DEPTH, 2, 1, 8);
+TUNE_PARAM(FUT_BASE, 0, -100, 300);
+TUNE_PARAM(FUT_MARGIN, 150, 40, 300);
+
+// Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
+// LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
+// skipped (defaults: 4, 7, 12).
+TUNE_PARAM(LMP_DEPTH, 3, 1, 10);
+TUNE_PARAM(LMP_BASE, 3, 0, 12);
+TUNE_PARAM(LMP_SCALE, 100, 25, 300);
+
+// SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
+// much material on their square (static exchange) are skipped. Quiet moves
+// get a margin growing with depth squared, captures one growing with depth.
+TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
+TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
+TUNE_PARAM(SEE_CAPTURE_MARGIN, 100, 20, 300);
+
+// Late move reductions by depth and move number, in hundredths of a ply:
+// LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (defaults: 1 + ... / 2).
+TUNE_PARAM(LMR_BASE, 100, -50, 250);
+TUNE_PARAM(LMR_DIV, 200, 100, 500);
+
+using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
+LmrTable make_lmr() {
+  LmrTable t{};
   for (int d = 1; d < 64; d++)
-    for (int m = 1; m < 64; m++) t[d][m] = std::int8_t(1 + std::log(d) * std::log(m) / 2);
+    for (int m = 1; m < 64; m++)
+      t[d][m] = std::int8_t(LMR_BASE / 100.0 + std::log(d) * std::log(m) / (LMR_DIV / 100.0));
   return t;
-}();
+}
+LmrTable LMR = make_lmr();
 
 // Mate scores are stored relative to the position, not the root, so they
 // stay correct when the position is reached at a different depth.
@@ -59,6 +84,8 @@ std::string score_to_uci(int score) {
 }
 
 }  // namespace
+
+void search_params_changed() { LMR = make_lmr(); }
 
 TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms) {
   TimeBudget b;
@@ -224,7 +251,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     static_eval = evaluate(pos);
     if (!pv_node && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
-      if (depth <= 4 && static_eval - 90 * depth >= beta) return static_eval;
+      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
@@ -239,8 +266,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= 2 && static_eval + 150 * depth <= alpha;
-  const bool prune_late = !pv_node && !in_check && depth <= 3;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
+  const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
+  const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
@@ -269,7 +297,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       };
       if (futile && quiet && !gives_check()) continue;
       // Late move pruning: moves ordered this late almost never matter here.
-      if (prune_late && quiet && !gives_check() && ++quiets_tried > LMP_QUIETS[depth]) continue;
+      if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) continue;
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
       if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
           !gives_check())

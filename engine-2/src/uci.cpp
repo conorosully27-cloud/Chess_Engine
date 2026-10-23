@@ -11,6 +11,7 @@
 #include "nnue.h"
 #include "position.h"
 #include "search.h"
+#include "tune.h"
 
 namespace chess {
 
@@ -93,6 +94,14 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
   } else if (name == "Hash") {
     searcher.set_hash_mb(std::size_t(std::clamp(n, 1, 65536)));
   } else {
+#ifdef ENGINE_TUNE
+    for (const tune::Param& p : tune::params())
+      if (name == p.name) {
+        *p.value = std::clamp(n, p.min, p.max);
+        search_params_changed();
+        return;
+      }
+#endif
     uci_send("info string unknown option " + name);
   }
 }
@@ -148,6 +157,11 @@ void uci_loop() {
       uci_send("option name Hash type spin default 64 min 1 max 65536");
       uci_send("option name Move Overhead type spin default 50 min 0 max 5000");
       uci_send("option name EvalFile type string default <empty>");
+#ifdef ENGINE_TUNE
+      for (const tune::Param& p : tune::params())
+        uci_send(std::string("option name ") + p.name + " type spin default " + std::to_string(*p.value) +
+                 " min " + std::to_string(p.min) + " max " + std::to_string(p.max));
+#endif
       uci_send("uciok");
     } else if (cmd == "isready") {
       uci_send("readyok");

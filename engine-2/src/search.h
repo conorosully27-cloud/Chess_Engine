@@ -49,6 +49,10 @@ struct TimeBudget {
 
 TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms);
 
+// Rebuilds the tables made from tunable parameters (src/tune.h); call
+// after changing one.
+void search_params_changed();
+
 struct SearchResult {
   Move best;
   int score = 0;
