@@ -110,7 +110,6 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
-  tt_.new_search();
   nodes_ = 0;
   stopped_ = false;
   can_stop_ = false;
@@ -204,11 +203,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
   // Transposition table: reuse an earlier result for this position if it
   // was searched deeply enough, or at least try its best move first.
-  bool tt_hit;
-  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
+  TTEntry& tte = tt_.entry(pos.key());
   const std::uint32_t check = TranspositionTable::check(pos.key());
   Move tt_move;
-  if (tt_hit) {
+  if (tte.bound != BOUND_NONE && tte.key == check) {
     tt_move = Move::from_raw(tte.move);
     if (!pv_node && tte.depth >= depth) {
       const int score = from_tt(tte.score, ply);
@@ -343,7 +341,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
-    tte.age = tt_.age();
   }
   return best_score;
 }

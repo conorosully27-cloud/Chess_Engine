@@ -5,6 +5,29 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## TT buckets alone, on 2.10 (Oct 2026) — parked for a long time control
+
+**Change:** 5-entry, 64-byte buckets with age-based replacement (the
+bundle below without its quiescence half); the table now fills the Hash
+setting (64 MB: 5.2M entries, 2.10's: 4M in 48 MB). Commit `0588eff`;
+bench 2006389 (2.10: 1962997), same speed.
+
+**Result:** vs 2.10 at 20+0.2 (cloud, 4 games at a time, no
+adjudication): stopped by the owner at 440 games, +110 -111 =219, Elo -1
++/- 20, LLR -0.54. It started at -17 +/- 32 (200 games), noise. State in
+`release-matches/buckets-2.10/`.
+
+**Prior:** 6/10 ("a free gain").
+
+**Commentary:** neutral, not harmful. Replaying a 120-ply game at depth
+14 with the table kept between moves: at 64 MB buckets and 2.10 had the
+same hits, cutoffs, IIR reductions and nodes within 0.3%, since at
+these speeds even the one-entry table rarely runs out of room. Under
+pressure (8 MB) buckets kept 11% more hits but needed 7% more nodes, and
+2.10 itself needs fewer nodes with 8 MB than with 64 MB: with this search
+a table that remembers more is not automatically cheaper. Worth a long
+overnight test on the laptop (40+0.4 or longer), where the table fills.
+
 ## TT buckets + quiescence probes, retried on 2.10 (Oct 2026)
 
 **Change:** the parked transposition-table change (below) ported onto
