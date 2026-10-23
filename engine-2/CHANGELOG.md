@@ -9,10 +9,11 @@ each played with both colors). Elo figures are fastchess's estimate with its
 
 Two fixes (commits `48d9824`, `d8641a9`) on top of 2.9 (merge `615c3c2`).
 **Against 2.9** (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3
-games at a time, no adjudication): **H1 accepted after 296 games**, 112
-wins, 54 losses, 130 draws (59.8%), **+69 Elo (+/- 27)**. New bench
-signature **1962997** (2.9: 3300701). An SPRT that stops early tends to
-overstate the gain.
+games at a time, no adjudication): **H1 accepted after 296 games** (112
+wins, 54 losses, 130 draws, +69 +/- 27), then extended for a better
+estimate and stopped by the owner at 700 games: 257 wins, 145 losses, 298
+draws (58.0%), **+56 Elo (+/- 17)**, the final figure. New bench
+signature **1962997** (2.9: 3300701).
 
 First tested on top of 2.8, **against 2.8**
 (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3 games at a time,
