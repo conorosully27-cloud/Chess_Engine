@@ -5,6 +5,21 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.9: a 256-unit network
+
+2.8's search with a network twice as wide: 768 -> **256**x2 -> 1 (was
+128), trained on the same 150M positions as 2.8 (20 epochs, cloud CPU).
+**Against 2.8** (cloud, 8+0.08, SPRT 0/10, 4 games at a time,
+adjudication on): **H1 accepted after 760 games**, 263 wins, 208 losses,
+289 draws (53.6%), **+25 Elo (+/- 16)**. The release build searches
+identically to the tested one (same bench). New bench signature
+**3300701** (2.8: 2933981). Validation loss 0.00803 (2.8's net: 0.00813).
+
+- The size is an option: `train.py --hidden N`, engine
+  `-DENGINE_NNUE_HIDDEN=N` (the default, in `src/accumulator.h`, is now
+  256; the built-in network must match it).
+- Code only: the phone app stays on Engine 2.8 for now.
+
 ## 2.8: a network trained on 2.7's games
 
 2.7's search with a new network (`nets/engine-2.8.nnue`). **Against 2.7**
