@@ -62,8 +62,11 @@ history behind the search and evaluation.
   none for a new position), plus a FEN en passant fix: on 2.8, **+32 Elo
   (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). On 2.9:
   **+56 Elo (+/- 17)** over 2.9 (H1 after 296 games, final figure at 700
-  games, cloud, 8+0.08), bench 1962997. Strength test vs Stockfish at
-  `UCI_Elo` 3000 under way; if it passes, the owner may call it 3.0. Not released yet: the owner decides. Details in `CHANGELOG.md`.
+  games, cloud, 8+0.08), bench 1962997. **Playing strength about
+  3000 (2980-3020)** on Stockfish's `UCI_Elo` scale: vs Stockfish 18 at
+  3000, 10+0.1, `8moves_v3`, dead even after 620 games (+209 -208 =203,
+  +1 +/- 22), SPRT undecided, stopped at the cloud's 2-hour task limit.
+  The owner was weighing calling it 3.0 if it beat 3000. Not released yet: the owner decides. Details in `CHANGELOG.md`.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
