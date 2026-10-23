@@ -350,6 +350,15 @@ square, per side) -> 128 hidden per side -> 1.
    log `queue.log`), out `~/nnue-nets/run3/C-256`, same 150M positions as
    2.8, 20 epochs. Then SPRT vs 2.8 (build with both -D options). If it
    passes clearly, try 512 (likely with more data), then king buckets.
+   Trainer note: the first minutes of a run read the data from disk (looked
+   like 27k positions/s); cached it is ~80-90k/s at 256. A sparse first
+   layer (embedding_bag) gave identical results but was slower on this CPU
+   (59k vs 89k/s), so the trainer stays dense. Two more container restarts
+   (resumed from epochs 10 and 19). **Done 23 Oct ~04:05: validation
+   0.00803** (2.8's run: 0.00813). Binary `~/engines/engine2-2.8-256`
+   (bench 3300701), all tests pass at 256. **vs 2.8: H1 after 760 games,
+   +263 -208 =289 (53.6%), +25 Elo (+/- 16)**. Release candidate for 2.9
+   (awaiting the owner's go).
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
