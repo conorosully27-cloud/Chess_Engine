@@ -14,11 +14,7 @@ namespace {
 
 // Late move pruning: near the leaves, after this many quiet moves have been
 // tried at a given depth, the remaining quiet moves are skipped.
-// Halved when the position is not improving.
 constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
-
-// Static evaluation of a node in check, which has none.
-constexpr int NO_EVAL = -INF;
 
 // SEE pruning: near the leaves, moves that lose more than this much material
 // on their square (static exchange) are skipped. Quiet moves get a margin
@@ -224,16 +220,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   if (ply > 0 && depth >= 4 && !tt_move) depth--;
 
   int static_eval = 0;
-  // Improving: the static evaluation is better than at our previous move.
-  // When it isn't, the position is likelier to fail low, so prune harder.
-  bool improving = false;
   if (!in_check) {
     static_eval = evaluate(pos);
-    static_evals_[ply] = static_eval;
-    improving = ply >= 2 && static_evals_[ply - 2] != NO_EVAL && static_eval > static_evals_[ply - 2];
     if (!pv_node && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
-      if (depth <= 4 && static_eval - 90 * (depth - improving) >= beta) return static_eval;
+      if (depth <= 4 && static_eval - 90 * depth >= beta) return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
@@ -245,12 +236,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         if (score >= beta) return is_mate_score(score) ? beta : score;
       }
     }
-  } else {
-    static_evals_[ply] = NO_EVAL;
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= 2 && static_eval + 150 * depth - 50 * !improving <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= 2 && static_eval + 150 * depth <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= 3;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
@@ -280,7 +269,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       };
       if (futile && quiet && !gives_check()) continue;
       // Late move pruning: moves ordered this late almost never matter here.
-      if (prune_late && quiet && !gives_check() && ++quiets_tried > (LMP_QUIETS[depth] >> !improving)) continue;
+      if (prune_late && quiet && !gives_check() && ++quiets_tried > LMP_QUIETS[depth]) continue;
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
       if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
           !gives_check())
