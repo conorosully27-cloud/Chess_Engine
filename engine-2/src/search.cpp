@@ -206,8 +206,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   TTEntry& tte = tt_.entry(pos.key());
   const std::uint32_t check = TranspositionTable::check(pos.key());
   Move tt_move;
+  int tt_eval = EVAL_NONE;
   if (tte.bound != BOUND_NONE && tte.key == check) {
     tt_move = Move::from_raw(tte.move);
+    tt_eval = tte.eval;
     if (!pv_node && tte.depth >= depth) {
       const int score = from_tt(tte.score, ply);
       if (tte.bound == BOUND_EXACT || (tte.bound == BOUND_LOWER && score >= beta) ||
@@ -221,7 +223,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
   int static_eval = 0;
   if (!in_check) {
-    static_eval = evaluate(pos);
+    // The table keeps the static evaluation: reuse it rather than evaluate again.
+    static_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
     if (!pv_node && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
       if (depth <= 4 && static_eval - 90 * depth >= beta) return static_eval;
@@ -341,6 +344,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
+    tte.eval = std::int16_t(in_check ? EVAL_NONE : static_eval);
   }
   return best_score;
 }
