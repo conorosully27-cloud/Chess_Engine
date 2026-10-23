@@ -5,15 +5,19 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Candidate: keep the hash move after a fail low (not yet released)
+## 2.10: keep the hash move after a fail low
 
-Two fixes (commits `48d9824`, `d8641a9`) on top of 2.9 (merge `615c3c2`).
+2.9 plus two fixes (commits `48d9824`, `d8641a9`; tested as merge
+`615c3c2`). Named 2.10 rather than 3.0 by the owner: it matched
+Stockfish-3000 but didn't beat it.
 **Against 2.9** (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3
 games at a time, no adjudication): **H1 accepted after 296 games** (112
 wins, 54 losses, 130 draws, +69 +/- 27), then extended for a better
 estimate and stopped by the owner at 700 games: 257 wins, 145 losses, 298
-draws (58.0%), **+56 Elo (+/- 17)**, the final figure. New bench
-signature **1962997** (2.9: 3300701).
+draws (58.0%), **+56 Elo (+/- 17)**, the final figure. The release build
+searches identically to the tested one (same bench). New bench signature
+**1962997** (2.9: 3300701). Code only, like 2.9: the phone app stays on
+2.8.
 
 First tested on top of 2.8, **against 2.8**
 (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3 games at a time,

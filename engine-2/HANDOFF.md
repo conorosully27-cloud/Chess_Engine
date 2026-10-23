@@ -55,10 +55,9 @@ history behind the search and evaluation.
   2.7 (H1 after 242 games). Bench 2933981. The phone app has 2.8.
 - **Engine 2.9** = 2.8 with a 256-unit network (`nets/engine-2.9.nnue`,
   same 150M positions): **+25 Elo (+/- 16)** over 2.8 (H1 after 760
-  games). **The new baseline**, bench 3300701. Released as code only (the
-  owner's call): the app is still 2.8 until asked (`build_wasm.sh` would
-  now build 2.9).
-- **Candidate** = keeping the hash move after a fail low (and storing
+  games). Bench 3300701. Released as code only (the owner's call): the
+  app is still 2.8 until asked (`build_wasm.sh` would now build 2.10).
+- **Engine 2.10** = 2.9 keeping the hash move after a fail low (and storing
   none for a new position), plus a FEN en passant fix: on 2.8, **+32 Elo
   (+/- 19)** over 2.8 (H1 after 462 games, cloud, 8+0.08). On 2.9:
   **+56 Elo (+/- 17)** over 2.9 (H1 after 296 games, final figure at 700
@@ -66,12 +65,13 @@ history behind the search and evaluation.
   3000 (2980-3020)** on Stockfish's `UCI_Elo` scale: vs Stockfish 18 at
   3000, 10+0.1, `8moves_v3`, dead even after 620 games (+209 -208 =203,
   +1 +/- 22), SPRT undecided, stopped at the cloud's 2-hour task limit.
-  The owner was weighing calling it 3.0 if it beat 3000. Not released yet: the owner decides. Details in `CHANGELOG.md`.
+  The owner kept 3.0 for a version that beats 3000. **The new baseline**,
+  bench 1962997. Code only, like 2.9. Details in `CHANGELOG.md`.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 3300701** (`build/engine2 bench`, with the
-  built-in network; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 1962997** (`build/engine2 bench`, with the
+  built-in network; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
