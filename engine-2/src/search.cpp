@@ -332,8 +332,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
   const Bound bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
   if (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT) {
+    // After a fail low every move scored below alpha and the "best" of them
+    // is noise: keep the move already stored for this position, or store
+    // none (so a revisit gets IIR, as a node with no known best move should).
+    if (bound != BOUND_UPPER) tte.move = best_move.raw();
+    else if (tte.key != check) tte.move = 0;
     tte.key = check;
-    tte.move = best_move.raw();
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;

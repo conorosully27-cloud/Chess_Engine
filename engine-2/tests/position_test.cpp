@@ -35,6 +35,24 @@ void test_fen_round_trip() {
   CHECK(!pos.set("not a fen"));
   CHECK(!pos.set("8/8/8/8/8/8/8/8 w - - 0 1"));  // no kings
   CHECK(pos.fen() == START_FEN);                 // a failed set leaves the start position
+
+  // An en passant square no pawn can have just passed is dropped, so en
+  // passant can't "capture" a pawn that isn't there.
+  const char* bad_ep[] = {
+      "4k3/8/8/3P4/8/8/8/4K3 w - e6 0 1",      // no black pawn on e5
+      "4k3/8/8/3Pp3/8/8/8/4K3 b - e6 0 1",     // a sixth-rank square with Black to move
+      "4k3/8/4n3/3Pp3/8/8/8/4K3 w - e6 0 1",   // e6 occupied
+      "4k3/4n3/8/3Pp3/8/8/8/4K3 w - e6 0 1",   // e7 occupied: the pawn didn't come from there
+      "4k3/8/8/8/3pP3/8/8/4K3 w - e3 0 1",     // a third-rank square with White to move
+  };
+  for (const char* fen : bad_ep) {
+    CHECK(pos.set(fen));
+    CHECK_EQ(pos.ep_square(), NO_SQUARE);
+    CHECK_EQ(pos.key(), pos.compute_key());
+    MoveList list;
+    generate_legal(pos, list);
+    for (Move m : list) CHECK(!m.is_ep());
+  }
 }
 
 void test_move_counts() {

@@ -5,6 +5,49 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 2.10: keep the hash move after a fail low
+
+2.9 plus two fixes (commits `48d9824`, `d8641a9`; tested as merge
+`615c3c2`). Named 2.10 rather than 3.0 by the owner: it matched
+Stockfish-3000 but didn't beat it.
+**Against 2.9** (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3
+games at a time, no adjudication): **H1 accepted after 296 games** (112
+wins, 54 losses, 130 draws, +69 +/- 27), then extended for a better
+estimate and stopped by the owner at 700 games: 257 wins, 145 losses, 298
+draws (58.0%), **+56 Elo (+/- 17)**, the final figure. The release build
+searches identically to the tested one (same bench). New bench signature
+**1962997** (2.9: 3300701). Code only, like 2.9: the phone app stays on
+2.8.
+
+First tested on top of 2.8, **against 2.8**
+(`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 3 games at a time,
+no adjudication): **H1 accepted after 462 games**, 145 wins, 103 losses,
+214 draws (54.5%), **+32 Elo (+/- 19)**. Bench signature on 2.8
+**1820176** (2.8: 2933981).
+
+**Playing strength: about 3000 (2980-3020) on Stockfish's scale.**
+Against Stockfish 18 held to `UCI_Elo` 3000 (`scripts/strength_match.sh`;
+cloud, 10+0.1, 3 games at a time, 1 thread and 64 MB each, `8moves_v3`
+openings, adjudication on, SPRT -10/+10): undecided after two hours,
+stopped at 620 games, 209 wins, 208 losses, 203 draws (50.1%), **+1 Elo
+(+/- 22)** over Stockfish-3000 (LLR 0.09). It had led toward H0 (-13
++/- 28 at 360 games) before evening out. No time losses. 2.7 measured
+about 2920 the same way (at 2900).
+
+- **Hash move after a fail low** (`src/search.cpp`): at a node where every
+  move scored below alpha, the highest of those scores picks a move more
+  or less at random, and storing it overwrote the table's move for the
+  position. Now a fail low keeps the move already stored for the same
+  position and stores none for a new one (Stockfish's rule), so a revisit
+  with no known best move also gets IIR. 38% fewer nodes on bench, 44% at
+  bench 13; most of that is the extra IIR. Keeping the old move while
+  still storing the noisy one for new positions saved only 3% (bench
+  2856600, not match-tested).
+- **FEN en passant square** (`src/position.cpp`): a square no pawn can
+  have just passed (e.g. `4k3/8/8/3P4/8/8/8/4K3 w - e6`) is now dropped.
+  Before, en passant "captured" from an empty square and read past the
+  piece tables. No change to the search (bench unchanged).
+
 ## 2.9: a 256-unit network
 
 2.8's search with a network twice as wide: 768 -> **256**x2 -> 1 (was
