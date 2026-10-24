@@ -127,6 +127,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
+  std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -155,6 +156,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& k : killers_) k[0] = k[1] = Move();
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
+  for (std::int16_t& h : cont_history_) h = std::int16_t(h >> 2);
 
   SearchResult result;
   MoveList legal;
@@ -275,6 +277,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
         const int reduction = depth >= 7 ? 3 : 2;
+        ply_move_[ply] = -1;
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
         pos.unmake_null_move();
@@ -294,7 +297,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   int quiets_count = 0;
 
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
-  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_);
+  std::int16_t* const cont1 = cont_row(ply, 1);
+  std::int16_t* const cont2 = cont_row(ply, 2);
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
@@ -339,6 +344,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     }
     const int new_depth = depth - 1 + extension;
 
+    ply_move_[ply] = piece * 64 + move.to();
     pos.make_move(move);
 
     int score;
@@ -376,12 +382,20 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
+            const int bonus = depth * depth;
+            const auto cont_add = [](std::int16_t* row, int index, int amount) {
+              if (row) row[index] = std::int16_t(std::clamp(row[index] + amount, -CONT_HISTORY_LIMIT, CONT_HISTORY_LIMIT));
+            };
             int& h = history_[piece][move.to()];
-            h = std::min(h + depth * depth, HISTORY_LIMIT);
+            h = std::min(h + bonus, HISTORY_LIMIT);
+            cont_add(cont1, piece * 64 + move.to(), bonus);
+            cont_add(cont2, piece * 64 + move.to(), bonus);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
-              hq = std::max(hq - depth * depth, -HISTORY_LIMIT);
+              hq = std::max(hq - bonus, -HISTORY_LIMIT);
+              cont_add(cont1, quiets_searched[q], -bonus);
+              cont_add(cont2, quiets_searched[q], -bonus);
             }
           }
           break;
