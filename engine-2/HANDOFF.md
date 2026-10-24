@@ -65,15 +65,29 @@ history behind the search and evaluation.
   3000 (2980-3020)** on Stockfish's `UCI_Elo` scale: vs Stockfish 18 at
   3000, 10+0.1, `8moves_v3`, dead even after 620 games (+209 -208 =203,
   +1 +/- 22), SPRT undecided, stopped at the cloud's 2-hour task limit.
-  The owner kept 3.0 for a version that beats 3000. **The new baseline**,
-  bench 1962997. Code only, like 2.9. Details in `CHANGELOG.md`.
-- **Phone app plan (owner):** the app stays on 2.8 until the next app
-  build, which will be **Engine 3.0** (no 2.9 or 2.10 app builds).
+  The owner kept 3.0 for a version that beats 3000. Bench 1962997.
+  Code only, like 2.9. Details in `CHANGELOG.md`.
+- **Engine 3.0** = 2.10 with singular extensions (`0cf4005`, plus
+  `a92cc44`, which leaves the search unchanged): **+46 Elo (+/- 22)** over
+  2.10 (H1 after 368 games, cloud, 8+0.08, 4 at a time). **The new
+  baseline**, bench 3044298. **Playing strength about 3010
+  (2995-3025)**: vs Stockfish 18 at `UCI_Elo` 3000, 10+0.1, +471 -434 =395
+  after 1,300 games, +10 +/- 15, LLR +3.18 from the game pairs (H1, a
+  narrow pass). The first version above 3000. Another session was
+  retuning the pruning margins (reverse futility etc.) at the same time;
+  the two don't touch the same code, but whichever merges second should
+  get one SPRT of the combined build.
+- **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
+  and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
+  "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
+  Checked in Chromium at phone size: labels "Engine 3.0", a game, the
+  analysis board at depth 19 in 5 s, no console errors. APK not built
+  here (Android Studio on the owner's laptop).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 1962997** (`build/engine2 bench`, with the
-  built-in network; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 3044298** (`build/engine2 bench`, with the
+  built-in network; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -388,7 +402,7 @@ under "Engine" in the New game sheet. Pieces:
   on the calling thread (the app's Web Worker). Built by
   `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
   `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
-  build only** (now 2.8, bench 2933981; built with `-msimd128` since 2.6): check with
+  build only** (now 3.0, bench 3044298; built with `-msimd128` since 2.6): check with
   `node scripts/wasm_bench.mjs`, whose node count must match the native
   bench. About 85% of native speed.
 - `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,

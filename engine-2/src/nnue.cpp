@@ -56,6 +56,9 @@ inline void add1_sub1(std::int16_t* __restrict out, Row in, Row a, Row r) {
 inline void add1_sub2(std::int16_t* __restrict out, Row in, Row a, Row r1, Row r2) {
   for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a[j] - r1[j] - r2[j]);
 }
+inline void add2_sub1(std::int16_t* __restrict out, Row in, Row a1, Row a2, Row r) {
+  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a1[j] + a2[j] - r[j]);
+}
 inline void add2_sub2(std::int16_t* __restrict out, Row in, Row a1, Row a2, Row r1, Row r2) {
   for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a1[j] + a2[j] - r1[j] - r2[j]);
 }
@@ -93,6 +96,28 @@ void apply(const Accumulator& prev, Accumulator& next) {
   next.net = net_id;
 }
 
+// prev = next with next.dirty undone, from both sides: the pieces it added
+// come off and the ones it removed go back.
+void unapply(const Accumulator& next, Accumulator& prev) {
+  const DirtyPieces& d = next.dirty;
+  for (Color side : {WHITE, BLACK}) {
+    const std::int16_t* in = next.values[side];
+    std::int16_t* out = prev.values[side];
+    if (d.removed == 1) {
+      add1_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.add_piece[0], d.add_sq[0], side));
+    } else if (d.added == 1) {
+      add2_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side),
+                weights(d.add_piece[0], d.add_sq[0], side));
+    } else if (d.added == 2) {
+      add2_sub2(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side),
+                weights(d.add_piece[0], d.add_sq[0], side), weights(d.add_piece[1], d.add_sq[1], side));
+    } else {
+      std::memcpy(out, in, sizeof(next.values[side]));
+    }
+  }
+  prev.net = net_id;
+}
+
 void refresh(const Position& pos, Accumulator& acc) {
   std::memcpy(acc.values[WHITE], net.ft_bias, sizeof(net.ft_bias));
   std::memcpy(acc.values[BLACK], net.ft_bias, sizeof(net.ft_bias));
@@ -111,7 +136,10 @@ void refresh(const Position& pos, Accumulator& acc) {
 
 // Brings the current position's accumulator up to date: forward from the
 // nearest computed one before it, or from scratch when the updates on the
-// way would add and remove more pieces than the board holds.
+// way would add and remove more pieces than the board holds. After a
+// refresh the positions before it that were passed over are filled in
+// backward, one update each: otherwise every sibling of this position
+// (and their children) would find no computed parent and refresh too.
 void update(const Position& pos) {
   Accumulator* stack = pos.accumulators();
   const int top = pos.game_ply();
@@ -121,6 +149,7 @@ void update(const Position& pos) {
     cost += stack[i].dirty.added + stack[i].dirty.removed;
     if (i == 0 || cost > limit) {
       refresh(pos, stack[top]);
+      for (int j = top - 1; j >= i; j--) unapply(stack[j + 1], stack[j]);
       return;
     }
     i--;

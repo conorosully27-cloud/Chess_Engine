@@ -12,13 +12,18 @@ namespace chess {
 
 enum Bound : std::uint8_t { BOUND_NONE, BOUND_EXACT, BOUND_LOWER, BOUND_UPPER };
 
+// No static evaluation stored (the position was in check).
+constexpr std::int16_t EVAL_NONE = INT16_MIN;
+
 struct TTEntry {
   std::uint32_t key;  // high half of the hash, to verify a hit
   std::uint16_t move;
   std::int16_t score;
   std::int8_t depth;
   Bound bound;
+  std::int16_t eval;  // the position's static evaluation, or EVAL_NONE
 };
+static_assert(sizeof(TTEntry) == 12, "the evaluation fills what was padding");
 
 class TranspositionTable {
  public:

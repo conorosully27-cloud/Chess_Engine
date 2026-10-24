@@ -16,7 +16,7 @@ namespace chess {
 
 namespace {
 
-constexpr const char* ENGINE_NAME = "Engine 2.10";
+constexpr const char* ENGINE_NAME = "Engine 3.0";
 constexpr const char* ENGINE_AUTHOR = "Conor O'Sullivan";
 
 std::mutex output_mutex;
@@ -79,6 +79,7 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
       uci_send("info string cannot load network " + value + "; using the built-in one");
     }
     clear_eval_cache();
+    searcher.new_game();  // the table holds evaluations by the old network
     return;
   }
   int n = 0;
