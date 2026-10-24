@@ -16,23 +16,7 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // A fixed key for the debug builds we sideload, kept in the repo, so
-    // every build signs the same way on any machine and a new version
-    // installs over the old one. (Each machine otherwise makes its own debug
-    // key, and Android refuses an update signed with a different one.) Not
-    // for the Play Store: the passwords are Android's public debug defaults.
-    signingConfigs {
-        debug {
-            storeFile file('chess-engine-debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
-    }
     buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

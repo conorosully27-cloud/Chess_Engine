@@ -81,15 +81,8 @@ history behind the search and evaluation.
   and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
   "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
   Checked in Chromium at phone size: labels "Engine 3.0", a game, the
-  analysis board at depth 19 in 5 s, no console errors. APK built in the
-  cloud (`npm run apk` in `engine-1/mobile`, SDK in `~/tools/android-sdk`)
-  and sent to the owner.
-- **APK signing:** debug builds are now signed with a fixed key in the
-  repo (`engine-1/mobile/android/app/chess-engine-debug.keystore`, Android's
-  public debug passwords; `signingConfigs` in `app/build.gradle`), so every
-  build, on any machine, can update the installed app. Before, each cloud
-  machine made its own debug key, and the 3.0 APK was refused ("App not
-  installed") over the 2.8 one; the owner uninstalls the old app once.
+  analysis board at depth 19 in 5 s, no console errors. APK not built
+  here (Android Studio on the owner's laptop).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
