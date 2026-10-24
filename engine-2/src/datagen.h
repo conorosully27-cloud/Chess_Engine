@@ -26,11 +26,15 @@ struct PackedPosition {
 static_assert(sizeof(PackedPosition) == 32, "the data format is 32 bytes a position");
 
 // Plays games against itself (`nodes` per move) and appends positions to
-// `path` until it holds at least `positions` of them. Safe to stop at any
+// `path` until it holds at least `positions` of them. Each game opens with
+// random moves; with a `book` (one opening per line, in UCI moves, e.g. from
+// scripts/nnue/book_to_uci.mjs), it plays a random book opening first and
+// fewer random moves after it, for more varied games. Safe to stop at any
 // time: each game's positions are written together once it ends, a reader
 // ignores a partial record at the end of the file, and a resumed run trims
 // one before appending. Resume with a different seed: the same seed replays
 // the same games.
-void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed);
+void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed,
+                 const std::string& book = "");
 
 }  // namespace chess

@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <random>
+#include <sstream>
 #include <vector>
 
 #include "movegen.h"
@@ -15,6 +17,8 @@ namespace {
 
 constexpr int MIN_RANDOM_PLIES = 6;      // random moves from the start, for variety: a
 constexpr int MAX_RANDOM_PLIES = 11;     // number in this range (odd and even, so either side moves first)
+constexpr int MIN_BOOK_RANDOM_PLIES = 2; // after a book opening, random moves in this range
+constexpr int MAX_BOOK_RANDOM_PLIES = 5;
 constexpr int MAX_OPENING_SCORE = 200;   // skip openings already this lopsided (2 pawns)
 constexpr int WIN_SCORE = 2000;          // adjudicate a win at this score...
 constexpr int WIN_PLIES = 4;             // ...held for this many plies in a row
@@ -38,7 +42,24 @@ PackedPosition pack(const Position& pos, int white_score) {
 
 }  // namespace
 
-void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed) {
+void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed,
+                 const std::string& book) {
+  std::vector<std::vector<std::string>> openings;
+  if (!book.empty()) {
+    std::ifstream in(book);
+    for (std::string line; std::getline(in, line);) {
+      std::istringstream words(line);
+      std::vector<std::string> moves;
+      for (std::string m; words >> m;) moves.push_back(m);
+      if (!moves.empty()) openings.push_back(std::move(moves));
+    }
+    if (openings.empty()) {
+      std::fprintf(stderr, "no openings in %s\n", book.c_str());
+      return;
+    }
+    std::fprintf(stderr, "%zu book openings\n", openings.size());
+  }
+
   // Resuming: drop a partial record left by a run stopped mid-write, so the
   // records appended next stay aligned.
   std::error_code ec;
@@ -65,9 +86,21 @@ void run_datagen(const std::string& path, std::uint64_t positions, int nodes, st
     Position pos;
     MoveList legal;
 
-    // A random opening; start again if it ends the game or is already lopsided.
+    // A random opening (a book line first, if there is a book); start again
+    // if it ends the game or is already lopsided.
     bool ok = true;
-    const int random_plies = MIN_RANDOM_PLIES + int(rng() % (MAX_RANDOM_PLIES - MIN_RANDOM_PLIES + 1));
+    int random_plies = MIN_RANDOM_PLIES + int(rng() % (MAX_RANDOM_PLIES - MIN_RANDOM_PLIES + 1));
+    if (!openings.empty()) {
+      for (const std::string& text : openings[rng() % openings.size()]) {
+        const Move m = parse_uci_move(pos, text);
+        if (!m) {
+          ok = false;
+          break;
+        }
+        pos.make_move(m);
+      }
+      random_plies = MIN_BOOK_RANDOM_PLIES + int(rng() % (MAX_BOOK_RANDOM_PLIES - MIN_BOOK_RANDOM_PLIES + 1));
+    }
     for (int i = 0; i < random_plies && ok; i++) {
       legal.count = 0;
       generate_legal(pos, legal);
