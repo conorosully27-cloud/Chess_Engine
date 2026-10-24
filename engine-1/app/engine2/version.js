@@ -1,2 +1,2 @@
 // Written by engine-2/scripts/build_wasm.sh: the name of the build in engine2.wasm.
-export const ENGINE2_NAME = 'Engine 2.8';
+export const ENGINE2_NAME = 'Engine 3.0';

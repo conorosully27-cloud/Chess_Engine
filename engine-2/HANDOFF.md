@@ -77,9 +77,12 @@ history behind the search and evaluation.
   retuning the pruning margins (reverse futility etc.) at the same time;
   the two don't touch the same code, but whichever merges second should
   get one SPRT of the combined build.
-- **Phone app plan (owner):** the app stays on 2.8 until the next app
-  build, which will be **Engine 3.0** (no 2.9 or 2.10 app builds), so the
-  app build is now due (`scripts/build_wasm.sh`, needs Emscripten).
+- **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
+  and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
+  "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
+  Checked in Chromium at phone size: labels "Engine 3.0", a game, the
+  analysis board at depth 19 in 5 s, no console errors. APK not built
+  here (Android Studio on the owner's laptop).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
@@ -399,7 +402,7 @@ under "Engine" in the New game sheet. Pieces:
   on the calling thread (the app's Web Worker). Built by
   `scripts/build_wasm.sh` (Emscripten in `~/tools/emsdk`) into
   `engine-1/app/engine2/`, committed. **Rebuild from the best accepted
-  build only** (now 2.8, bench 2933981; built with `-msimd128` since 2.6): check with
+  build only** (now 3.0, bench 3044298; built with `-msimd128` since 2.6): check with
   `node scripts/wasm_bench.mjs`, whose node count must match the native
   bench. About 85% of native speed.
 - `engine-1/app/engine2-worker.js` (same messages as Engine 1.6's worker,
