@@ -395,13 +395,14 @@ square, per side) -> 128 hidden per side -> 1.
    continuation-history changes.
 
 11. **Data run 3 (Oct 24, 17:18 UTC, this session's cloud machine):**
-   100M positions from **Engine 3.0** (bench 3044298) with **book
+   **200M** positions (owner raised it from 100M) from **Engine 3.0** (bench 3044298) with **book
    openings** (owner's choice, for more varied games): `datagen`'s new
    `[book]` argument plays a random line of Stockfish's `8moves_v3`
    (34,700 8-move openings, converted by `scripts/nnue/book_to_uci.mjs`
    into `~/nnue-data/8moves_v3.uci`), then 2-5 random plies. 5,000 nodes a
-   move, 4 x 25M into `~/nnue-data/v3/part-1..4.bin`, binary
-   `~/engines/engine2-3.0-datagen`, ~8.5M positions an hour (~12 h).
+   move, 4 x 50M into `~/nnue-data/v3/part-1..4.bin` (the first start
+   aimed at 25M each; `run.sh` now asks for 50M), binary
+   `~/engines/engine2-3.0-datagen`, ~8.5M positions an hour (~24 h).
    **Resume with `~/nnue-data/v3/run.sh`** (detached): it takes the next
    seed block itself (7101-7104, 7201-7204, ...). A 200k sample: 99.1%
    distinct (random plies: 99.2%; too small to show duplicates), results
