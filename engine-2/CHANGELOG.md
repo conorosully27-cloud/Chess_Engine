@@ -5,14 +5,26 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Candidate: singular extensions (not yet released)
+## 3.0: singular extensions, the first version above 3000
 
-2.10 plus singular extensions (commit `0cf4005`). **Against 2.10**
+2.10 plus singular extensions (commit `0cf4005`). Named 3.0 by the owner:
+the first version rated above 3000 on Stockfish's `UCI_Elo` scale. **Against 2.10**
 (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 4 games at a time,
 no adjudication): **H1 accepted after 368 games**, 121 wins, 73 losses,
 174 draws (56.5%), **+46 Elo (+/- 22)**. No time losses. New bench
-signature **3044298** (2.10: 1962997). An SPRT that stops early tends to
-overstate the gain.
+signature **3044298** (2.10: 1962997), the same as the tested build. An
+SPRT that stops early tends to overstate the gain.
+
+**Playing strength: about 3010 (2995-3025) on Stockfish's scale.**
+Against Stockfish 18 held to `UCI_Elo` 3000 (`scripts/strength_match.sh`;
+cloud, 10+0.1, 4 games at a time, 1 thread and 64 MB each, `8moves_v3`
+openings, adjudication on): 471 wins, 434 losses, 395 draws after 1,300
+games (51.4%), **+10 Elo (+/- 15)** over Stockfish-3000. The SPRT
+(-10/+10) stood near 0 at 424 games; the owner then had it extended to a
+fixed 1,424 games (SPRT off), and the session stopped it at 1,300. Its
+LLR computed from the game pairs at 1,300 games: **+3.18**, past the
++2.94 for H1 (stronger than Stockfish-3000), so a narrow pass. No time
+losses. 2.10 measured about 3000 the same way (even after 620 games).
 
 - **Singular extensions** (`src/search.cpp`): from depth 8 (not at the
   root, and not past twice the iteration's depth), when the hash move's

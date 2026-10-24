@@ -65,21 +65,26 @@ history behind the search and evaluation.
   3000 (2980-3020)** on Stockfish's `UCI_Elo` scale: vs Stockfish 18 at
   3000, 10+0.1, `8moves_v3`, dead even after 620 games (+209 -208 =203,
   +1 +/- 22), SPRT undecided, stopped at the cloud's 2-hour task limit.
-  The owner kept 3.0 for a version that beats 3000. **The new baseline**,
-  bench 1962997. Code only, like 2.9. Details in `CHANGELOG.md`.
-- **Candidate: singular extensions** (`0cf4005`, on 2.10 + `a92cc44`):
-  **+46 Elo (+/- 22)** over 2.10 (H1 after 368 games, cloud, 8+0.08, 4
-  at a time), bench 3044298. Not released yet. Another session is
+  The owner kept 3.0 for a version that beats 3000. Bench 1962997.
+  Code only, like 2.9. Details in `CHANGELOG.md`.
+- **Engine 3.0** = 2.10 with singular extensions (`0cf4005`, plus
+  `a92cc44`, which leaves the search unchanged): **+46 Elo (+/- 22)** over
+  2.10 (H1 after 368 games, cloud, 8+0.08, 4 at a time). **The new
+  baseline**, bench 3044298. **Playing strength about 3010
+  (2995-3025)**: vs Stockfish 18 at `UCI_Elo` 3000, 10+0.1, +471 -434 =395
+  after 1,300 games, +10 +/- 15, LLR +3.18 from the game pairs (H1, a
+  narrow pass). The first version above 3000. Another session was
   retuning the pruning margins (reverse futility etc.) at the same time;
-  the two don't touch the same code, but whichever merges second should be
-  retested on top of the other.
+  the two don't touch the same code, but whichever merges second should
+  get one SPRT of the combined build.
 - **Phone app plan (owner):** the app stays on 2.8 until the next app
-  build, which will be **Engine 3.0** (no 2.9 or 2.10 app builds).
+  build, which will be **Engine 3.0** (no 2.9 or 2.10 app builds), so the
+  app build is now due (`scripts/build_wasm.sh`, needs Emscripten).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 1962997** (`build/engine2 bench`, with the
-  built-in network; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 3044298** (`build/engine2 bench`, with the
+  built-in network; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
