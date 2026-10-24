@@ -14,44 +14,45 @@ namespace chess {
 namespace {
 
 // Pruning and reduction parameters (src/tune.h: constants, or UCI options
-// in a tuning build). Centipawns unless noted.
+// in a tuning build). Centipawns unless noted. Values from an SPSA run on
+// 3.0 (Oct 2026, 8,000 games at 8+0.08).
 
 // Reverse futility: at depth <= RFP_DEPTH, return when the static
 // evaluation beats beta by RFP_MARGIN per ply.
 TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
-TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
+TUNE_PARAM(RFP_MARGIN, 94, 20, 250);
 
 // Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
-TUNE_PARAM(FUT_DEPTH, 2, 1, 8);
-TUNE_PARAM(FUT_BASE, 0, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 150, 40, 300);
+TUNE_PARAM(FUT_DEPTH, 3, 1, 8);
+TUNE_PARAM(FUT_BASE, -3, -100, 300);
+TUNE_PARAM(FUT_MARGIN, 147, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
-// skipped (defaults: 4, 7, 12).
+// skipped (4, 7, 12 at depths 1-3).
 TUNE_PARAM(LMP_DEPTH, 3, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 100, 25, 300);
+TUNE_PARAM(LMP_SCALE, 102, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
 // get a margin growing with depth squared, captures one growing with depth.
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
 TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
-TUNE_PARAM(SEE_CAPTURE_MARGIN, 100, 20, 300);
+TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
 
 // Late move reductions by depth and move number, in hundredths of a ply:
-// LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (defaults: 1 + ... / 2).
-TUNE_PARAM(LMR_BASE, 100, -50, 250);
-TUNE_PARAM(LMR_DIV, 200, 100, 500);
+// LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (before tuning: 1 + ... / 2).
+TUNE_PARAM(LMR_BASE, 98, -50, 250);
+TUNE_PARAM(LMR_DIV, 198, 100, 500);
 
 // Singular extensions: from SINGULAR_DEPTH, a hash move that the table
 // rates well above every alternative is searched a ply deeper. The test
 // searches the other moves to half depth against the table's score less
-// SINGULAR_MARGIN / 10 per ply (default 2 x depth).
+// SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
-TUNE_PARAM(SINGULAR_MARGIN, 20, 5, 80);
+TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
