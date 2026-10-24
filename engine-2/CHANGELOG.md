@@ -5,6 +5,30 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Candidate (not yet released): tuned search values + continuation history
+
+3.0 plus SPSA-tuned pruning and reduction values (commit `6f9d162`) and
+continuation history (commit `15f2781`). **Against 3.0** (`scripts/match.sh`,
+cloud, **20+0.2**, SPRT 0/10, 4 games at a time, adjudication on): **H1
+accepted after 1,226 games**, 323 wins, 269 losses, 634 draws (52.2%),
+**+15 Elo (+/- 12)**, LOS 99.5%. New bench signature **2851725** (3.0:
+3044298). Not released yet: the owner decides.
+
+- **Tuning build and SPSA** (`src/tune.h`, `scripts/tune/spsa.py`): with
+  `-DENGINE_TUNE=ON` the search parameters become UCI options; a
+  fishtest-style SPSA run of 4,000 game pairs at 8+0.08 tuned 15 of them
+  on 3.0. Rounded changes: futility pruning up to depth 3 (was 2), base
+  -3, margin 147 (150); reverse futility margin 94 (90); SEE capture
+  margin 97 (100); late move reductions 0.98 + ln d ln m / 1.98 (1 + ... /
+  2); singular margin 1.9 x depth (2). Alone vs 3.0 at 8+0.08: +4 +/- 7
+  over 3,560 games (LOS 88%), stopped undecided by the owner to test it
+  with continuation history.
+- **Continuation history** (`src/movepick.h`, `src/search.cpp`): how well
+  a quiet move did after the moves one and two plies earlier, added to its
+  history score in move ordering, updated like history. 16-bit entries
+  (1.2 MB); speed within noise. First tried before NNUE (-7 +/- 17 at
+  8+0.08); this is its first pass.
+
 ## 3.0: singular extensions, the first version above 3000
 
 2.10 plus singular extensions (commit `0cf4005`). Named 3.0 by the owner:
