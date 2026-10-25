@@ -7,7 +7,8 @@ matches (scripts/match.sh with BOOK=<file>):
 
 Default: endgames with at most --pieces pieces besides kings and pawns
 (default 3) and a search score within --max-score centipawns of level
-(default 200), so that the game is still to be decided. --rules instead
+(default 200), so that the game is still to be decided; with --min-score,
+endgames where one side is that far ahead, to convert or to hold. --rules instead
 picks positions where one of src/endgame.cpp's rules applies to the side
 the score favours (a material edge without pawns, opposite-coloured
 bishops, a rook pawn the defending king holds), whatever the score. Each
@@ -73,6 +74,8 @@ def main():
     ap.add_argument("--count", type=int, default=4000)
     ap.add_argument("--pieces", type=int, default=3)
     ap.add_argument("--max-score", type=int, default=200)
+    ap.add_argument("--min-score", type=int, default=0,
+                    help="at least this far from level: endgames one side must convert or hold")
     ap.add_argument("--rules", action="store_true", help="positions where an endgame rule applies")
     args = ap.parse_args()
 
@@ -88,7 +91,8 @@ def main():
             bare = (counts[:, 0:5].sum(axis=1) == 0) | (counts[:, 6:11].sum(axis=1) == 0)
             keep = np.nonzero((pieces <= 4) & (no_pawns | bishops_only | bare))[0]
         else:
-            keep = np.nonzero((pieces <= args.pieces) & (np.abs(records["score"].astype(int)) <= args.max_score))[0]
+            score = np.abs(records["score"].astype(int))
+            keep = np.nonzero((pieces <= args.pieces) & (score <= args.max_score) & (score >= args.min_score))[0]
         for i in keep:
             r = records[i]
             if args.rules and not (r["score"] != 0 and rule_applies(data.board(r), r["score"] > 0)):
