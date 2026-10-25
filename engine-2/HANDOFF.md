@@ -77,6 +77,15 @@ history behind the search and evaluation.
   retuning the pruning margins (reverse futility etc.) at the same time;
   the two don't touch the same code, but whichever merges second should
   get one SPRT of the combined build.
+- **Engine 3.1** = 3.0 with SPSA-tuned pruning and reduction values
+  (`6f9d162`) and continuation history (`15f2781`): **+15 Elo (+/- 12)**
+  over 3.0 (H1 after 1,226 games, cloud, **20+0.2**, 4 at a time, LOS
+  99.5%). **The new baseline**, bench 2851725. The tuned values alone were
+  +4 +/- 7 over 3,560 games at 8+0.08 (undecided). Tuning: build with
+  `-DENGINE_TUNE=ON` (the parameters in `src/tune.h` become UCI options),
+  then `scripts/tune/spsa.py` (resumable; 4,000 pairs at 8+0.08 took ~13 h
+  on the cloud's 4 cores). Code only: the phone app stays on 3.0. Details
+  in `CHANGELOG.md`.
 - **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
   and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
   "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
@@ -86,8 +95,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 3044298** (`build/engine2 bench`, with the
-  built-in network; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2851725** (`build/engine2 bench`, with the
+  built-in network; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -251,13 +260,13 @@ SPRT against the best build at the time:
         +4 +/- 19 over 638 games. **Parked until after NNUE**
         (`FAILED_EXPERIMENTS.md`); code in `31fddc5`, `d2d1303`.
    3. Store the static evaluation, and reuse it instead of re-evaluating.
-7. **"Improving" flag** (static eval better than two plies ago) to tighten
-   reverse futility, futility and late move pruning when not improving.
-8. **Continuation history**: tested at 8+0.08 on the best build, 880 games,
-   -7 +/- 17, stopped and taken out; **parked for a longer time control**
-   (see `FAILED_EXPERIMENTS.md`; code in `924f494`). Then **history
-   pruning** of quiet moves with very bad history at low depth.
-9. **Singular extensions** (needs the TT work first).
+7. **"Improving" flag** (static eval better than two plies ago): tried
+   twice on 2.10, both lost (in the pruning rules -12 +/- 15, H0; in late
+   move reductions -17 +/- 28, stopped). See `FAILED_EXPERIMENTS.md`.
+8. **Continuation history**: **in 3.1** (16-bit table, with the tuned
+   values, +15 over 3.0 at 20+0.2). Next: **history pruning** of quiet
+   moves with very bad history at low depth.
+9. **Singular extensions**: **in 3.0**.
 10. **Razoring, ProbCut**: small gains, later.
 11. **SEE with tuned piece values** (owner's parked idea): phase-blended
     material from the evaluation instead of 100/325/325/500/900; the tuned

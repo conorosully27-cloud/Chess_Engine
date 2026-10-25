@@ -5,14 +5,15 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Candidate (not yet released): tuned search values + continuation history
+## 3.1: tuned search values + continuation history
 
 3.0 plus SPSA-tuned pruning and reduction values (commit `6f9d162`) and
 continuation history (commit `15f2781`). **Against 3.0** (`scripts/match.sh`,
 cloud, **20+0.2**, SPRT 0/10, 4 games at a time, adjudication on): **H1
 accepted after 1,226 games**, 323 wins, 269 losses, 634 draws (52.2%),
 **+15 Elo (+/- 12)**, LOS 99.5%. New bench signature **2851725** (3.0:
-3044298). Not released yet: the owner decides.
+3044298), the same as the tested build. Code only: the phone app stays
+on 3.0. An SPRT that stops early tends to overstate the gain.
 
 - **Tuning build and SPSA** (`src/tune.h`, `scripts/tune/spsa.py`): with
   `-DENGINE_TUNE=ON` the search parameters become UCI options; a
