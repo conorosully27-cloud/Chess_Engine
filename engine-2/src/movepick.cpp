@@ -6,7 +6,7 @@
 namespace chess {
 
 void score_moves(const Position& pos, const MoveList& list, int* scores, Move tt_move, Move killer1, Move killer2,
-                 const HistoryTable& history) {
+                 const HistoryTable& history, ContHistoryRow cont1, ContHistoryRow cont2) {
   for (int i = 0; i < list.count; i++) {
     const Move m = list.moves[i];
     const int promo = m.is_promotion() ? ORDER_VALUE[m.promotion_type()] : 0;
@@ -18,7 +18,12 @@ void score_moves(const Position& pos, const MoveList& list, int* scores, Move tt
     else if (m.is_promotion()) score = PROMOTION_SCORE + promo;
     else if (m == killer1) score = KILLER1_SCORE;
     else if (m == killer2) score = KILLER2_SCORE;
-    else score = history[pos.piece_on(m.from())][m.to()];
+    else {
+      const int index = pos.piece_on(m.from()) * 64 + m.to();
+      score = history[index / 64][index % 64];
+      if (cont1) score += cont1[index];
+      if (cont2) score += cont2[index];
+    }
     scores[i] = score;
   }
 }
@@ -59,7 +64,7 @@ Move MovePicker::next() {
       [[fallthrough]];
     case GEN_QUIETS:
       generate<QUIETS>(pos_, quiets_);
-      score_moves(pos_, quiets_, quiet_scores_, Move(), killer1_, killer2_, history_);
+      score_moves(pos_, quiets_, quiet_scores_, Move(), killer1_, killer2_, history_, cont1_, cont2_);
       stage_ = QUIET_MOVES;
       [[fallthrough]];
     case QUIET_MOVES:

@@ -5,6 +5,45 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## "Improving" flag in late move reductions, on 2.10 (Oct 2026)
+
+**Change:** the same flag as the entry below, used only in late move
+reductions: one ply more when not improving. Commit `f13b6a1` on
+`claude/loving-ramanujan-lewlp6`. Bench 1962997 -> 1717843 (12% fewer
+nodes).
+
+**Result:** SPRT against 2.10 (8+0.08, 0/10, 4 at a time, cloud), stopped
+by the owner at 240 games: +53 -65 =122, Elo -17 +/- 28, LLR -1.11.
+
+**Prior:** 6/10.
+
+**Commentary:** the second "improving" failure, and like the first it
+searches less. Both suggest the pruning and reduction margins, set for
+the hand-written evaluation, are already too tight with NNUE; next is
+tuning them all (SPSA) rather than adding more pruning.
+
+## "Improving" flag in the pruning rules, on 2.10 (Oct 2026)
+
+**Change:** improving = the static evaluation is better than two plies
+ago (false if that node was in check). Reverse futility margin
+`90 * (depth - improving)`; futility margin 50 smaller when not
+improving; late move pruning keeps half as many quiet moves (2/3/6
+instead of 4/7/12) when not improving. Commit `d3dc1f5` on
+`claude/loving-ramanujan-lewlp6`. Bench 1962997 -> 1276855 (35% fewer
+nodes).
+
+**Result:** SPRT against 2.10 (8+0.08, 0/10, 4 games at a time, cloud):
+H0 accepted after 1,038 games, +271 -306 =461, Elo -11.7 +/- 14.6,
+LLR -2.99.
+
+**Prior:** 7/10 (a standard gain in most engines).
+
+**Commentary:** too aggressive rather than a bug: a 35% drop in nodes
+throws good moves away with the bad. The likeliest culprits are the zero
+reverse-futility margin at depth 1 when improving (any eval at or above
+beta returns) and halving the late move pruning counts in about half of
+all nodes. Next: the flag in late move reductions instead (one ply more
+when not improving), then a gentler pruning version.
 ## Stricter repetition draws, on 2.10 (Oct 2026)
 
 **Change:** Stockfish's repetition rule in the search: a position is a
