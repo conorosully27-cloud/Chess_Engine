@@ -1,6 +1,5 @@
 #include "evaluate.h"
 
-#include "endgame.h"
 #include "nnue.h"
 
 #include <algorithm>
@@ -377,30 +376,20 @@ int evaluate_uncached(const Position& pos) {
   return (pos.side_to_move() == WHITE ? score : -score) + TEMPO;
 }
 
-// Closer to a draw as the fifty-move counter runs: half the score when the
-// draw is due. Applied after the cache, which is keyed by position alone.
-// The network's evaluation only: the hand-written one stays Engine 1.6's.
-int fifty_move_scaled(const Position& pos, int score) {
-  if (!nnue::loaded()) return score;
-  return score * (200 - std::min(pos.halfmove_clock(), 100)) / 200;
-}
-
 }  // namespace
 
 int evaluate(const Position& pos) {
   EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
-  if (e.key == pos.key()) return fifty_move_scaled(pos, e.score);
+  if (e.key == pos.key()) return e.score;
   int raw;
-  if (nnue::loaded()) {
+  if (nnue::loaded())
     raw = !pos.pieces(PAWN) && pos.insufficient_material() ? 0 : nnue::evaluate(pos);
-    raw = raw * endgame_scale(pos, raw) / SCALE_NORMAL;
-  } else {
+  else
     raw = evaluate_uncached(pos);
-  }
   const int score = std::clamp(raw, -EVAL_LIMIT, EVAL_LIMIT);
   e.key = pos.key();
   e.score = score;
-  return fifty_move_scaled(pos, score);
+  return score;
 }
 
 int evaluate_material(const Position& pos) {
@@ -416,7 +405,7 @@ constexpr int LAZY_MARGIN = 300;
 
 int evaluate_lazy(const Position& pos, int alpha, int beta) {
   const EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
-  if (e.key == pos.key()) return fifty_move_scaled(pos, e.score);
+  if (e.key == pos.key()) return e.score;
   // The shortcut uses the hand-written material values, not the network's scale.
   if (nnue::loaded()) return evaluate(pos);
   const int quick = evaluate_material(pos);
