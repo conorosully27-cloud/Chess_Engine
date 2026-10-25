@@ -50,6 +50,7 @@ add_library(engine2_core STATIC
   src/bench.cpp
   src/bitboard.cpp
   src/datagen.cpp
+  src/endgame.cpp
   src/position.cpp
   src/movegen.cpp
   src/movepick.cpp
@@ -86,6 +87,10 @@ add_test(NAME movepick COMMAND movepick_test)
 add_executable(nnue_test tests/nnue_test.cpp)
 target_link_libraries(nnue_test PRIVATE engine2_core)
 add_test(NAME nnue COMMAND nnue_test)
+
+add_executable(endgame_test tests/endgame_test.cpp)
+target_link_libraries(endgame_test PRIVATE engine2_core)
+add_test(NAME endgame COMMAND endgame_test)
 
 add_executable(search_test tests/search_test.cpp)
 target_link_libraries(search_test PRIVATE engine2_core)
