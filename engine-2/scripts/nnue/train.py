@@ -73,8 +73,12 @@ class Dataset:
             leftover = buf[full:]
 
     def validation(self, limit=200_000):
-        records = np.concatenate([v for v in self.val])
-        return records[:limit]
+        """About `limit` held-out positions, the same fraction from every
+        file, so the validation set has the training data's mix (the first
+        `limit` held-out positions came only from the first files by name)."""
+        total = sum(len(v) for v in self.val)
+        fraction = min(1.0, limit / max(total, 1))
+        return np.concatenate([np.asarray(v[:math.ceil(len(v) * fraction)]) for v in self.val])
 
 
 def decode(records):
