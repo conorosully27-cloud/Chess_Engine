@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "movegen.h"
+#include "movepick.h"
 #include "position.h"
 #include "tt.h"
 
@@ -48,6 +49,10 @@ struct TimeBudget {
 };
 
 TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms);
+
+// Rebuilds the tables made from tunable parameters (src/tune.h); call
+// after changing one.
+void search_params_changed();
 
 struct SearchResult {
   Move best;
@@ -83,6 +88,16 @@ class SearchWorker {
   Position* pos_ = nullptr;
   Move killers_[MAX_PLY][2] = {};
   int history_[PIECE_NB][64] = {};
+  // Continuation history (src/movepick.h), indexed [earlier move][this move]
+  // by piece * 64 + to; used for the move one ply earlier (the opponent's)
+  // and two plies earlier (our own).
+  std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
+  int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
+  // The continuation history row after the move made `back` plies before
+  // ply, or nullptr if there was none (before the root, a null move).
+  std::int16_t* cont_row(int ply, int back) {
+    return ply < back || ply_move_[ply - back] < 0 ? nullptr : &cont_history_[ply_move_[ply - back] * CONT_INDEX];
+  }
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
 

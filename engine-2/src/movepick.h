@@ -3,6 +3,8 @@
 // at a time so that a cutoff by an early move saves the work on the rest.
 #pragma once
 
+#include <cstdint>
+
 #include "movegen.h"
 
 namespace chess {
@@ -22,6 +24,13 @@ constexpr int BAD_CAPTURE_SCORE = -2000000;
 
 using HistoryTable = int[PIECE_NB][64];
 
+// Continuation history: how well a quiet move (piece * 64 + to) did right
+// after a given earlier move, one row per earlier move. Kept to 16 bits to
+// halve the table (1.2 MB) and its cache misses.
+constexpr int CONT_INDEX = PIECE_NB * 64;
+constexpr int CONT_HISTORY_LIMIT = 30000;
+using ContHistoryRow = const std::int16_t*;
+
 inline PieceType captured_type(const Position& pos, Move m) {
   return m.is_ep() ? PAWN : type_of(pos.piece_on(m.to()));
 }
@@ -29,9 +38,11 @@ inline PieceType captured_type(const Position& pos, Move m) {
 // Orders moves: the remembered best move, then captures by most valuable
 // victim / least valuable attacker, promotions, killer moves (quiet moves
 // that refuted another line at this ply), then by history, and last the
-// captures that lose material by SEE.
+// captures that lose material by SEE. Quiet moves also get the
+// continuation history after the moves one and two plies earlier, from
+// cont1 and cont2 where given.
 void score_moves(const Position& pos, const MoveList& list, int* scores, Move tt_move, Move killer1, Move killer2,
-                 const HistoryTable& history);
+                 const HistoryTable& history, ContHistoryRow cont1 = nullptr, ContHistoryRow cont2 = nullptr);
 
 // Moves the highest-scored remaining move to index i and returns it (the
 // first one, if several share the highest score).
@@ -43,8 +54,10 @@ Move pick_next(MoveList& list, int* scores, int i);
 // that do. next() returns an empty move when there are no more.
 class MovePicker {
  public:
-  MovePicker(const Position& pos, Move tt_move, Move killer1, Move killer2, const HistoryTable& history)
-      : pos_(pos), tt_move_(tt_move), killer1_(killer1), killer2_(killer2), history_(history) {}
+  MovePicker(const Position& pos, Move tt_move, Move killer1, Move killer2, const HistoryTable& history,
+             ContHistoryRow cont1 = nullptr, ContHistoryRow cont2 = nullptr)
+      : pos_(pos), tt_move_(tt_move), killer1_(killer1), killer2_(killer2), history_(history), cont1_(cont1),
+        cont2_(cont2) {}
 
   Move next();
 
@@ -54,6 +67,7 @@ class MovePicker {
   const Position& pos_;
   const Move tt_move_, killer1_, killer2_;
   const HistoryTable& history_;
+  const ContHistoryRow cont1_, cont2_;
   Stage stage_ = HASH_MOVE;
   MoveList captures_, quiets_;
   int capture_scores_[MoveList::MAX_MOVES];

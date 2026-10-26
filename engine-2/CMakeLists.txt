@@ -30,6 +30,13 @@ if(ENGINE_NNUE_HIDDEN)
   target_compile_definitions(engine2_options INTERFACE NNUE_HIDDEN=${ENGINE_NNUE_HIDDEN})
 endif()
 
+# Tuning build: the search parameters in src/tune.h become UCI options
+# (for scripts/tune/spsa.py). Off for normal builds, where they are constants.
+option(ENGINE_TUNE "Expose the search parameters as UCI options, for tuning" OFF)
+if(ENGINE_TUNE)
+  target_compile_definitions(engine2_options INTERFACE ENGINE_TUNE)
+endif()
+
 # The NNUE network built into the engine (nets/, see src/nnue.h).
 set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.9.nnue CACHE FILEPATH "The network built into the engine")
 set(DEFAULT_NET_CPP ${CMAKE_CURRENT_BINARY_DIR}/default_net.cpp)

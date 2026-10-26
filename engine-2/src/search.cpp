@@ -6,35 +6,63 @@
 
 #include "evaluate.h"
 #include "movepick.h"
+#include "tune.h"
 #include "uci.h"
 
 namespace chess {
 
 namespace {
 
-// Late move pruning: near the leaves, after this many quiet moves have been
-// tried at a given depth, the remaining quiet moves are skipped.
-constexpr int LMP_QUIETS[4] = {0, 4, 7, 12};
+// Pruning and reduction parameters (src/tune.h: constants, or UCI options
+// in a tuning build). Centipawns unless noted. Values from an SPSA run on
+// 3.0 (Oct 2026, 8,000 games at 8+0.08).
 
-// Singular extensions: from this depth, a hash move that the table rates
-// well above every alternative is searched a ply deeper. The test searches
-// the other moves to half depth against the table's score less 2 x depth.
-constexpr int SINGULAR_DEPTH = 8;
+// Reverse futility: at depth <= RFP_DEPTH, return when the static
+// evaluation beats beta by RFP_MARGIN per ply.
+TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
+TUNE_PARAM(RFP_MARGIN, 94, 20, 250);
 
-// SEE pruning: near the leaves, moves that lose more than this much material
-// on their square (static exchange) are skipped. Quiet moves get a margin
-// growing with depth squared, captures one growing with depth.
-constexpr int SEE_PRUNE_DEPTH = 6;
-constexpr int SEE_QUIET_MARGIN = 25;
-constexpr int SEE_CAPTURE_MARGIN = 100;
+// Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
+// evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
+TUNE_PARAM(FUT_DEPTH, 3, 1, 8);
+TUNE_PARAM(FUT_BASE, -3, -100, 300);
+TUNE_PARAM(FUT_MARGIN, 147, 40, 300);
 
-// Late move reductions by depth and move number: 1 + ln(depth) ln(move) / 2.
-const auto LMR = [] {
-  std::array<std::array<std::int8_t, 64>, 64> t{};
+// Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
+// LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
+// skipped (4, 7, 12 at depths 1-3).
+TUNE_PARAM(LMP_DEPTH, 3, 1, 10);
+TUNE_PARAM(LMP_BASE, 3, 0, 12);
+TUNE_PARAM(LMP_SCALE, 102, 25, 300);
+
+// SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
+// much material on their square (static exchange) are skipped. Quiet moves
+// get a margin growing with depth squared, captures one growing with depth.
+TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
+TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
+TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
+
+// Late move reductions by depth and move number, in hundredths of a ply:
+// LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (before tuning: 1 + ... / 2).
+TUNE_PARAM(LMR_BASE, 98, -50, 250);
+TUNE_PARAM(LMR_DIV, 198, 100, 500);
+
+// Singular extensions: from SINGULAR_DEPTH, a hash move that the table
+// rates well above every alternative is searched a ply deeper. The test
+// searches the other moves to half depth against the table's score less
+// SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
+TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
+TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
+
+using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
+LmrTable make_lmr() {
+  LmrTable t{};
   for (int d = 1; d < 64; d++)
-    for (int m = 1; m < 64; m++) t[d][m] = std::int8_t(1 + std::log(d) * std::log(m) / 2);
+    for (int m = 1; m < 64; m++)
+      t[d][m] = std::int8_t(LMR_BASE / 100.0 + std::log(d) * std::log(m) / (LMR_DIV / 100.0));
   return t;
-}();
+}
+LmrTable LMR = make_lmr();
 
 // Mate scores are stored relative to the position, not the root, so they
 // stay correct when the position is reached at a different depth.
@@ -64,6 +92,8 @@ std::string score_to_uci(int score) {
 }
 
 }  // namespace
+
+void search_params_changed() { LMR = make_lmr(); }
 
 TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms) {
   TimeBudget b;
@@ -97,6 +127,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
+  std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -125,6 +156,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& k : killers_) k[0] = k[1] = Move();
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
+  for (std::int16_t& h : cont_history_) h = std::int16_t(h >> 2);
 
   SearchResult result;
   MoveList legal;
@@ -240,11 +272,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     static_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
-      if (depth <= 4 && static_eval - 90 * depth >= beta) return static_eval;
+      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
         const int reduction = depth >= 7 ? 3 : 2;
+        ply_move_[ply] = -1;
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
         pos.unmake_null_move();
@@ -255,15 +288,18 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= 2 && static_eval + 150 * depth <= alpha;
-  const bool prune_late = !pv_node && !in_check && depth <= 3;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
+  const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
+  const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
   int quiets_count = 0;
 
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
-  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_);
+  std::int16_t* const cont1 = cont_row(ply, 1);
+  std::int16_t* const cont2 = cont_row(ply, 2);
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
@@ -285,7 +321,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       };
       if (futile && quiet && !gives_check()) continue;
       // Late move pruning: moves ordered this late almost never matter here.
-      if (prune_late && quiet && !gives_check() && ++quiets_tried > LMP_QUIETS[depth]) continue;
+      if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) continue;
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
       if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
           !gives_check())
@@ -299,7 +335,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     int extension = 0;
     if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
         tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
-      const int singular_beta = tt_score - 2 * depth;
+      const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
       const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, false, move);
       pv_length_[ply] = ply;  // the test search wrote this node's PV
       if (stopped_) return 0;
@@ -308,6 +344,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     }
     const int new_depth = depth - 1 + extension;
 
+    ply_move_[ply] = piece * 64 + move.to();
     pos.make_move(move);
 
     int score;
@@ -345,12 +382,20 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
+            const int bonus = depth * depth;
+            const auto cont_add = [](std::int16_t* row, int index, int amount) {
+              if (row) row[index] = std::int16_t(std::clamp(row[index] + amount, -CONT_HISTORY_LIMIT, CONT_HISTORY_LIMIT));
+            };
             int& h = history_[piece][move.to()];
-            h = std::min(h + depth * depth, HISTORY_LIMIT);
+            h = std::min(h + bonus, HISTORY_LIMIT);
+            cont_add(cont1, piece * 64 + move.to(), bonus);
+            cont_add(cont2, piece * 64 + move.to(), bonus);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
-              hq = std::max(hq - depth * depth, -HISTORY_LIMIT);
+              hq = std::max(hq - bonus, -HISTORY_LIMIT);
+              cont_add(cont1, quiets_searched[q], -bonus);
+              cont_add(cont2, quiets_searched[q], -bonus);
             }
           }
           break;
