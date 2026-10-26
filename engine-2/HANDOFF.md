@@ -404,7 +404,12 @@ square, per side) -> 128 hidden per side -> 1.
    aimed at 25M each; `run.sh` now asks for 50M), binary
    `~/engines/engine2-3.0-datagen`, ~8.5M positions an hour (~24 h).
    **Resume with `~/nnue-data/v3/run.sh`** (detached): it takes the next
-   seed block itself (7101-7104, 7201-7204, ...). A 200k sample: 99.1%
+   seed block itself (7101-7104, 7201-7204, ...). **Done 26 Oct 06:32
+   UTC: 200,000,050 positions** (6.0 GB, 4 x 50M, no partial records;
+   three starts, seeds 7101-7104, 7201-7204, 7301-7304; kept running by an
+   hourly scheduled check-in, now deleted). A 4M sample (1M from the middle
+   of each part): results B/D/W 32.8/35.8/31.4%, White to move 50.0%, mean
+   score -7, 97.4% distinct. Earlier, a 200k sample: 99.1%
    distinct (random plies: 99.2%; too small to show duplicates), results
    B/D/W 33/36/32%. The old 150M (2.3 and 2.7 data) is on the other
    session's machine, not here: plan to train on the new data alone here
