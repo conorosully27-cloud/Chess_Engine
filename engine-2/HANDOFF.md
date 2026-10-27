@@ -94,7 +94,8 @@ history behind the search and evaluation.
   8+0.08, 12 at a time). **The new baseline**, bench 2608402. **Playing
   strength about 3080**: vs Stockfish 18 at `UCI_Elo` 3050, 10+0.1,
   `8moves_v3`, H1 (stronger) after 372 games, +132 -102 =138, +28 +/- 27
-  (3.0: about 3010). Code only:
+  (3.0: about 3010); vs 3100: H0 (weaker) after 462 games, +122 -155
+  =185, -25 +/- 25. So about 3075-3080: not yet 4.0. Code only:
   the phone app stays on 3.0 (owner's call). The training data is on the
   owner's laptop (`C:\Users\conor\nnue-data`, 12 files, `2.3-*`,
   `2.7-*`, `v3-*`); data run 3 also stays on this session's cloud machine.
