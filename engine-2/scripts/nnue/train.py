@@ -52,22 +52,33 @@ class Dataset:
         self.train_sizes = np.array([len(r) for r in self.train])
         self.size = int(self.train_sizes.sum())
 
-    def batches(self, batch_size, rng):
-        """One epoch of random training batches."""
-        order = rng.permutation(self.size)
-        bounds = np.cumsum(self.train_sizes)
-        for start in range(0, self.size - batch_size + 1, batch_size):
-            idx = np.sort(order[start:start + batch_size])
-            which = np.searchsorted(bounds, idx, side="right")
-            parts = []
-            for f in np.unique(which):
-                local = idx[which == f] - (bounds[f - 1] if f else 0)
-                parts.append(self.train[f][local])
-            yield np.concatenate(parts)
+    def batches(self, batch_size, rng, chunk=1 << 19, buffer_chunks=32):
+        """One epoch of random training batches. Picking each position at
+        random from all over the files is far too slow once they no longer fit
+        in memory (thousands of scattered disk reads a batch: 13k positions/s
+        on 350M), so the data are read in chunks of consecutive positions,
+        taken in random order from all files, and shuffled together
+        `buffer_chunks` at a time (16M positions, 512 MB). Every position is
+        used once an epoch."""
+        chunks = [(f, s, min(s + chunk, n)) for f, n in enumerate(self.train_sizes) for s in range(0, n, chunk)]
+        order = rng.permutation(len(chunks))
+        leftover = np.empty(0, dtype=RECORD)
+        for i in range(0, len(order), buffer_chunks):
+            parts = [leftover] + [np.asarray(self.train[f][s:e]) for f, s, e in (chunks[j] for j in order[i:i + buffer_chunks])]
+            buf = np.concatenate(parts)
+            buf = buf[rng.permutation(len(buf))]
+            full = len(buf) - len(buf) % batch_size
+            for start in range(0, full, batch_size):
+                yield buf[start:start + batch_size]
+            leftover = buf[full:]
 
     def validation(self, limit=200_000):
-        records = np.concatenate([v for v in self.val])
-        return records[:limit]
+        """About `limit` held-out positions, the same fraction from every
+        file, so the validation set has the training data's mix (the first
+        `limit` held-out positions came only from the first files by name)."""
+        total = sum(len(v) for v in self.val)
+        fraction = min(1.0, limit / max(total, 1))
+        return np.concatenate([np.asarray(v[:math.ceil(len(v) * fraction)]) for v in self.val])
 
 
 def decode(records):

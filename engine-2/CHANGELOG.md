@@ -5,6 +5,30 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 3.2: a network trained on 350M positions
+
+3.1's search with a new 256-unit network (`nets/engine-3.2.nnue`, the
+training run's `net-15.nnue`), trained on
+the owner's laptop GPU (15 epochs) on **346.5M positions**: 2.3's 50M,
+2.7's 100M and **200M new ones from 3.0 with book openings** (data run 3,
+`datagen`'s new `[book]` argument; random 8moves_v3 lines then 2-5 random
+plies). Validation (2.3 data only in this run, see below) 0.00914 after
+epoch 1, 0.00846 after epoch 13. **Against 3.1** (owner's laptop,
+8+0.08, SPRT 0/10, 12 games at a time, adjudication on): **H1 accepted
+after 278 games**, 129 wins, 60 losses, 89 draws (62.4%), **+88 Elo
+(+/- 31)**. New bench signature **2608402** (3.1: 2851725), the same as
+the tested build. Code only: the phone app stays on 3.0. An SPRT that
+stops this early tends to overstate the gain.
+
+- The trainer read each position from a random place in the files: fine
+  while the data fit in memory, 13.5k positions/s on 11 GB. Batches now
+  come from a shuffle buffer (chunks of consecutive positions, in random
+  order, shuffled 16M at a time): ~220-280k positions/s on the laptop's
+  GPU, ~26 min an epoch.
+- Validation took the first 200k held-out positions in file order (here
+  all 2.3 data); it now takes the same fraction from every file (after
+  this run).
+
 ## 3.1: tuned search values + continuation history
 
 3.0 plus SPSA-tuned pruning and reduction values (commit `6f9d162`) and

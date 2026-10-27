@@ -80,23 +80,34 @@ history behind the search and evaluation.
 - **Engine 3.1** = 3.0 with SPSA-tuned pruning and reduction values
   (`6f9d162`) and continuation history (`15f2781`): **+15 Elo (+/- 12)**
   over 3.0 (H1 after 1,226 games, cloud, **20+0.2**, 4 at a time, LOS
-  99.5%). **The new baseline**, bench 2851725. The tuned values alone were
+  99.5%). Bench 2851725. The tuned values alone were
   +4 +/- 7 over 3,560 games at 8+0.08 (undecided). Tuning: build with
   `-DENGINE_TUNE=ON` (the parameters in `src/tune.h` become UCI options),
   then `scripts/tune/spsa.py` (resumable; 4,000 pairs at 8+0.08 took ~13 h
   on the cloud's 4 cores). Code only: the phone app stays on 3.0. Details
   in `CHANGELOG.md`.
+- **Engine 3.2** = 3.1 with a network trained on **346.5M positions**
+  (`nets/engine-3.2.nnue`, 256 units): 2.3's 50M + 2.7's 100M + 200M new
+  from 3.0 with book openings (data run 3), 15 epochs on the owner's
+  laptop GPU (~26 min an epoch after the shuffle-buffer fix in
+  `train.py`). **+88 Elo (+/- 31)** over 3.1 (H1 after 278 games, laptop,
+  8+0.08, 12 at a time). **The new baseline**, bench 2608402. Code only:
+  the phone app stays on 3.0 (owner's call). The training data is on the
+  owner's laptop (`C:\Users\conor\nnue-data`, 12 files, `2.3-*`,
+  `2.7-*`, `v3-*`); data run 3 also stays on this session's cloud machine.
 - **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
   and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
   "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
   Checked in Chromium at phone size: labels "Engine 3.0", a game, the
-  analysis board at depth 19 in 5 s, no console errors. APK not built
-  here (Android Studio on the owner's laptop).
+  analysis board at depth 19 in 5 s, no console errors. APKs are built
+  with `npm run apk` in the cloud session whose machine holds the debug
+  signing key of the installed app (an APK signed with another machine's
+  key won't install over it).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2851725** (`build/engine2 bench`, with the
-  built-in network; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2608402** (`build/engine2 bench`, with the
+  built-in network; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -402,6 +413,27 @@ square, per side) -> 128 hidden per side -> 1.
    data from 2.6 (datagen at a fixed node count is ~1.3x faster now), a
    256-unit net, retuning the pruning margins, the parked TT and
    continuation-history changes.
+
+11. **Data run 3 (Oct 24, 17:18 UTC, this session's cloud machine):**
+   **200M** positions (owner raised it from 100M) from **Engine 3.0** (bench 3044298) with **book
+   openings** (owner's choice, for more varied games): `datagen`'s new
+   `[book]` argument plays a random line of Stockfish's `8moves_v3`
+   (34,700 8-move openings, converted by `scripts/nnue/book_to_uci.mjs`
+   into `~/nnue-data/8moves_v3.uci`), then 2-5 random plies. 5,000 nodes a
+   move, 4 x 50M into `~/nnue-data/v3/part-1..4.bin` (the first start
+   aimed at 25M each; `run.sh` now asks for 50M), binary
+   `~/engines/engine2-3.0-datagen`, ~8.5M positions an hour (~24 h).
+   **Resume with `~/nnue-data/v3/run.sh`** (detached): it takes the next
+   seed block itself (7101-7104, 7201-7204, ...). **Done 26 Oct 06:32
+   UTC: 200,000,050 positions** (6.0 GB, 4 x 50M, no partial records;
+   three starts, seeds 7101-7104, 7201-7204, 7301-7304; kept running by an
+   hourly scheduled check-in, now deleted). A 4M sample (1M from the middle
+   of each part): results B/D/W 32.8/35.8/31.4%, White to move 50.0%, mean
+   score -7, 97.4% distinct. Earlier, a 200k sample: 99.1%
+   distinct (random plies: 99.2%; too small to show duplicates), results
+   B/D/W 33/36/32%. The old 150M (2.3 and 2.7 data) is on the other
+   session's machine, not here: plan to train on the new data alone here
+   (2.7's A-new vs B-mix suggests mixing old data is worth ~+16).
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)

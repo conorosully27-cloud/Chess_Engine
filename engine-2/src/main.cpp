@@ -7,7 +7,7 @@
 //   engine2 eval [network|classical]  static evaluation of each FEN read from stdin:
 //                                  the built-in network's, another network
 //                                  file's, or the hand-written evaluation's
-//   engine2 datagen <file> <positions> [nodes] [seed]
+//   engine2 datagen <file> <positions> [nodes] [seed] [book]
 //                                  self-play training data for NNUE (datagen.h)
 #include <chrono>
 #include <cstdlib>
@@ -33,7 +33,7 @@ std::string join_fen(int argc, char** argv, int first) {
 
 int usage() {
   std::cerr << "usage: engine2 perft|divide <depth> [fen]\n       engine2 bench [depth] | perftbench | eval\n"
-               "       engine2 datagen <file> <positions> [nodes] [seed]\n";
+               "       engine2 datagen <file> <positions> [nodes] [seed] [book]\n";
   return 2;
 }
 
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   if (cmd == "datagen") {
     if (argc < 4) return usage();
     run_datagen(argv[2], std::strtoull(argv[3], nullptr, 10), argc >= 5 ? std::atoi(argv[4]) : 5000,
-                argc >= 6 ? std::strtoull(argv[5], nullptr, 10) : 1);
+                argc >= 6 ? std::strtoull(argv[5], nullptr, 10) : 1, argc >= 7 ? argv[6] : "");
     return 0;
   }
 
