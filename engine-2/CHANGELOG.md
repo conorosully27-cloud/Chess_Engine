@@ -20,6 +20,14 @@ after 278 games**, 129 wins, 60 losses, 89 draws (62.4%), **+88 Elo
 the tested build. Code only: the phone app stays on 3.0. An SPRT that
 stops this early tends to overstate the gain.
 
+**Playing strength: about 3080 (3050-3105) on Stockfish's scale.**
+Against Stockfish 18 held to `UCI_Elo` 3050 (`scripts/strength_match.sh`;
+cloud, 10+0.1, 4 games at a time, 1 thread and 64 MB each, `8moves_v3`
+openings, adjudication on, SPRT -10/+10): **H1 accepted after 372
+games** (stronger than Stockfish-3050), 132 wins, 102 losses, 138 draws
+(54.0%), **+28 Elo (+/- 27)**, in 58 minutes. No time losses. 3.0
+measured about 3010 the same way (at 3000).
+
 - The trainer read each position from a random place in the files: fine
   while the data fit in memory, 13.5k positions/s on 11 GB. Batches now
   come from a shuffle buffer (chunks of consecutive positions, in random
