@@ -80,23 +80,34 @@ history behind the search and evaluation.
 - **Engine 3.1** = 3.0 with SPSA-tuned pruning and reduction values
   (`6f9d162`) and continuation history (`15f2781`): **+15 Elo (+/- 12)**
   over 3.0 (H1 after 1,226 games, cloud, **20+0.2**, 4 at a time, LOS
-  99.5%). **The new baseline**, bench 2851725. The tuned values alone were
+  99.5%). Bench 2851725. The tuned values alone were
   +4 +/- 7 over 3,560 games at 8+0.08 (undecided). Tuning: build with
   `-DENGINE_TUNE=ON` (the parameters in `src/tune.h` become UCI options),
   then `scripts/tune/spsa.py` (resumable; 4,000 pairs at 8+0.08 took ~13 h
   on the cloud's 4 cores). Code only: the phone app stays on 3.0. Details
   in `CHANGELOG.md`.
+- **Engine 3.2** = 3.1 with a network trained on **346.5M positions**
+  (`nets/engine-3.2.nnue`, 256 units): 2.3's 50M + 2.7's 100M + 200M new
+  from 3.0 with book openings (data run 3), 15 epochs on the owner's
+  laptop GPU (~26 min an epoch after the shuffle-buffer fix in
+  `train.py`). **+88 Elo (+/- 31)** over 3.1 (H1 after 278 games, laptop,
+  8+0.08, 12 at a time). **The new baseline**, bench 2608402. Code only:
+  the phone app stays on 3.0 (owner's call). The training data is on the
+  owner's laptop (`C:\Users\conor\nnue-data`, 12 files, `2.3-*`,
+  `2.7-*`, `v3-*`); data run 3 also stays on this session's cloud machine.
 - **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
   and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
   "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
   Checked in Chromium at phone size: labels "Engine 3.0", a game, the
-  analysis board at depth 19 in 5 s, no console errors. APK not built
-  here (Android Studio on the owner's laptop).
+  analysis board at depth 19 in 5 s, no console errors. APKs are built
+  with `npm run apk` in the cloud session whose machine holds the debug
+  signing key of the installed app (an APK signed with another machine's
+  key won't install over it).
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2851725** (`build/engine2 bench`, with the
-  built-in network; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2608402** (`build/engine2 bench`, with the
+  built-in network; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

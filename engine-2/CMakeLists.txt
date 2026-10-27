@@ -38,7 +38,7 @@ if(ENGINE_TUNE)
 endif()
 
 # The NNUE network built into the engine (nets/, see src/nnue.h).
-set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-2.9.nnue CACHE FILEPATH "The network built into the engine")
+set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-3.2.nnue CACHE FILEPATH "The network built into the engine")
 set(DEFAULT_NET_CPP ${CMAKE_CURRENT_BINARY_DIR}/default_net.cpp)
 add_custom_command(
   OUTPUT ${DEFAULT_NET_CPP}

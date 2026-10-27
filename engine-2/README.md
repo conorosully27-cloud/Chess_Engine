@@ -14,7 +14,7 @@ goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 | 2. UCI front end | done |
 | 3. Search and transposition table, evaluation ported from Engine 1 | done: **Engine 2.0**, same algorithms as 1.6, about 6x faster, +372 Elo over 1.6 |
 | 4. Speed and search improvements (2.1: speed; 2.2: SEE; 2.3: IIR and LMR; 2.7: staged move generation; 2.10: hash move kept after a fail low, +56 over 2.9; **3.0**: singular extensions, +46 over 2.10, about 3010 on Stockfish's scale; **3.1**: SPSA-tuned search values and continuation history, +15 over 3.0) | in progress; see HANDOFF.md |
-| 5. NNUE evaluation | **Engine 2.4**: first network, +181 Elo over 2.3; **2.5**: fully trained, +80 over 2.4; **2.6**: incremental updates (speed), +102 over 2.5; **2.8**: network trained on 2.7's games (150M positions), +105 over 2.7; **2.9**: 256-unit network, +25 over 2.8; trainer and data generator in `scripts/nnue/`, network in `nets/` |
+| 5. NNUE evaluation | **Engine 2.4**: first network, +181 Elo over 2.3; **2.5**: fully trained, +80 over 2.4; **2.6**: incremental updates (speed), +102 over 2.5; **2.8**: network trained on 2.7's games (150M positions), +105 over 2.7; **2.9**: 256-unit network, +25 over 2.8; **3.2**: network trained on 350M positions (incl. 200M from 3.0 with book openings), +88 over 3.1; trainer and data generator in `scripts/nnue/`, network in `nets/` |
 
 ## Build and test
 

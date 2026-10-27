@@ -19,7 +19,7 @@ mkdir -p "$out"
 # Plus the built-in NNUE network, as the native build embeds it.
 gen="$(mktemp -d)"
 trap 'rm -rf "$gen"' EXIT
-cmake -DNET="$here/nets/engine-2.9.nnue" -DOUT="$gen/default_net.cpp" -P "$here/cmake/embed_net.cmake"
+cmake -DNET="$here/nets/engine-3.2.nnue" -DOUT="$gen/default_net.cpp" -P "$here/cmake/embed_net.cmake"
 sources=("$gen/default_net.cpp")
 for f in "$here"/src/*.cpp; do
   [ "$(basename "$f")" = "main.cpp" ] || sources+=("$f")
