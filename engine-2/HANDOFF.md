@@ -98,6 +98,13 @@ history behind the search and evaluation.
   the phone app stays on 3.0 (owner's call). The training data is on the
   owner's laptop (`C:\Users\conor\nnue-data`, 12 files, `2.3-*`,
   `2.7-*`, `v3-*`); data run 3 also stays on this session's cloud machine.
+- **Version numbering (owner's rule, Oct 2026):** a new major version
+  each time a hundred mark on Stockfish's scale is passed: **4.0** for the
+  first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
+  first above 3000). "Stronger" means H1 in `scripts/strength_match.sh
+  <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
+  `8moves_v3`). Changes that beat the previous version by SPRT in between
+  get minor numbers (3.3, 3.4, ...).
 - **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
   and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
   "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
