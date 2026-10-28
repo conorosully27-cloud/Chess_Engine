@@ -346,6 +346,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
     ply_move_[ply] = piece * 64 + move.to();
     pos.make_move(move);
+    if (new_depth > 0) tt_.prefetch(pos.key());  // the child probes the table (quiescence doesn't)
 
     int score;
     if (legal == 1) {

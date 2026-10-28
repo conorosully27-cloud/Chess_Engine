@@ -34,6 +34,9 @@ class TranspositionTable {
   void clear();
 
   TTEntry& entry(Key key) { return table_[key & mask_]; }
+  // Starts loading a position's entry into the cache: called right after a
+  // move, so the memory read overlaps with the work before the probe.
+  void prefetch(Key key) const { __builtin_prefetch(&table_[key & mask_]); }
   static std::uint32_t check(Key key) { return std::uint32_t(key >> 32); }
   std::size_t size() const { return table_.size(); }
 
