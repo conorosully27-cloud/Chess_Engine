@@ -5,7 +5,7 @@
 The network (the engine's src/nnue.h must match):
   768 inputs per side, one per (piece kind, square) seen from that side
   (its own pieces first, squares flipped for Black)
-  -> --hidden units (256 by default), shared weights for both sides, clipped to [0, 1]
+  -> --hidden units (512 by default), shared weights for both sides, clipped to [0, 1]
   -> both sides' units, side to move first -> 1 output, the evaluation in
      units of SCALE centipawns.
 Loss: squared error between win probabilities, sigmoid(eval / K), and a
@@ -28,7 +28,7 @@ import torch
 
 from data import RECORD
 
-HIDDEN = 256  # default (the engine's since 2.9); --hidden changes it (the engine must be built to match)
+HIDDEN = 512  # default (the engine's since 3.3; 256 from 2.9 to 3.2); --hidden changes it (the engine must be built to match)
 INPUTS = 768
 QA = 255     # first layer: weights and biases times QA, accumulators in [0, QA]
 QB = 64      # output weights times QB
