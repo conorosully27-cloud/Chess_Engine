@@ -465,6 +465,18 @@ square, per side) -> 128 hidden per side -> 1.
    session's machine, not here: plan to train on the new data alone here
    (2.7's A-new vs B-mix suggests mixing old data is worth ~+16).
 
+12. **Data run 4 (Oct 28, owner's plan): all old data deleted, fresh data
+   from Engine 3.3 only**, for variety: `datagen`'s new `[keep]` argument
+   (commit `70a0ba5`) saves each quiet position with probability 1/keep;
+   run 4 uses keep 4, so about 4x the games for the same number of
+   positions (and 4x the time). Binary: 3.3's search (bench 2826031) from
+   commit `33c8729` (which also adds the book as
+   `scripts/nnue/8moves_v3.uci`), 5,000 nodes a move, book openings plus
+   2-5 random plies, on the owner's laptop into
+   `C:\Users\conor\nnue-data\v4\part-1..10.bin` (20M each, seeds
+   8401-8410; resume with new seeds). The cloud copy of run 3 was deleted
+   too.
+
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
 plays and analyses with Engine 2 by default; Engine 1.6 stays selectable
