@@ -46,6 +46,10 @@ TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
 // LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (before tuning: 1 + ... / 2).
 TUNE_PARAM(LMR_BASE, 98, -50, 250);
 TUNE_PARAM(LMR_DIV, 198, 100, 500);
+// A quiet move's history (its own plus both continuation histories) takes
+// a ply off the reduction per LMR_HISTORY of score, or adds one per
+// LMR_HISTORY below zero, at most two either way.
+TUNE_PARAM(LMR_HISTORY, 200, 50, 1000);
 
 // Singular extensions: from SINGULAR_DEPTH, a hash move that the table
 // rates well above every alternative is searched a ply deeper. The test
@@ -360,6 +364,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
+        const int index = piece * 64 + move.to();
+        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+        reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
