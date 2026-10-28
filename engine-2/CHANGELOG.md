@@ -5,6 +5,17 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Accepted since 3.3 (not yet released)
+
+- **History in late move reductions** (commit `b4f1e10`, `src/search.cpp`):
+  a late quiet move's history score (its own plus both continuation
+  histories) takes a ply off its reduction per 200 points, or adds one per
+  200 below zero, at most 2 either way (`LMR_HISTORY`). **Against 3.3**
+  (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 4 games at a
+  time): **H1 accepted after 2,048 games**, 544 wins, 477 losses, 1,027
+  draws (51.6%), **+11 Elo (+/- 9)**. Bench **3450556** (22% more nodes:
+  well-ordered moves are searched deeper).
+
 ## 3.3: a 512-unit network, and faster network code
 
 3.2's search with a network twice as wide, 768 -> **512**x2 -> 1

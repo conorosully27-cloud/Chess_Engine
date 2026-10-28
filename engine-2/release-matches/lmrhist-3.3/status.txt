@@ -1,4 +1,4 @@
-saved: new-b4f1e10 vs old-43bd2b7: 1080 games, +270 -259 =551
-LLR: -0.26 (-8.7%) (-2.94, 2.94) [0.00, 10.00]
-Elo: 3.54 +/- 12.44, nElo: 5.90 +/- 20.72
-LLR: -0.36 (-12.3%) (-2.94, 2.94) [0.00, 10.00]
+saved: new-b4f1e10 vs old-43bd2b7: 2048 games, +544 -477 =1027
+LLR: 3.00 (101.9%) (-2.94, 2.94) [0.00, 10.00]
+SPRT ([0.00, 10.00]) completed - H1 was accepted
+Finished match

@@ -131,15 +131,15 @@
     ],
     "stats": {
         "new-b4f1e10 vs old-43bd2b7": {
-            "wins": 270,
-            "losses": 259,
-            "draws": 551,
-            "penta_WW": 20,
-            "penta_WD": 126,
-            "penta_WL": 104,
-            "penta_DD": 149,
-            "penta_LD": 127,
-            "penta_LL": 14
+            "wins": 544,
+            "losses": 477,
+            "draws": 1027,
+            "penta_WW": 43,
+            "penta_WD": 249,
+            "penta_WL": 209,
+            "penta_DD": 281,
+            "penta_LD": 216,
+            "penta_LL": 26
         }
     }
 }

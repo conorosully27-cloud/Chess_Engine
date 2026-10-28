@@ -118,6 +118,14 @@ history behind the search and evaluation.
   worth much more on the laptop. **Released as 3.3.** vs Stockfish-3100
   at 99% (`ALPHA=0.01 scripts/strength_match.sh`, cloud): about -20 +/- 30
   at 320 games, heading for H0, left running.
+- **History in late move reductions: accepted** (commit `b4f1e10`, on
+  3.3, bench 3450556): a late quiet move's history (own + both
+  continuation histories) takes a ply off its reduction per 200, or adds
+  one per 200 below zero, at most 2 (`LMR_HISTORY`, a tunable). **vs 3.3
+  H1 after 2,048 games**, +544 -477 =1027 (51.6%), **+11 +/- 9** (cloud,
+  8+0.08, 4 at a time). **3.3 + this is the new best build**, not yet
+  released (the owner names releases). State in
+  `release-matches/lmrhist-3.3/`.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
