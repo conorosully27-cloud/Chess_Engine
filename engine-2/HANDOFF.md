@@ -104,8 +104,9 @@ history behind the search and evaluation.
   bench 2826031; not in the repo yet). Train loss 0.007701 at epoch 6 (the
   256 run: 0.007958 at epoch 13). ~20% fewer nodes/s than 3.2 on the
   laptop, ~10% on the cloud. **vs 3.2** (laptop, 8+0.08, 12 at a time):
-  +459 -432 =529 after 1,420 games, +7 +/- 13, LLR 0.35, undecided;
-  a 20+0.2 run suggested. **vs Stockfish-3100** (cloud, 10+0.1): **H0 after
+  +2332 -2232 =2420 after 6,984 games, **+5 +/- 6**, LOS 94.7%, LLR
+  -0.03: stopped by the owner, undecided (a true +5 sits between the SPRT's
+  0 and 10, so it never settles); a 20+0.2 run suggested. **vs Stockfish-3100** (cloud, 10+0.1): **H0 after
   558 games**, +161 -192 =205, -19 +/- 22 (3.2: -25 +/- 25): about 3080,
   at most a few points above 3.2. Not 4.0.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
