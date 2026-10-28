@@ -109,6 +109,13 @@ history behind the search and evaluation.
   0 and 10, so it never settles); a 20+0.2 run suggested. **vs Stockfish-3100** (cloud, 10+0.1): **H0 after
   558 games**, +161 -192 =205, -19 +/- 22 (3.2: -25 +/- 25): about 3080,
   at most a few points above 3.2. Not 4.0.
+  **With the speed changes** (`64a5f7c`: AVX2 network loops, table
+  prefetch; same search; +4% / +2% on the cloud): **vs 3.2 H1 after 472
+  games**, +181 -119 =172 (56.6%), **+46 +/- 23** (laptop, 8+0.08, 12 at a
+  time): far more than the cloud speedup predicts, so the changes must be
+  worth much more on the laptop. Owner's candidate for **3.3**. vs
+  Stockfish-3100 at 99% (`ALPHA=0.01 scripts/strength_match.sh`) running
+  on the cloud.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
