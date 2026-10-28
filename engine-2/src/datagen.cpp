@@ -43,7 +43,7 @@ PackedPosition pack(const Position& pos, int white_score) {
 }  // namespace
 
 void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed,
-                 const std::string& book) {
+                 const std::string& book, int keep) {
   std::vector<std::vector<std::string>> openings;
   if (!book.empty()) {
     std::ifstream in(book);
@@ -141,7 +141,8 @@ void run_datagen(const std::string& path, std::uint64_t positions, int nodes, st
 
       // Quiet positions only: in check, or with a tactic in progress, the
       // static evaluation isn't what the score measures.
-      if (!pos.in_check() && !r.best.is_capture() && !r.best.is_promotion() && !is_mate_score(r.score))
+      if (!pos.in_check() && !r.best.is_capture() && !r.best.is_promotion() && !is_mate_score(r.score) &&
+          (keep <= 1 || rng() % std::uint64_t(keep) == 0))
         game.push_back(pack(pos, white_score));
       pos.make_move(r.best);
     }
