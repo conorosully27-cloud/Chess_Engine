@@ -91,10 +91,40 @@ history behind the search and evaluation.
   from 3.0 with book openings (data run 3), 15 epochs on the owner's
   laptop GPU (~26 min an epoch after the shuffle-buffer fix in
   `train.py`). **+88 Elo (+/- 31)** over 3.1 (H1 after 278 games, laptop,
-  8+0.08, 12 at a time). **The new baseline**, bench 2608402. Code only:
+  8+0.08, 12 at a time). Bench 2608402. **Playing
+  strength about 3080**: vs Stockfish 18 at `UCI_Elo` 3050, 10+0.1,
+  `8moves_v3`, H1 (stronger) after 372 games, +132 -102 =138, +28 +/- 27
+  (3.0: about 3010); vs 3100: H0 (weaker) after 462 games, +122 -155
+  =185, -25 +/- 25. So about 3075-3080: not yet 4.0. Code only:
   the phone app stays on 3.0 (owner's call). The training data is on the
   owner's laptop (`C:\Users\conor\nnue-data`, 12 files, `2.3-*`,
   `2.7-*`, `v3-*`); data run 3 also stays on this session's cloud machine.
+- **Engine 3.3** = 3.2 with a **512-unit network** (`nets/engine-3.3.nnue`,
+  the owner's laptop run `run5/net-15.nnue`, 15 epochs on the same 346.5M
+  positions; 512 is now the default size in `src/accumulator.h` and
+  `train.py`) plus the speed changes below. **The new baseline**, bench
+  2826031. Code only: the phone app stays on 3.0. Train loss 0.007701 at epoch 6 (the
+  256 run: 0.007958 at epoch 13). ~20% fewer nodes/s than 3.2 on the
+  laptop, ~10% on the cloud. **vs 3.2** (laptop, 8+0.08, 12 at a time):
+  +2332 -2232 =2420 after 6,984 games, **+5 +/- 6**, LOS 94.7%, LLR
+  -0.03: stopped by the owner, undecided (a true +5 sits between the SPRT's
+  0 and 10, so it never settles); a 20+0.2 run suggested. **vs Stockfish-3100** (cloud, 10+0.1): **H0 after
+  558 games**, +161 -192 =205, -19 +/- 22 (3.2: -25 +/- 25): about 3080,
+  at most a few points above 3.2. Not 4.0.
+  **With the speed changes** (`64a5f7c`: AVX2 network loops, table
+  prefetch; same search; +4% / +2% on the cloud): **vs 3.2 H1 after 472
+  games**, +181 -119 =172 (56.6%), **+46 +/- 23** (laptop, 8+0.08, 12 at a
+  time): far more than the cloud speedup predicts, so the changes must be
+  worth much more on the laptop. **Released as 3.3.** vs Stockfish-3100
+  at 99% (`ALPHA=0.01 scripts/strength_match.sh`, cloud): about -20 +/- 30
+  at 320 games, heading for H0, left running.
+- **Version numbering (owner's rule, Oct 2026):** a new major version
+  each time a hundred mark on Stockfish's scale is passed: **4.0** for the
+  first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
+  first above 3000). "Stronger" means H1 in `scripts/strength_match.sh
+  <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
+  `8moves_v3`). Changes that beat the previous version by SPRT in between
+  get minor numbers (3.3, 3.4, ...).
 - **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
   and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
   "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
@@ -106,8 +136,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2608402** (`build/engine2 bench`, with the
-  built-in network; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2826031** (`build/engine2 bench`, with the
+  built-in network; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

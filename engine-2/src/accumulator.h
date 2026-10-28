@@ -11,9 +11,9 @@
 namespace chess::nnue {
 
 // Hidden units per side. The built-in network decides it; a build can
-// override it (-DENGINE_NNUE_HIDDEN=512) to try a network of another size.
+// override it (e.g. -DENGINE_NNUE_HIDDEN=256) to use a network of another size.
 #ifndef NNUE_HIDDEN
-#define NNUE_HIDDEN 256
+#define NNUE_HIDDEN 512
 #endif
 constexpr int HIDDEN = NNUE_HIDDEN;
 static_assert(HIDDEN % 32 == 0, "the update loops vectorize in blocks of 16-bit lanes");

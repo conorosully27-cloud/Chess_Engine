@@ -5,7 +5,7 @@
 #   scripts/strength_match.sh <engine> [UCI_Elo] [time control] [concurrency]
 #
 # Defaults: 2900, 10+0.1, 3 games at a time. SPRT with bounds -10 / +10 Elo
-# (5% error each way): "H1 accepted" means stronger than Stockfish at that
+# (5% error each way; ALPHA=0.01 for 1%, i.e. 99% confidence): "H1 accepted" means stronger than Stockfish at that
 # rating, "H0 accepted" weaker. fastchess's Elo estimate then places the
 # engine on the scale: rating ~ UCI_Elo + Elo difference. The calibration
 # was made at longer time controls, so treat the result as approximate.
@@ -29,6 +29,7 @@ engine="$(realpath "${1:?engine}")"
 elo="${2:-2900}"
 tc="${3:-10+0.1}"
 conc="${4:-3}"
+alpha="${ALPHA:-0.05}"
 
 fastchess="${FASTCHESS:-$(command -v fastchess || echo "$HOME/tools/fastchess/fastchess")}"
 stockfish="${STOCKFISH:-$HOME/tools/stockfish}"
@@ -48,7 +49,7 @@ cd "$run_dir"
   -each tc="$tc" \
   -openings file="$book" format=pgn order=random \
   -rounds 5000 -repeat -concurrency "$conc" -recover \
-  -sprt elo0=-10 elo1=10 alpha=0.05 beta=0.05 model=logistic \
+  -sprt elo0=-10 elo1=10 alpha="$alpha" beta="$alpha" model=logistic \
   -resign movecount=3 score=600 twosided=true -draw movenumber=34 movecount=8 score=20 \
   -pgnout file="$run_dir/games.pgn" \
   | tee "$run_dir/match.log"

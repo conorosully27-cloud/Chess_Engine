@@ -5,6 +5,34 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 3.3: a 512-unit network, and faster network code
+
+3.2's search with a network twice as wide, 768 -> **512**x2 -> 1
+(`nets/engine-3.3.nnue`; trained on the owner's laptop GPU, 15 epochs, on
+the same 346.5M positions as 3.2's), plus speed changes that leave the
+search unchanged (commit `64a5f7c`). **Against 3.2** (owner's laptop,
+8+0.08, SPRT 0/10, 12 games at a time, adjudication on): **H1 accepted
+after 472 games**, 181 wins, 119 losses, 172 draws (56.6%), **+46 Elo
+(+/- 23)**. New bench signature **2826031** (3.2: 2608402), the same as
+the tested build. Code only: the phone app stays on 3.0. An SPRT that
+stops early tends to overstate the gain.
+
+- **The network alone** was only **+5 +/- 6** against 3.2 over 6,984
+  games (LOS 94.7%, SPRT undecided): about 20% fewer nodes/s on the
+  laptop (10% on the cloud CPU) took back most of what it evaluates
+  better. Against Stockfish-3100 (cloud, 10+0.1): H0 after 558 games, -19
+  +/- 22 (3.2: -25 +/- 25).
+- **Speed** (`src/nnue.cpp`, `src/tt.h`, `src/search.cpp`): the network's
+  updates written with AVX2, 32 units a step (the compiler's loops stepped
+  16), and its output layer clamping with min/max in one pass for both
+  sides; plain loops without AVX2 (WebAssembly). A prefetch of the
+  transposition-table entry right after each move into a node that will
+  probe it. Same evaluations and search (bench unchanged with and without
+  AVX2). On the cloud CPU: +4% nodes/s at 512 (+1.5% at 256) and ~2% from
+  the prefetch with a 64 MB table; on the laptop clearly more, judging by
+  the jump from +5 to +46.
+- `scripts/strength_match.sh`: `ALPHA=0.01` runs the SPRT at 99%.
+
 ## 3.2: a network trained on 350M positions
 
 3.1's search with a new 256-unit network (`nets/engine-3.2.nnue`, the
@@ -19,6 +47,17 @@ after 278 games**, 129 wins, 60 losses, 89 draws (62.4%), **+88 Elo
 (+/- 31)**. New bench signature **2608402** (3.1: 2851725), the same as
 the tested build. Code only: the phone app stays on 3.0. An SPRT that
 stops this early tends to overstate the gain.
+
+**Playing strength: about 3080 (3050-3105) on Stockfish's scale.**
+Against Stockfish 18 held to `UCI_Elo` 3050 (`scripts/strength_match.sh`;
+cloud, 10+0.1, 4 games at a time, 1 thread and 64 MB each, `8moves_v3`
+openings, adjudication on, SPRT -10/+10): **H1 accepted after 372
+games** (stronger than Stockfish-3050), 132 wins, 102 losses, 138 draws
+(54.0%), **+28 Elo (+/- 27)**, in 58 minutes. No time losses. 3.0
+measured about 3010 the same way (at 3000). Against Stockfish-3100 (same
+setup): **H0 accepted after 462 games** (weaker), 122 wins, 155 losses,
+185 draws (46.4%), -25 Elo (+/- 25), so about 3075; between 3050 and
+3100, consistent with the 3050 test.
 
 - The trainer read each position from a random place in the files: fine
   while the data fit in memory, 13.5k positions/s on 11 GB. Batches now

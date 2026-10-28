@@ -7,6 +7,10 @@
 #include <iterator>
 #include <vector>
 
+#if defined(__AVX2__)
+#include <immintrin.h>
+#endif
+
 namespace chess::nnue {
 
 namespace {
@@ -45,35 +49,79 @@ inline int feature(Piece pc, Square s, Color side) {
 
 inline const std::int16_t* weights(Piece pc, Square s, Color side) { return net.ft_weight[feature(pc, s, side)]; }
 
-// The update loops. Sums wrap like the 16-bit lanes they vectorize to; the
-// trainer's weight limit keeps every finished accumulator in range, so the
-// result is exactly a from-scratch computation's.
+// The update loops: out = in + the added rows - the removed rows. Sums wrap
+// like the 16-bit lanes they vectorize to; the trainer's weight limit keeps
+// every finished accumulator in range, so the result is exactly a
+// from-scratch computation's.
 using Row = const std::int16_t* __restrict;
 
-inline void add1_sub1(std::int16_t* __restrict out, Row in, Row a, Row r) {
-  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a[j] - r[j]);
+#if defined(__AVX2__)
+// Written out with AVX2, 32 units a step: the compiler's own vectorization
+// of the plain loops below steps 16 at a time, and at 512 units the loop
+// overhead was a sizeable share of the network's cost. Same results.
+template <int Adds, int Subs>
+inline void add_sub(std::int16_t* __restrict out, Row in, const std::int16_t* const (&rows)[Adds + Subs]) {
+  for (int j = 0; j < HIDDEN; j += 32) {
+    __m256i v0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(in + j));
+    __m256i v1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(in + j + 16));
+    for (int k = 0; k < Adds + Subs; k++) {
+      const __m256i w0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(rows[k] + j));
+      const __m256i w1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(rows[k] + j + 16));
+      v0 = k < Adds ? _mm256_add_epi16(v0, w0) : _mm256_sub_epi16(v0, w0);
+      v1 = k < Adds ? _mm256_add_epi16(v1, w1) : _mm256_sub_epi16(v1, w1);
+    }
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(out + j), v0);
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(out + j + 16), v1);
+  }
 }
-inline void add1_sub2(std::int16_t* __restrict out, Row in, Row a, Row r1, Row r2) {
-  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a[j] - r1[j] - r2[j]);
+#else
+template <int Adds, int Subs>
+inline void add_sub(std::int16_t* __restrict out, Row in, const std::int16_t* const (&rows)[Adds + Subs]) {
+  for (int j = 0; j < HIDDEN; j++) {
+    int v = in[j];
+    for (int k = 0; k < Adds + Subs; k++) v += k < Adds ? rows[k][j] : -rows[k][j];
+    out[j] = std::int16_t(v);
+  }
 }
-inline void add2_sub1(std::int16_t* __restrict out, Row in, Row a1, Row a2, Row r) {
-  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a1[j] + a2[j] - r[j]);
-}
+#endif
+
+inline void add1_sub1(std::int16_t* __restrict out, Row in, Row a, Row r) { add_sub<1, 1>(out, in, {a, r}); }
+inline void add1_sub2(std::int16_t* __restrict out, Row in, Row a, Row r1, Row r2) { add_sub<1, 2>(out, in, {a, r1, r2}); }
+inline void add2_sub1(std::int16_t* __restrict out, Row in, Row a1, Row a2, Row r) { add_sub<2, 1>(out, in, {a1, a2, r}); }
 inline void add2_sub2(std::int16_t* __restrict out, Row in, Row a1, Row a2, Row r1, Row r2) {
-  for (int j = 0; j < HIDDEN; j++) out[j] = std::int16_t(in[j] + a1[j] + a2[j] - r1[j] - r2[j]);
+  add_sub<2, 2>(out, in, {a1, a2, r1, r2});
 }
 
-// One side's hidden units, clipped to [0, QA], times their output weights.
+// The output layer: both sides' hidden units, clipped to [0, QA], times
+// their output weights (side to move first), summed.
+#if defined(__AVX2__)
+inline std::int32_t output(Row us, Row them, Row w) {
+  const __m256i zero = _mm256_setzero_si256(), qa = _mm256_set1_epi16(QA);
+  __m256i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 16) {
+    const __m256i u = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(us + j)), zero), qa);
+    const __m256i t = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(them + j)), zero), qa);
+    s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(u, _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + j))));
+    s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(t, _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + HIDDEN + j))));
+  }
+  __m256i s = _mm256_add_epi32(s0, s1);
+  __m128i h = _mm_add_epi32(_mm256_castsi256_si128(s), _mm256_extracti128_si256(s, 1));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0x4E));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0xB1));
+  return _mm_cvtsi128_si32(h);
+}
+#else
 // A plain dot product of 16-bit values, which compilers vectorize
 // (pmaddwd on x86, i32x4.dot_i16x8_s in WebAssembly).
-inline std::int32_t output(Row units, Row w) {
+inline std::int32_t output(Row us, Row them, Row w) {
   std::int32_t sum = 0;
   for (int j = 0; j < HIDDEN; j++) {
-    const std::int16_t u = std::min<std::int16_t>(std::max<std::int16_t>(units[j], 0), QA);
-    sum += u * w[j];
+    sum += std::min<std::int16_t>(std::max<std::int16_t>(us[j], 0), QA) * w[j];
+    sum += std::min<std::int16_t>(std::max<std::int16_t>(them[j], 0), QA) * w[HIDDEN + j];
   }
   return sum;
 }
+#endif
 
 // next = prev changed by next.dirty, from both sides.
 void apply(const Accumulator& prev, Accumulator& next) {
@@ -201,7 +249,7 @@ int evaluate(const Position& pos) {
   // Accumulators fit in 16 bits: the trainer keeps first-layer weights and
   // biases within 1.98, so 33 terms of at most 1.98 * QA stay under 32767.
   const Color us = pos.side_to_move();
-  const std::int32_t sum = output(acc.values[us], net.out_weight) + output(acc.values[~us], net.out_weight + HIDDEN);
+  const std::int32_t sum = output(acc.values[us], acc.values[~us], net.out_weight);
   return int((std::int64_t(sum) + net.out_bias) * SCALE / (QA * QB));
 }
 
