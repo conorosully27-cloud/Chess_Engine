@@ -98,6 +98,14 @@ class SearchWorker {
   std::int16_t* cont_row(int ply, int back) {
     return ply < back || ply_move_[ply - back] < 0 ? nullptr : &cont_history_[ply_move_[ply - back] * CONT_INDEX];
   }
+  // Correction history: how far the static evaluation tends to be from the
+  // search's result in positions with this pawn structure, per side to
+  // move, as a running average in 1/CORR_GRAIN centipawns (search.cpp).
+  static constexpr int CORR_SIZE = 16384;
+  std::int16_t corr_history_[COLOR_NB][CORR_SIZE] = {};
+  std::int16_t& corr_entry(const Position& pos) {
+    return corr_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
+  }
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
 
