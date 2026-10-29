@@ -58,9 +58,10 @@ TUNE_PARAM(LMR_HISTORY, 200, 50, 1000);
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
 TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 
-// Correction history entries are in 1/CORR_GRAIN centipawns, within
-// +/-CORR_LIMIT (64 cp); each update moves an entry toward the latest error
-// by depth + 1 parts in CORR_WEIGHT_SCALE, at most CORR_MAX_WEIGHT.
+// Correction history entries are in 1/CORR_GRAIN centipawns, each within
+// +/-CORR_LIMIT (64 cp); each update moves every table's entry by depth + 1
+// parts in CORR_WEIGHT_SCALE (at most CORR_MAX_WEIGHT) of what the tables
+// together still get wrong. With one table, a running average of the error.
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_LIMIT = 64 * CORR_GRAIN;
 constexpr int CORR_WEIGHT_SCALE = 256;
@@ -141,6 +142,7 @@ void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
   std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
+  std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -284,7 +286,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     // The table keeps the static evaluation: reuse it rather than evaluate again.
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
     // Corrected by what searches of this pawn structure have found.
-    static_eval = raw_eval + corr_entry(pos) / CORR_GRAIN;
+    static_eval = raw_eval + corr_entries(pos).total() / CORR_GRAIN;
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
       if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
@@ -432,11 +434,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // the evaluation: not a lower bound below it or an upper bound above it.
   if (!in_check && !excluding && !best_move.is_capture() && !best_move.is_promotion() && !is_mate_score(best_score) &&
       !(bound == BOUND_LOWER && best_score <= static_eval) && !(bound == BOUND_UPPER && best_score >= static_eval)) {
-    std::int16_t& c = corr_entry(pos);
+    const CorrEntries corr = corr_entries(pos);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
-    const int target = (best_score - raw_eval) * CORR_GRAIN;
-    c = std::int16_t(std::clamp((c * (CORR_WEIGHT_SCALE - weight) + target * weight) / CORR_WEIGHT_SCALE,
-                                -CORR_LIMIT, CORR_LIMIT));
+    const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
+    for (std::int16_t* c : corr.entry)
+      *c = std::int16_t(std::clamp((*c * CORR_WEIGHT_SCALE + error * weight) / CORR_WEIGHT_SCALE, -CORR_LIMIT, CORR_LIMIT));
   }
   if (!excluding && (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT)) {
     // After a fail low every move scored below alpha and the "best" of them
@@ -468,7 +470,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (in_check) {
     best_score = -MATE + ply;
   } else {
-    best_score = evaluate_lazy(pos, alpha, beta) + corr_entry(pos) / CORR_GRAIN;
+    best_score = evaluate_lazy(pos, alpha, beta) + corr_entries(pos).total() / CORR_GRAIN;
     if (best_score >= beta) return best_score;
     if (best_score > alpha) alpha = best_score;
   }
