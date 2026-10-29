@@ -13,7 +13,8 @@ games at a time): **H1 accepted after 812 games**, 231 wins, 178 losses,
 403 draws (53.3%), **+23 Elo (+/- 15)**. New bench signature **2944258**
 (3.3: 2826031), the same as the tested build. Code only: the phone app
 stays on 3.0. An SPRT that stops early tends to overstate the gain. State
-in `release-matches/rel34/`.
+in `release-matches/rel34/`. Against Stockfish-3100 (99% SPRT, 10+0.1):
+stopped at 660 games, -5 +/- 19: about 3095, not yet 4.0.
 
 - **History in late move reductions** (commit `b4f1e10`, `src/search.cpp`):
   a late quiet move's history score (its own plus both continuation

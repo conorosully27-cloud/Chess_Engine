@@ -134,7 +134,10 @@ history behind the search and evaluation.
   history (commit `b9a2ef3`, same network): **vs 3.3 H1 after 812
   games**, +231 -178 =403 (53.3%), **+23 +/- 15** (cloud, 8+0.08, 4 at a
   time; `release-matches/rel34/`). **The new baseline**, bench 2944258.
-  Code only: the phone app stays on 3.0. Follow-ups: more correction tables
+  Code only: the phone app stays on 3.0. **vs Stockfish-3100 at 99%**
+  (`ALPHA=0.01 scripts/strength_match.sh`, cloud, 10+0.1): stopped by the
+  owner at 660 games, +187 -197 =276 (49.2%), **-5 +/- 19**, LLR -1.13
+  (bounds +/-4.60): about 3095, just under the 4.0 mark. Follow-ups: more correction tables
   (non-pawn pieces per color, continuation), using the correction's size
   in pruning, and its constants in the next SPSA run.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
