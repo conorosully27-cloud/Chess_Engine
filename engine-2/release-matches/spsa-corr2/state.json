@@ -1,0 +1,12 @@
+{
+ "theta": {
+  "LMR_HISTORY": 193.22595989544007,
+  "CORR_LIMIT_CP": 57.499504079346956,
+  "CORR_MAX_WEIGHT": 15.08168316574267,
+  "CORR_NON_PAWN_RATE": 25.06737509257275
+ },
+ "pairs": 522,
+ "wins": 286,
+ "losses": 260,
+ "draws": 498
+}
