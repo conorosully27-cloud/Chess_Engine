@@ -140,6 +140,16 @@ history behind the search and evaluation.
   (bounds +/-4.60): about 3095, just under the 4.0 mark. Follow-ups: more correction tables
   (non-pawn pieces per color, continuation), using the correction's size
   in pruning, and its constants in the next SPSA run.
+- **Non-pawn correction history (after 3.4):** two more correction
+  tables keyed by each side's non-pawn pieces. At full learning rate
+  (`4464ca7`) -11 +/- 21 after 380 games, stopped (FAILED_EXPERIMENTS).
+  At a quarter of the rate (`0eef8c3`, bench 3026819) vs 3.4: **stopped
+  at LOS 97.6%** (owner's rule, to free the cloud for tuning), 940 games,
+  +265 -229 =446, +13 +/- 13, LLR 1.81: **not accepted on its own**. Then
+  SPSA (`9490f18`, `--params LMR_HISTORY,CORR_LIMIT_CP,CORR_MAX_WEIGHT,
+  CORR_NON_PAWN_RATE`, 2,000 pairs at 8+0.08, state in `~/spsa-corr/`,
+  copies in `release-matches/spsa-corr/`); the tuned build then gets an
+  SPRT vs 3.4, which decides.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
