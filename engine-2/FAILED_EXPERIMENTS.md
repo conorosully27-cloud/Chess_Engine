@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Non-pawn correction history at full learning rate, on 3.4 (Oct 2026)
+
+**Change:** two more correction tables beside 3.4's pawn table, keyed by
+each side's non-pawn pieces (king included; a new incremental key in
+`Position`), the three summed; each update moved all three by
+weight/256 of the error they left together. Commit `4464ca7`. Bench
+2944258 -> 2710415 (8% fewer nodes; with the new tables off, exactly
+3.4's 2944258).
+
+**Result:** vs 3.4 (cloud, 8+0.08, 4 at a time), stopped by the owner at
+380 games: +91 -103 =186 (48.4%), Elo -11 +/- 21, LLR -1.40. State in
+`release-matches/npcorr/`.
+
+**Prior:** 7/10 (a standard gain in strong engines).
+
+**Commentary:** most likely the learning rate: three tables each moving
+the full step toward the same error make the total correction react about
+three times as fast as 3.4's single table, so it is noisier. Retried with
+the new tables learning 4x more slowly.
+
 ## "Improving" flag in late move reductions, on 2.10 (Oct 2026)
 
 **Change:** the same flag as the entry below, used only in late move

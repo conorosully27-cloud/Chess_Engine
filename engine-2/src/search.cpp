@@ -62,10 +62,13 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // +/-CORR_LIMIT (64 cp); each update moves every table's entry by depth + 1
 // parts in CORR_WEIGHT_SCALE (at most CORR_MAX_WEIGHT) of what the tables
 // together still get wrong. With one table, a running average of the error.
+// The non-pawn tables learn CORR_NON_PAWN_SLOWDOWN times more slowly: at
+// full speed all three chased the same error and the sum overshot.
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_LIMIT = 64 * CORR_GRAIN;
 constexpr int CORR_WEIGHT_SCALE = 256;
 constexpr int CORR_MAX_WEIGHT = 16;
+constexpr int CORR_NON_PAWN_SLOWDOWN = 4;
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
@@ -437,8 +440,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     const CorrEntries corr = corr_entries(pos);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
-    for (std::int16_t* c : corr.entry)
-      *c = std::int16_t(std::clamp((*c * CORR_WEIGHT_SCALE + error * weight) / CORR_WEIGHT_SCALE, -CORR_LIMIT, CORR_LIMIT));
+    for (int i = 0; i < 3; i++) {
+      std::int16_t& c = *corr.entry[i];
+      const int scale = i == 0 ? CORR_WEIGHT_SCALE : CORR_WEIGHT_SCALE * CORR_NON_PAWN_SLOWDOWN;
+      c = std::int16_t(std::clamp((c * scale + error * weight) / scale, -CORR_LIMIT, CORR_LIMIT));
+    }
   }
   if (!excluding && (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT)) {
     // After a fail low every move scored below alpha and the "best" of them
