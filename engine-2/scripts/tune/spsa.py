@@ -14,7 +14,9 @@ Several pairs run at once (--workers), each against the latest theta.
 
 State (theta and the pair count) is saved after every pair to --state, so
 an interrupted run continues where it left off when started again with the
-same arguments. Progress goes to stdout.
+same arguments. Progress goes to stdout. --params tunes only the listed
+parameters (the rest keep their defaults), e.g.
+    --params LMR_HISTORY,CORR_LIMIT_CP,CORR_MAX_WEIGHT,CORR_NON_PAWN_RATE
 """
 import argparse
 import json
@@ -39,6 +41,8 @@ C_END = {
     "SEE_PRUNE_DEPTH": 1, "SEE_QUIET_MARGIN": 4, "SEE_CAPTURE_MARGIN": 12,
     "LMR_BASE": 12, "LMR_DIV": 20,
     "SINGULAR_DEPTH": 1, "SINGULAR_MARGIN": 4,
+    "LMR_HISTORY": 30,
+    "CORR_LIMIT_CP": 8, "CORR_MAX_WEIGHT": 3, "CORR_NON_PAWN_RATE": 6,
 }
 R_END = 0.002
 ALPHA, GAMMA = 0.602, 0.101
@@ -50,13 +54,17 @@ RESULT = re.compile(r"Games: (\d+), Wins: (\d+), Losses: (\d+), Draws: (\d+)")
 OPTION = re.compile(r"option name (\S+) type spin default (-?\d+) min (-?\d+) max (-?\d+)")
 
 
-def engine_params(engine):
+def engine_params(engine, only=None):
+    wanted = set(only) if only else set(C_END)
+    unknown = wanted - set(C_END)
+    if unknown:
+        raise SystemExit(f"no perturbation size (C_END) for: {sorted(unknown)}")
     out = subprocess.run([engine], input="uci\nquit\n", capture_output=True, text=True, timeout=30).stdout
     params = {}
     for name, default, lo, hi in OPTION.findall(out):
-        if name in C_END:
+        if name in wanted:
             params[name] = (int(default), int(lo), int(hi))
-    missing = set(C_END) - set(params)
+    missing = wanted - set(params)
     if missing:
         raise SystemExit(f"not a tuning build, or missing options: {sorted(missing)}")
     return params
@@ -88,7 +96,7 @@ class Tuner:
     def __init__(self, args):
         self.args = args
         self.engine = os.path.realpath(args.engine)
-        self.params = engine_params(self.engine)
+        self.params = engine_params(self.engine, args.params.split(",") if args.params else None)
         self.fastchess = find_fastchess()
         self.book = opening_book()
         self.lock = threading.Lock()
@@ -193,6 +201,7 @@ def main():
     ap.add_argument("--workers", type=int, default=4, help="pairs played at once (default 4)")
     ap.add_argument("--state", default="spsa-state.json", help="state file, for resuming")
     ap.add_argument("--report", type=int, default=20, help="print progress every N pairs")
+    ap.add_argument("--params", help="comma-separated parameters to tune (default: all in C_END)")
     Tuner(ap.parse_args()).run()
 
 
