@@ -15,6 +15,16 @@ each played with both colors). Elo figures are fastchess's estimate with its
   time): **H1 accepted after 2,048 games**, 544 wins, 477 losses, 1,027
   draws (51.6%), **+11 Elo (+/- 9)**. Bench **3450556** (22% more nodes:
   well-ordered moves are searched deeper).
+- **Correction history** (commit `b9a2ef3`, `src/search.h`,
+  `src/search.cpp`): the static evaluation is corrected by a running
+  average of (search score - evaluation) for the pawn structure and side
+  to move (16K entries each, keyed by the pawn hash, within +/-64 cp,
+  weight min(depth + 1, 16) / 256 per update, from quiet results that bound
+  the evaluation from the right side); the table keeps the raw evaluation.
+  Main search and quiescence's stand-pat. **Against the history build
+  above** (cloud, 8+0.08, SPRT 0/10, 4 at a time): **H1 accepted after 532
+  games**, 159 wins, 112 losses, 261 draws (54.4%), **+31 Elo (+/- 18)**.
+  Bench **2944258** (15% fewer nodes).
 
 ## 3.3: a 512-unit network, and faster network code
 

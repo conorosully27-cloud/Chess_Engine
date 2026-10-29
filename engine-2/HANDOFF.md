@@ -126,6 +126,14 @@ history behind the search and evaluation.
   8+0.08, 4 at a time). **3.3 + this is the new best build**, not yet
   released (the owner names releases). State in
   `release-matches/lmrhist-3.3/`.
+- **Correction history: accepted** (commit `b9a2ef3`, bench 2944258):
+  pawn-structure correction of the static evaluation (details in
+  `CHANGELOG.md`). **vs the history build H1 after 532 games**, +159 -112
+  =261, **+31 +/- 18** (cloud, 8+0.08). **The new best build.** Release
+  SPRT of it vs 3.3 (`release-matches/rel34/`) running; on H1 the owner
+  plans to release it as 3.4. Follow-ups: more correction tables
+  (non-pawn pieces per color, continuation), using the correction's size
+  in pruning, and its constants in the next SPSA run.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
