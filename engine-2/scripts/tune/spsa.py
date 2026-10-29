@@ -17,6 +17,11 @@ an interrupted run continues where it left off when started again with the
 same arguments. Progress goes to stdout. --params tunes only the listed
 parameters (the rest keep their defaults), e.g.
     --params LMR_HISTORY,CORR_LIMIT_CP,CORR_MAX_WEIGHT,CORR_NON_PAWN_RATE
+Each step moves theta by about r_end * c_end per unit of game result, so
+fishtest's r_end suits tens of thousands of pairs; for a run of a few
+thousand, --r-end 0.005 --c-scale 2 moves about 5x as far. A new run can
+start from an old run's values: write its theta into a fresh state file
+with pairs 0.
 """
 import argparse
 import json
@@ -102,8 +107,9 @@ class Tuner:
         self.lock = threading.Lock()
         n = args.pairs
         self.A = 0.1 * n
-        self.c = {p: C_END[p] * n ** GAMMA for p in self.params}
-        self.a = {p: R_END * C_END[p] ** 2 * (self.A + n) ** ALPHA for p in self.params}
+        c_end = {p: C_END[p] * args.c_scale for p in self.params}
+        self.c = {p: c_end[p] * n ** GAMMA for p in self.params}
+        self.a = {p: args.r_end * c_end[p] ** 2 * (self.A + n) ** ALPHA for p in self.params}
         self.state = {"theta": {p: float(v[0]) for p, v in self.params.items()},
                       "pairs": 0, "wins": 0, "losses": 0, "draws": 0}
         if os.path.exists(args.state):
@@ -202,6 +208,11 @@ def main():
     ap.add_argument("--state", default="spsa-state.json", help="state file, for resuming")
     ap.add_argument("--report", type=int, default=20, help="print progress every N pairs")
     ap.add_argument("--params", help="comma-separated parameters to tune (default: all in C_END)")
+    ap.add_argument("--r-end", type=float, default=R_END,
+                    help=f"step size at the end, relative to c_end^2 (default {R_END}, fishtest's; "
+                         "larger moves further in a short run, with noisier final values)")
+    ap.add_argument("--c-scale", type=float, default=1.0,
+                    help="multiplies every C_END (the perturbation): larger compares more different settings")
     Tuner(ap.parse_args()).run()
 
 
