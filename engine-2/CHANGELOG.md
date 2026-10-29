@@ -5,6 +5,36 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 3.4: history in late move reductions, and correction history
+
+3.3 plus the two search changes below (commit `b9a2ef3`; same network).
+**Against 3.3** (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 4
+games at a time): **H1 accepted after 812 games**, 231 wins, 178 losses,
+403 draws (53.3%), **+23 Elo (+/- 15)**. New bench signature **2944258**
+(3.3: 2826031), the same as the tested build. Code only: the phone app
+stays on 3.0. An SPRT that stops early tends to overstate the gain. State
+in `release-matches/rel34/`. Against Stockfish-3100 (99% SPRT, 10+0.1):
+stopped at 660 games, -5 +/- 19: about 3095, not yet 4.0.
+
+- **History in late move reductions** (commit `b4f1e10`, `src/search.cpp`):
+  a late quiet move's history score (its own plus both continuation
+  histories) takes a ply off its reduction per 200 points, or adds one per
+  200 below zero, at most 2 either way (`LMR_HISTORY`). **Against 3.3**
+  (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 4 games at a
+  time): **H1 accepted after 2,048 games**, 544 wins, 477 losses, 1,027
+  draws (51.6%), **+11 Elo (+/- 9)**. Bench **3450556** (22% more nodes:
+  well-ordered moves are searched deeper).
+- **Correction history** (commit `b9a2ef3`, `src/search.h`,
+  `src/search.cpp`): the static evaluation is corrected by a running
+  average of (search score - evaluation) for the pawn structure and side
+  to move (16K entries each, keyed by the pawn hash, within +/-64 cp,
+  weight min(depth + 1, 16) / 256 per update, from quiet results that bound
+  the evaluation from the right side); the table keeps the raw evaluation.
+  Main search and quiescence's stand-pat. **Against the history build
+  above** (cloud, 8+0.08, SPRT 0/10, 4 at a time): **H1 accepted after 532
+  games**, 159 wins, 112 losses, 261 draws (54.4%), **+31 Elo (+/- 18)**.
+  Bench **2944258** (15% fewer nodes).
+
 ## 3.3: a 512-unit network, and faster network code
 
 3.2's search with a network twice as wide, 768 -> **512**x2 -> 1

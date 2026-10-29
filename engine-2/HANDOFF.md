@@ -118,6 +118,28 @@ history behind the search and evaluation.
   worth much more on the laptop. **Released as 3.3.** vs Stockfish-3100
   at 99% (`ALPHA=0.01 scripts/strength_match.sh`, cloud): about -20 +/- 30
   at 320 games, heading for H0, left running.
+- **History in late move reductions: accepted** (commit `b4f1e10`, on
+  3.3, bench 3450556): a late quiet move's history (own + both
+  continuation histories) takes a ply off its reduction per 200, or adds
+  one per 200 below zero, at most 2 (`LMR_HISTORY`, a tunable). **vs 3.3
+  H1 after 2,048 games**, +544 -477 =1027 (51.6%), **+11 +/- 9** (cloud,
+  8+0.08, 4 at a time). **3.3 + this is the new best build**, not yet
+  released (the owner names releases). State in
+  `release-matches/lmrhist-3.3/`.
+- **Correction history: accepted** (commit `b9a2ef3`, bench 2944258):
+  pawn-structure correction of the static evaluation (details in
+  `CHANGELOG.md`). **vs the history build H1 after 532 games**, +159 -112
+  =261, **+31 +/- 18** (cloud, 8+0.08).
+- **Engine 3.4** = 3.3 + history in late move reductions + correction
+  history (commit `b9a2ef3`, same network): **vs 3.3 H1 after 812
+  games**, +231 -178 =403 (53.3%), **+23 +/- 15** (cloud, 8+0.08, 4 at a
+  time; `release-matches/rel34/`). **The new baseline**, bench 2944258.
+  Code only: the phone app stays on 3.0. **vs Stockfish-3100 at 99%**
+  (`ALPHA=0.01 scripts/strength_match.sh`, cloud, 10+0.1): stopped by the
+  owner at 660 games, +187 -197 =276 (49.2%), **-5 +/- 19**, LLR -1.13
+  (bounds +/-4.60): about 3095, just under the 4.0 mark. Follow-ups: more correction tables
+  (non-pawn pieces per color, continuation), using the correction's size
+  in pruning, and its constants in the next SPSA run.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
@@ -464,6 +486,18 @@ square, per side) -> 128 hidden per side -> 1.
    B/D/W 33/36/32%. The old 150M (2.3 and 2.7 data) is on the other
    session's machine, not here: plan to train on the new data alone here
    (2.7's A-new vs B-mix suggests mixing old data is worth ~+16).
+
+12. **Data run 4 (Oct 28, owner's plan): all old data deleted, fresh data
+   from Engine 3.3 only**, for variety: `datagen`'s new `[keep]` argument
+   (commit `70a0ba5`) saves each quiet position with probability 1/keep;
+   run 4 uses keep 4, so about 4x the games for the same number of
+   positions (and 4x the time). Binary: 3.3's search (bench 2826031) from
+   commit `33c8729` (which also adds the book as
+   `scripts/nnue/8moves_v3.uci`), 5,000 nodes a move, book openings plus
+   2-5 random plies, on the owner's laptop into
+   `C:\Users\conor\nnue-data\v4\part-1..10.bin` (20M each, seeds
+   8401-8410; resume with new seeds). The cloud copy of run 3 was deleted
+   too.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)

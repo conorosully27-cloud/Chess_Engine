@@ -1,0 +1,4 @@
+saved: new-b9a2ef3 vs old-01044f0: 532 games, +159 -112 =261
+LLR: 2.95 (100.3%) (-2.94, 2.94) [0.00, 10.00]
+SPRT ([0.00, 10.00]) completed - H1 was accepted
+Finished match

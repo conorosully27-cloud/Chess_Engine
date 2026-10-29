@@ -29,12 +29,15 @@ static_assert(sizeof(PackedPosition) == 32, "the data format is 32 bytes a posit
 // `path` until it holds at least `positions` of them. Each game opens with
 // random moves; with a `book` (one opening per line, in UCI moves, e.g. from
 // scripts/nnue/book_to_uci.mjs), it plays a random book opening first and
-// fewer random moves after it, for more varied games. Safe to stop at any
+// fewer random moves after it, for more varied games. With `keep` above 1,
+// each quiet position is saved with probability 1/keep: more games for the
+// same number of positions, so more varied data (neighbouring positions of
+// one game are much alike). Safe to stop at any
 // time: each game's positions are written together once it ends, a reader
 // ignores a partial record at the end of the file, and a resumed run trims
 // one before appending. Resume with a different seed: the same seed replays
 // the same games.
 void run_datagen(const std::string& path, std::uint64_t positions, int nodes, std::uint64_t seed,
-                 const std::string& book = "");
+                 const std::string& book = "", int keep = 1);
 
 }  // namespace chess
