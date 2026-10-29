@@ -129,9 +129,12 @@ history behind the search and evaluation.
 - **Correction history: accepted** (commit `b9a2ef3`, bench 2944258):
   pawn-structure correction of the static evaluation (details in
   `CHANGELOG.md`). **vs the history build H1 after 532 games**, +159 -112
-  =261, **+31 +/- 18** (cloud, 8+0.08). **The new best build.** Release
-  SPRT of it vs 3.3 (`release-matches/rel34/`) running; on H1 the owner
-  plans to release it as 3.4. Follow-ups: more correction tables
+  =261, **+31 +/- 18** (cloud, 8+0.08).
+- **Engine 3.4** = 3.3 + history in late move reductions + correction
+  history (commit `b9a2ef3`, same network): **vs 3.3 H1 after 812
+  games**, +231 -178 =403 (53.3%), **+23 +/- 15** (cloud, 8+0.08, 4 at a
+  time; `release-matches/rel34/`). **The new baseline**, bench 2944258.
+  Code only: the phone app stays on 3.0. Follow-ups: more correction tables
   (non-pawn pieces per color, continuation), using the correction's size
   in pruning, and its constants in the next SPSA run.
 - **Version numbering (owner's rule, Oct 2026):** a new major version

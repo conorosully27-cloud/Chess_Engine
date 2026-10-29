@@ -5,7 +5,15 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Accepted since 3.3 (not yet released)
+## 3.4: history in late move reductions, and correction history
+
+3.3 plus the two search changes below (commit `b9a2ef3`; same network).
+**Against 3.3** (`scripts/release_match.sh`, cloud, 8+0.08, SPRT 0/10, 4
+games at a time): **H1 accepted after 812 games**, 231 wins, 178 losses,
+403 draws (53.3%), **+23 Elo (+/- 15)**. New bench signature **2944258**
+(3.3: 2826031), the same as the tested build. Code only: the phone app
+stays on 3.0. An SPRT that stops early tends to overstate the gain. State
+in `release-matches/rel34/`.
 
 - **History in late move reductions** (commit `b4f1e10`, `src/search.cpp`):
   a late quiet move's history score (its own plus both continuation
