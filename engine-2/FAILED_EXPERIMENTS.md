@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026)
+
+**Change:** the table below at 10% learning rate with its own limit:
+16 cp first (`3072e9a`), then 18 cp after two SPSA runs of the rate and
+limit (`e899aa8`; 882 and 824 pairs, both stopped by the owner, both
+ending near 10% / 16-18 cp). Bench 2841857.
+
+**Result:** cautious version vs 4.0: +23 +/- 34 after 180 games (stopped
+to tune). Tuned version vs 4.0 (cloud, 8+0.08, 4 at a time): **H0
+accepted after 1,646 games**, +414 -427 =805 (49.6%), Elo -3 +/- 10.
+State in `release-matches/contcorr-tuned/`.
+
+**Prior:** 6/10.
+
+**Commentary:** worth nothing measurable: the early +23 was luck, and
+the tuner never moved far from the cautious values because there was no
+gain to find. A two-move key is too sparse at our node counts (each entry
+sees a handful of updates a game). If retried: a coarser key (the last
+move alone, 768 entries), or with far more nodes per game.
+
 ## Continuation correction history at the non-pawn settings, on 4.0 (Oct 2026)
 
 **Change:** a fourth correction table keyed by the last two moves (piece *
