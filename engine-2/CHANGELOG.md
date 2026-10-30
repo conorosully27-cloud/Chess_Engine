@@ -5,6 +5,22 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## Accepted since 3.4 (not yet released)
+
+- **Non-pawn correction history, tuned** (commits `4464ca7`, `0eef8c3`,
+  `9490f18`, `01ca8c6`; `src/position.*`, `src/search.*`): two more
+  correction tables beside the pawn table, keyed by each side's non-pawn
+  pieces (king included; a new incremental key in `Position`), the three
+  corrections summed; every update moves each table by its share of the
+  error they still leave together, the non-pawn tables at 27% of the
+  pawn table's speed. SPSA (2,000 pairs at 8+0.08, `--r-end 0.005
+  --c-scale 2`) set the correction limit to 50 cp (64), the maximum
+  weight to 15/256 (16) and the non-pawn rate to 27% (25); `LMR_HISTORY`
+  stayed at 200. **Against 3.4** (cloud, 8+0.08, SPRT 0/10, 4 at a time):
+  **H1 accepted after 1,308 games**, 388 wins, 328 losses, 592 draws
+  (52.3%), **+16 Elo (+/- 12)**. Bench **3027103**. At full learning
+  rate the non-pawn tables lost (`FAILED_EXPERIMENTS.md`).
+
 ## 3.4: history in late move reductions, and correction history
 
 3.3 plus the two search changes below (commit `b9a2ef3`; same network).

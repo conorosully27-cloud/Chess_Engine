@@ -149,7 +149,14 @@ history behind the search and evaluation.
   SPSA (`9490f18`, `--params LMR_HISTORY,CORR_LIMIT_CP,CORR_MAX_WEIGHT,
   CORR_NON_PAWN_RATE`, 2,000 pairs at 8+0.08, state in `~/spsa-corr/`,
   copies in `release-matches/spsa-corr/`); the tuned build then gets an
-  SPRT vs 3.4, which decides.
+  SPRT vs 3.4, which decides. The first SPSA run (fishtest step size)
+  barely moved the values in 476 pairs; restarted bolder (`--r-end 0.005
+  --c-scale 2`, `release-matches/spsa-corr2/`): limit 64 -> 50 cp, max
+  weight 16 -> 15, non-pawn rate 25 -> 27%, `LMR_HISTORY` 200.
+- **Tuned non-pawn correction: accepted** (commit `01ca8c6`, bench
+  3027103): **vs 3.4 H1 after 1,308 games**, +388 -328 =592 (52.3%),
+  **+16 +/- 12** (cloud, 8+0.08). **The new best build**, not released.
+  vs Stockfish-3100 (99%) started (`matches/strength-20261030-004528`).
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
