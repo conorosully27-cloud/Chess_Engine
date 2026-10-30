@@ -65,7 +65,8 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // The non-pawn tables learn at CORR_NON_PAWN_RATE percent of that speed: at
 // full speed all three chased the same error and the sum overshot. The
 // last-two-moves table, far sparser, learns at CORR_CONT_RATE percent and
-// is held within +/-CORR_CONT_LIMIT_CP (at 27% and 50 cp it lost).
+// is held within +/-CORR_CONT_LIMIT_CP (at 27% and 50 cp it lost; 10% and
+// 18 cp from two SPSA runs, Oct 2026, stopped at 882 and 824 pairs).
 // Values from an SPSA run (Oct 2026, 2,000 pairs at 8+0.08, from 64, 16, 25).
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_WEIGHT_SCALE = 256;
@@ -73,7 +74,7 @@ TUNE_PARAM(CORR_LIMIT_CP, 50, 16, 127);
 TUNE_PARAM(CORR_MAX_WEIGHT, 15, 4, 64);
 TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
-TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
+TUNE_PARAM(CORR_CONT_LIMIT_CP, 18, 4, 127);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
