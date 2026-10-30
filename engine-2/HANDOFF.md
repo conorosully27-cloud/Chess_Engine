@@ -537,6 +537,17 @@ square, per side) -> 128 hidden per side -> 1.
    8401-8410; resume with new seeds). The cloud copy of run 3 was deleted
    too.
 
+13. **Data run 5 (Oct 30, owner's request, this session's cloud machine):
+   Engine 4.0** (bench 3027103, binary `~/engines/engine2-4.0-datagen`),
+   the same settings as run 4: keep 4, `8moves_v3` book openings + 2-5
+   random plies, 5,000 nodes a move. 4 processes x 25M into
+   `~/nnue-data/v5/part-1..4.bin`, seeds 9101-9104. About **1.06M
+   positions an hour** in all (keep 4 and the 512-unit network make it
+   ~8x slower than run 3), so ~95 h for 100M. **Resume with
+   `~/nnue-data/v5/run.sh`** (detached; takes the next seed block itself,
+   9201-9204, ...). This machine also holds 2.3's 50M and 2.7's 100M
+   (`~/nnue-data/part-*.bin`, `~/nnue-data/v2/`; copies sent to the owner).
+
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
 plays and analyses with Engine 2 by default; Engine 1.6 stays selectable
