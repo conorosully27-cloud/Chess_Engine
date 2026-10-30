@@ -5,7 +5,7 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
-## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026)
+## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026) — owner: a good candidate to come back to
 
 **Change:** the table below at 10% learning rate with its own limit:
 16 cp first (`3072e9a`), then 18 cp after two SPSA runs of the rate and
@@ -19,6 +19,12 @@ State in `release-matches/contcorr-tuned/`.
 The cautious version itself, resumed at the owner's request from its 180
 games: stopped by the owner at 800 games, exactly even: +199 -199 =402,
 0 +/- 15, LLR -0.83 (`release-matches/contcorr2/`).
+
+**Owner's note: a good candidate to come back to.** Neither version lost
+(0 +/- 15 and -3 +/- 10), so it costs nothing; it just hasn't shown a
+gain yet. Retry when the table can fill: at a longer time control
+(20+0.2 or more), with a new network, or with a coarser key (the last move
+alone). The code is in `3072e9a` (cautious) and `e899aa8` (tuned).
 
 **Prior:** 6/10.
 

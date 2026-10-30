@@ -174,6 +174,9 @@ history behind the search and evaluation.
   0.005 --c-scale 2`, `~/spsa-cont/`), then an SPRT of the tuned build vs
   4.0. Tuned (10% / 18 cp, `e899aa8`) vs 4.0: **H0 after 1,646 games**,
   -3 +/- 10 (FAILED_EXPERIMENTS). Not kept: **4.0 stays the best build.**
+  The cautious version resumed: exactly even at 800 games (0 +/- 15).
+  **Owner: a good candidate to come back to** (longer time control, new
+  network, or a coarser key).
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
