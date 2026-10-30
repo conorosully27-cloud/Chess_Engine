@@ -533,6 +533,11 @@ square, per side) -> 128 hidden per side -> 1.
    `C:\Users\conor\nnue-data\v4\part-1..10.bin` (20M each, seeds
    8401-8410; resume with new seeds). The cloud copy of run 3 was deleted
    too.
+   The owner added parts 11-16 (seeds 8411-8416), resumed once with
+   seeds 8501-8516, then (Oct 30) **switched the generator to Engine 4.0**
+   (bench 3027103; copied to `C:\Users\conor\engine-4.0-datagen.exe`),
+   same settings and files, seeds 8601-8616: the later positions of each
+   part come from 4.0's games.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
