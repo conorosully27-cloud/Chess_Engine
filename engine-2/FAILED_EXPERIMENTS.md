@@ -25,6 +25,42 @@ the full step toward the same error make the total correction react about
 three times as fast as 3.4's single table, so it is noisier. Retried with
 the new tables learning 4x more slowly.
 
+## Endgame knowledge: scaling known draws + fifty-move scaling, on 3.1 (Oct 2026)
+
+**Change:** `src/endgame.cpp` scaled the network's score (out of 64) for
+the side it favours: no pawns and at most a minor piece up (0 below a
+rook's worth, else 4 or 14, Stockfish's rule); two knights v bare king 0;
+opposite-coloured bishops with only pawns 16 (one pawn up) or 32; rook
+pawns with no bishop or the wrong one, bare defending king next to the
+queening square, 0. The score also shrank with the fifty-move counter
+(half at 100 plies). Commit `0973551` on `claude/loving-ramanujan-lewlp6`
+(with `tests/endgame_test.cpp`). Bench 2851725 -> 3022709.
+
+**Effect on test positions (3 s each):** wrong bishop + h-pawn +6.33 ->
+0.00; two knights v king +6.75 -> 0.00; rook v bishop +2.10 -> +0.11;
+opposite bishops a pawn up +0.73 -> +0.16; wins (Lucena, breakthrough,
+queen v rook) unchanged. The Philidor draw stayed -1.94.
+
+**Result:** three SPRTs against 3.1 (8+0.08, 0/10, cloud):
+- Normal openings: **H0 after 3,852 games**, +1049 -1038 =1765, Elo +1.0
+  +/- 7.2, LLR -2.97.
+- Level endgames (`scripts/endgame_book.py`, at most 3 pieces besides
+  kings and pawns, |score| <= 200): H0 after 206 games, +12 -13 =181:
+  97% draws, too drawn to tell the two apart.
+- Endgames with a 1-4 pawn edge (`--min-score 100 --max-score 400`): H0
+  after 426 games, +90 -92 =244, about -2 Elo.
+
+**Prior:** 5/10 for Elo (fixes visible misjudgements, but in rare
+endgames).
+
+**Commentary:** neutral, not harmful: the rules fire in material
+balances that rarely arise, and when they do the search mostly plays
+them out correctly anyway (it held the draws; only the displayed score
+was wrong). Worth it only for honest evaluations in the app's analysis
+board, which the owner may choose to keep despite no Elo. The fix for
+impossible FENs (side not to move in check, a pawn on the back rank),
+found while testing, was kept: it doesn't change play.
+
 ## "Improving" flag in late move reductions, on 2.10 (Oct 2026)
 
 **Change:** the same flag as the entry below, used only in late move
