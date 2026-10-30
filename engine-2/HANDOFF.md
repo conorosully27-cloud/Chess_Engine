@@ -172,11 +172,13 @@ history behind the search and evaluation.
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: Engine 3.0** (WebAssembly rebuilt from 3.0, skipping 2.9
-  and 2.10 as the owner planned; Android `versionCode` 6 / `versionName`
-  "3.0"). `node scripts/wasm_bench.mjs`: 3044298, the native bench.
-  Checked in Chromium at phone size: labels "Engine 3.0", a game, the
-  analysis board at depth 19 in 5 s, no console errors. APKs are built
+- **Phone app: Engine 4.0** (WebAssembly rebuilt from 4.0, skipping 3.1
+  to 3.4; Android `versionCode` 7 / `versionName` "4.0"). `node
+  scripts/wasm_bench.mjs`: 3027103, the native bench. Checked in Chromium
+  at phone size: labels "Engine 4.0", a game (the engine opened 1. e4),
+  the analysis board at depth 18 in 5 s (the 512-unit network is slower
+  than 3.0's), no console errors; engine-1 tests pass (113). Before:
+  3.0, `versionCode` 6. APKs are built
   with `npm run apk` in the cloud session whose machine holds the debug
   signing key of the installed app (an APK signed with another machine's
   key won't install over it).
