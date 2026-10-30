@@ -157,7 +157,7 @@ std::int64_t SearchWorker::elapsed_ms() const {
 void SearchWorker::check_limits() {
   if (!can_stop_) return;
   if ((stop_flag_ && stop_flag_->load(std::memory_order_relaxed)) ||
-      (hard_ms_ >= 0 && elapsed_ms() >= hard_ms_) || (max_nodes_ && nodes_ >= max_nodes_))
+      (hard_ms_ >= 0 && elapsed_ms() >= hard_ms_) || (max_nodes_ && nodes() >= max_nodes_))
     stopped_ = true;
 }
 
@@ -165,7 +165,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
-  nodes_ = 0;
+  nodes_.store(0, std::memory_order_relaxed);
   stopped_ = false;
   can_stop_ = false;
   stop_flag_ = stop;
@@ -221,8 +221,8 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
     const std::int64_t elapsed = elapsed_ms();
     if (on_info) {
       std::string line = "info depth " + std::to_string(depth) + " score " + score_to_uci(score) +
-                         " nodes " + std::to_string(nodes_) + " nps " +
-                         std::to_string(nodes_ * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
+                         " nodes " + std::to_string(total_nodes()) + " nps " +
+                         std::to_string(total_nodes() * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
                          std::to_string(elapsed) + " pv";
       for (Move m : result.pv) line += " " + m.uci();
       on_info(line);
@@ -233,14 +233,22 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
     if (budget.soft_ms >= 0 && elapsed >= budget.soft_ms) break;
     if (stop && stop->load(std::memory_order_relaxed)) break;
   }
-  result.nodes = nodes_;
+  result.nodes = nodes();
   return result;
+}
+
+std::uint64_t SearchWorker::total_nodes() const {
+  std::uint64_t n = nodes();
+  if (peers_)
+    for (const auto& w : *peers_) n += w->nodes();
+  return n;
 }
 
 int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
-  if ((++nodes_ & 2047) == 0) check_limits();
+  count_node();
+  if ((nodes() & 2047) == 0) check_limits();
   if (stopped_) return 0;
   const bool pv_node = beta - alpha > 1;
 
@@ -470,7 +478,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 int SearchWorker::quiesce(int alpha, int beta, int ply) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
-  if ((++nodes_ & 2047) == 0) check_limits();
+  count_node();
+  if ((nodes() & 2047) == 0) check_limits();
   if (stopped_) return 0;
   if (ply >= MAX_PLY - 1) return evaluate(pos);
 
@@ -536,6 +545,13 @@ Searcher::~Searcher() {
 void Searcher::new_game() {
   tt_.clear();
   worker_.new_game();
+  for (auto& w : helpers_) w->new_game();
+}
+
+void Searcher::set_threads(int threads) {
+  helpers_.clear();
+  for (int i = 1; i < threads; i++) helpers_.push_back(std::make_unique<SearchWorker>(tt_));
+  worker_.set_peers(&helpers_);
 }
 
 void Searcher::start(const Position& pos, const SearchLimits& limits, int move_overhead_ms) {
@@ -553,9 +569,22 @@ void Searcher::wait() {
 }
 
 void Searcher::run() {
+  // Lazy SMP: the helpers search the same position with no limits of their
+  // own until the main search is done; what they find reaches it through
+  // the shared table. Each has its own copy of the position, its own
+  // history and (thread_local) evaluation caches.
+  helpers_stop_ = false;
+  std::vector<Position> helper_roots(helpers_.size(), root_);
+  std::vector<std::thread> helper_threads;
+  for (std::size_t i = 0; i < helpers_.size(); i++)
+    helper_threads.emplace_back([this, i, &helper_roots] {
+      helpers_[i]->search(helper_roots[i], SearchLimits{}, TimeBudget{}, &helpers_stop_);
+    });
   SearchResult r = worker_.search(root_, limits_, budget_, &stop_, uci_send);
   // In infinite mode "bestmove" must wait for "stop".
   while (limits_.infinite && !stop_) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  helpers_stop_ = true;
+  for (std::thread& t : helper_threads) t.join();
   std::string line = "bestmove " + r.best.uci();
   if (r.pv.size() >= 2) line += " ponder " + r.pv[1].uci();
   uci_send(line);
