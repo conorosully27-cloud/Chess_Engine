@@ -5,6 +5,24 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Trust the evaluation less where the correction is large, on 4.0 (Oct 2026)
+
+**Change:** with `corr_size` = |corrected - raw static evaluation|
+(median 7 cp at search nodes, 90% under 40): half of it widens the
+reverse futility and futility margins (`CORR_PRUNE_PCT` 50), and late
+move reductions are a ply less per 40 cp of it (`CORR_LMR_DIV`). Commit
+`0b860fe`. Bench 3027103 -> 3704838 (22% more nodes).
+
+**Result:** vs 4.0 (cloud, 8+0.08, 4 at a time), stopped by the owner at
+658 games: +154 -173 =331 (48.6%), Elo -10 +/- 16, LOS 12%, LLR -2.15.
+State in `release-matches/corrsize/`.
+
+**Prior:** 6/10 (Stockfish uses the correction's size in several places).
+
+**Commentary:** the wider margins cost most of the extra nodes, and at
+this time control the search can't afford them. Retried with the
+reductions half only (`CORR_PRUNE_PCT` 0).
+
 ## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026) — owner: a good candidate to come back to
 
 **Change:** the table below at 10% learning rate with its own limit:

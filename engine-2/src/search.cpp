@@ -76,7 +76,7 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 // percent of the correction's size widens the reverse futility and
 // futility margins, and late move reductions are a ply less per
 // CORR_LMR_DIV centipawns of it (corrections: median 7 cp, 90% under 40).
-TUNE_PARAM(CORR_PRUNE_PCT, 50, 0, 200);
+TUNE_PARAM(CORR_PRUNE_PCT, 0, 0, 200);  // 50 (with the reductions) lost; off
 TUNE_PARAM(CORR_LMR_DIV, 40, 10, 200);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
