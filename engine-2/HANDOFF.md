@@ -165,6 +165,14 @@ history behind the search and evaluation.
   **released as 4.0** by the owner's rule. **The new baseline**, bench
   3027103. Code only: the phone app stays on 3.0. Next major version,
   5.0, at 3200.
+- **Continuation correction history (after 4.0):** a fourth correction
+  table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
+  -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
+  (`3072e9a`: 10% rate, own 16 cp limit, bench 2841857) vs 4.0: stopped by
+  the owner at 180 games, +57 -45 =78, +23 +/- 34, LOS 91%, to tune it:
+  SPSA of `CORR_CONT_RATE` and `CORR_CONT_LIMIT_CP` (1,500 pairs, `--r-end
+  0.005 --c-scale 2`, `~/spsa-cont/`), then an SPRT of the tuned build vs
+  4.0.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
