@@ -156,7 +156,11 @@ history behind the search and evaluation.
 - **Tuned non-pawn correction: accepted** (commit `01ca8c6`, bench
   3027103): **vs 3.4 H1 after 1,308 games**, +388 -328 =592 (52.3%),
   **+16 +/- 12** (cloud, 8+0.08). **The new best build**, not released.
-  vs Stockfish-3100 (99%) started (`matches/strength-20261030-004528`).
+  **vs Stockfish 18 at `UCI_Elo` 3100, 99% SPRT** (`ALPHA=0.01
+  scripts/strength_match.sh`, cloud, 10+0.1, 4 at a time): **H1 accepted
+  after 498 games**, +173 -130 =195 (54.3%), **+30 +/- 22**, LOS 99.6%:
+  about 3130, the first version above 3100. By the owner's rule a **4.0
+  candidate** (the owner names it).
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the

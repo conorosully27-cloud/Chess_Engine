@@ -19,7 +19,9 @@ each played with both colors). Elo figures are fastchess's estimate with its
   stayed at 200. **Against 3.4** (cloud, 8+0.08, SPRT 0/10, 4 at a time):
   **H1 accepted after 1,308 games**, 388 wins, 328 losses, 592 draws
   (52.3%), **+16 Elo (+/- 12)**. Bench **3027103**. At full learning
-  rate the non-pawn tables lost (`FAILED_EXPERIMENTS.md`).
+  rate the non-pawn tables lost (`FAILED_EXPERIMENTS.md`). **Against
+  Stockfish 18 at `UCI_Elo` 3100** (99% SPRT, 10+0.1, `8moves_v3`): **H1
+  after 498 games**, +173 -130 =195 (54.3%), **+30 +/- 22**: about 3130.
 
 ## 3.4: history in late move reductions, and correction history
 
