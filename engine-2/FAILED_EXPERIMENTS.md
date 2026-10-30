@@ -5,6 +5,25 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Continuation correction history at the non-pawn settings, on 4.0 (Oct 2026)
+
+**Change:** a fourth correction table keyed by the last two moves (piece *
+64 + to of each, 768 x 768 int16), summed with the pawn and non-pawn
+tables and updated with them at the non-pawn rate (27%) and the shared
+50 cp limit; quiescence records its moves for the key. Commit `d8657e6`.
+Bench 3027103 -> 3008416 (exactly 4.0's with the table off).
+
+**Result:** vs 4.0 (cloud, 8+0.08, 4 at a time), stopped by the owner at
+180 games: +38 -54 =88 (45.6%), Elo -31 +/- 32, LOS 2.7%, LLR -1.37.
+State in `release-matches/contcorr/`.
+
+**Prior:** 6/10.
+
+**Commentary:** the table has ~590,000 entries against 16K per pawn or
+non-pawn table, so each is updated a few times a game and stays noisy,
+and through the shared error its noise also disturbs the other tables'
+learning. Retried cautiously: 10% learning rate and its own 16 cp limit.
+
 ## Non-pawn correction history at full learning rate, on 3.4 (Oct 2026)
 
 **Change:** two more correction tables beside 3.4's pawn table, keyed by

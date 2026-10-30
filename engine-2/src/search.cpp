@@ -64,14 +64,16 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // together still get wrong. With one table, a running average of the error.
 // The non-pawn tables learn at CORR_NON_PAWN_RATE percent of that speed: at
 // full speed all three chased the same error and the sum overshot. The
-// last-two-moves table learns at CORR_CONT_RATE percent.
+// last-two-moves table, far sparser, learns at CORR_CONT_RATE percent and
+// is held within +/-CORR_CONT_LIMIT_CP (at 27% and 50 cp it lost).
 // Values from an SPSA run (Oct 2026, 2,000 pairs at 8+0.08, from 64, 16, 25).
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_WEIGHT_SCALE = 256;
 TUNE_PARAM(CORR_LIMIT_CP, 50, 16, 127);
 TUNE_PARAM(CORR_MAX_WEIGHT, 15, 4, 64);
 TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
-TUNE_PARAM(CORR_CONT_RATE, 27, 5, 100);
+TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
+TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
@@ -449,8 +451,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       std::int16_t& c = *corr.entry[i];
       const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : CORR_CONT_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
-      c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale,
-                                                -CORR_LIMIT_CP * CORR_GRAIN, CORR_LIMIT_CP * CORR_GRAIN));
+      const int limit = (i < 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
+      c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));
     }
   }
   if (!excluding && (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT)) {
