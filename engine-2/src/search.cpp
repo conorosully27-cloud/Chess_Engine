@@ -63,18 +63,21 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // parts in CORR_WEIGHT_SCALE (at most CORR_MAX_WEIGHT) of what the tables
 // together still get wrong. With one table, a running average of the error.
 // The non-pawn tables learn at CORR_NON_PAWN_RATE percent of that speed: at
-// full speed all three chased the same error and the sum overshot. The
-// last-two-moves table, far sparser, learns at CORR_CONT_RATE percent and
-// is held within +/-CORR_CONT_LIMIT_CP (at 27% and 50 cp it lost; 10% and
-// 18 cp from two SPSA runs, Oct 2026, stopped at 882 and 824 pairs).
+// full speed all three chased the same error and the sum overshot.
 // Values from an SPSA run (Oct 2026, 2,000 pairs at 8+0.08, from 64, 16, 25).
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_WEIGHT_SCALE = 256;
 TUNE_PARAM(CORR_LIMIT_CP, 50, 16, 127);
 TUNE_PARAM(CORR_MAX_WEIGHT, 15, 4, 64);
 TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
-TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
-TUNE_PARAM(CORR_CONT_LIMIT_CP, 18, 4, 127);
+
+// A large correction says the network misjudges this kind of position, so
+// the search trusts the static evaluation less there: CORR_PRUNE_PCT
+// percent of the correction's size widens the reverse futility and
+// futility margins, and late move reductions are a ply less per
+// CORR_LMR_DIV centipawns of it (corrections: median 7 cp, 90% under 40).
+TUNE_PARAM(CORR_PRUNE_PCT, 50, 0, 200);
+TUNE_PARAM(CORR_LMR_DIV, 40, 10, 200);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
@@ -152,7 +155,6 @@ void SearchWorker::new_game() {
   std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
-  std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -291,15 +293,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // here is poor, so a full-depth search is mostly wasted; go a ply shallower.
   if (ply > 0 && depth >= 4 && !tt_move) depth--;
 
-  int raw_eval = 0, static_eval = 0;
+  int raw_eval = 0, static_eval = 0, corr_size = 0;
   if (!in_check) {
     // The table keeps the static evaluation: reuse it rather than evaluate again.
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
     // Corrected by what searches of this pawn structure have found.
-    static_eval = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
+    static_eval = raw_eval + corr_entries(pos).total() / CORR_GRAIN;
+    corr_size = std::abs(static_eval - raw_eval);
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
-      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
+      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth - corr_size * CORR_PRUNE_PCT / 100 >= beta)
+        return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
@@ -315,7 +319,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH &&
+                      static_eval + FUT_BASE + FUT_MARGIN * depth + corr_size * CORR_PRUNE_PCT / 100 <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
   const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
@@ -390,6 +395,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
+        reduction -= corr_size / CORR_LMR_DIV;  // less where the evaluation is unreliable
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
@@ -444,16 +450,15 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // the evaluation: not a lower bound below it or an upper bound above it.
   if (!in_check && !excluding && !best_move.is_capture() && !best_move.is_promotion() && !is_mate_score(best_score) &&
       !(bound == BOUND_LOWER && best_score <= static_eval) && !(bound == BOUND_UPPER && best_score >= static_eval)) {
-    const CorrEntries corr = corr_entries(pos, ply);
+    const CorrEntries corr = corr_entries(pos);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
-    for (int i = 0; i < 4; i++) {
-      if (!corr.entry[i]) continue;
+    for (int i = 0; i < 3; i++) {
       std::int16_t& c = *corr.entry[i];
-      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : CORR_CONT_RATE;  // percent
+      const std::int64_t rate = i == 0 ? 100 : CORR_NON_PAWN_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
-      const int limit = (i < 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
-      c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));
+      c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale,
+                                                -CORR_LIMIT_CP * CORR_GRAIN, CORR_LIMIT_CP * CORR_GRAIN));
     }
   }
   if (!excluding && (tte.depth <= depth || tte.key != check || bound == BOUND_EXACT)) {
@@ -486,7 +491,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (in_check) {
     best_score = -MATE + ply;
   } else {
-    best_score = evaluate_lazy(pos, alpha, beta) + corr_entries(pos, ply).total() / CORR_GRAIN;
+    best_score = evaluate_lazy(pos, alpha, beta) + corr_entries(pos).total() / CORR_GRAIN;
     if (best_score >= beta) return best_score;
     if (best_score > alpha) alpha = best_score;
   }
@@ -508,7 +513,6 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
     }
     if (!pos.legal(move)) continue;
-    ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();  // for the child's correction history
     pos.make_move(move);
     legal++;
     const int score = -quiesce(-beta, -alpha, ply + 1);
