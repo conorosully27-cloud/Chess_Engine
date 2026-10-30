@@ -16,6 +16,9 @@ ending near 10% / 16-18 cp). Bench 2841857.
 to tune). Tuned version vs 4.0 (cloud, 8+0.08, 4 at a time): **H0
 accepted after 1,646 games**, +414 -427 =805 (49.6%), Elo -3 +/- 10.
 State in `release-matches/contcorr-tuned/`.
+The cautious version itself, resumed at the owner's request from its 180
+games: stopped by the owner at about 720 games, close to even (-3 +/- 16
+at 698 games, LLR -1.2; `release-matches/contcorr2/`).
 
 **Prior:** 6/10.
 
