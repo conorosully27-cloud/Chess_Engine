@@ -71,6 +71,9 @@ class Position {
   int phase() const { return phase_; }
   // Zobrist hash of the pawns alone, for the evaluation's pawn cache.
   Key pawn_key() const { return pawn_key_; }
+  // Zobrist hash of one side's pieces other than pawns (king included), for
+  // the search's correction history.
+  Key non_pawn_key(Color c) const { return non_pawn_key_[c]; }
   Move last_move() const { return st().move; }
   int game_ply() const { return int(states_.size()) - 1; }
 
@@ -103,6 +106,7 @@ class Position {
   // Recompute the hashes from scratch; used by tests to check the incremental ones.
   Key compute_key() const;
   Key compute_pawn_key() const;
+  Key compute_non_pawn_key(Color c) const;
   // Checks that the bitboards, mailbox and king counts agree; used by tests.
   bool is_consistent() const;
 
@@ -123,6 +127,7 @@ class Position {
   Bitboard occ_;
   int psq_mg_, psq_eg_, phase_;
   Key pawn_key_;
+  Key non_pawn_key_[COLOR_NB];
   Color side_;
   std::vector<StateInfo> states_;
   // Never shrinks: entries past game_ply() are stale and overwritten by

@@ -1,0 +1,4 @@
+saved: new-01ca8c6 vs old-5930008: 1308 games, +388 -328 =592
+LLR: 2.97 (100.9%) (-2.94, 2.94) [0.00, 10.00]
+SPRT ([0.00, 10.00]) completed - H1 was accepted
+Finished match

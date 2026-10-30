@@ -140,6 +140,31 @@ history behind the search and evaluation.
   (bounds +/-4.60): about 3095, just under the 4.0 mark. Follow-ups: more correction tables
   (non-pawn pieces per color, continuation), using the correction's size
   in pruning, and its constants in the next SPSA run.
+- **Non-pawn correction history (after 3.4):** two more correction
+  tables keyed by each side's non-pawn pieces. At full learning rate
+  (`4464ca7`) -11 +/- 21 after 380 games, stopped (FAILED_EXPERIMENTS).
+  At a quarter of the rate (`0eef8c3`, bench 3026819) vs 3.4: **stopped
+  at LOS 97.6%** (owner's rule, to free the cloud for tuning), 940 games,
+  +265 -229 =446, +13 +/- 13, LLR 1.81: **not accepted on its own**. Then
+  SPSA (`9490f18`, `--params LMR_HISTORY,CORR_LIMIT_CP,CORR_MAX_WEIGHT,
+  CORR_NON_PAWN_RATE`, 2,000 pairs at 8+0.08, state in `~/spsa-corr/`,
+  copies in `release-matches/spsa-corr/`); the tuned build then gets an
+  SPRT vs 3.4, which decides. The first SPSA run (fishtest step size)
+  barely moved the values in 476 pairs; restarted bolder (`--r-end 0.005
+  --c-scale 2`, `release-matches/spsa-corr2/`): limit 64 -> 50 cp, max
+  weight 16 -> 15, non-pawn rate 25 -> 27%, `LMR_HISTORY` 200.
+- **Tuned non-pawn correction: accepted** (commit `01ca8c6`, bench
+  3027103): **vs 3.4 H1 after 1,308 games**, +388 -328 =592 (52.3%),
+  **+16 +/- 12** (cloud, 8+0.08). **The new best build**, not released.
+  **vs Stockfish 18 at `UCI_Elo` 3100, 99% SPRT** (`ALPHA=0.01
+  scripts/strength_match.sh`, cloud, 10+0.1, 4 at a time): **H1 accepted
+  after 498 games**, +173 -130 =195 (54.3%), **+30 +/- 22**, LOS 99.6%:
+  about 3130, the first version above 3100 (likely 3110-3120 allowing
+  for the early stop).
+- **Engine 4.0** = that build (`01ca8c6`, same network as 3.3/3.4):
+  **released as 4.0** by the owner's rule. **The new baseline**, bench
+  3027103. Code only: the phone app stays on 3.0. Next major version,
+  5.0, at 3200.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the

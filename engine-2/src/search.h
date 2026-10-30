@@ -99,12 +99,21 @@ class SearchWorker {
     return ply < back || ply_move_[ply - back] < 0 ? nullptr : &cont_history_[ply_move_[ply - back] * CONT_INDEX];
   }
   // Correction history: how far the static evaluation tends to be from the
-  // search's result in positions with this pawn structure, per side to
-  // move, as a running average in 1/CORR_GRAIN centipawns (search.cpp).
+  // search's result, learned per side to move in 1/CORR_GRAIN centipawns
+  // (search.cpp) in three tables whose entries add up: one keyed by the
+  // pawn structure and one by each side's other pieces.
   static constexpr int CORR_SIZE = 16384;
   std::int16_t corr_history_[COLOR_NB][CORR_SIZE] = {};
-  std::int16_t& corr_entry(const Position& pos) {
-    return corr_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
+  std::int16_t corr_non_pawn_[COLOR_NB][COLOR_NB][CORR_SIZE] = {};  // [side to move][pieces' color]
+  struct CorrEntries {
+    std::int16_t* entry[3];
+    int total() const { return *entry[0] + *entry[1] + *entry[2]; }
+  };
+  CorrEntries corr_entries(const Position& pos) {
+    const Color us = pos.side_to_move();
+    return {{&corr_history_[us][pos.pawn_key() & (CORR_SIZE - 1)],
+             &corr_non_pawn_[us][WHITE][pos.non_pawn_key(WHITE) & (CORR_SIZE - 1)],
+             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)]}};
   }
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
