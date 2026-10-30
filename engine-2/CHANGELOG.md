@@ -5,7 +5,16 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## Accepted since 3.4 (not yet released)
+## 4.0: non-pawn correction history, tuned; above 3100
+
+3.4 plus the change below (commit `01ca8c6`; same network). **Against
+3.4**: H1 after 1,308 games, **+16 Elo (+/- 12)**. **Against Stockfish
+18 at `UCI_Elo` 3100** (99% SPRT): H1 after 498 games, +30 +/- 22, the
+first version above 3100, hence 4.0 by the owner's numbering rule (one
+major version per hundred on Stockfish's scale). Bench **3027103**, the
+same as the tested build. Code only: the phone app stays on 3.0. SPRTs
+that stop early tend to overstate the gain; 3.4 was -5 +/- 19 against
+3100, so about 3110-3120 is a fair estimate.
 
 - **Non-pawn correction history, tuned** (commits `4464ca7`, `0eef8c3`,
   `9490f18`, `01ca8c6`; `src/position.*`, `src/search.*`): two more

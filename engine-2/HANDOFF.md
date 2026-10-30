@@ -159,8 +159,12 @@ history behind the search and evaluation.
   **vs Stockfish 18 at `UCI_Elo` 3100, 99% SPRT** (`ALPHA=0.01
   scripts/strength_match.sh`, cloud, 10+0.1, 4 at a time): **H1 accepted
   after 498 games**, +173 -130 =195 (54.3%), **+30 +/- 22**, LOS 99.6%:
-  about 3130, the first version above 3100. By the owner's rule a **4.0
-  candidate** (the owner names it).
+  about 3130, the first version above 3100 (likely 3110-3120 allowing
+  for the early stop).
+- **Engine 4.0** = that build (`01ca8c6`, same network as 3.3/3.4):
+  **released as 4.0** by the owner's rule. **The new baseline**, bench
+  3027103. Code only: the phone app stays on 3.0. Next major version,
+  5.0, at 3200.
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
