@@ -20,6 +20,10 @@
 # pawns of level for 8 moves in a row after move 34. About 20-30% less time
 # per game. ADJUDICATE=0 plays every game out (as before Oct 2026).
 #
+# BOOK=<file.epd> starts the games from those positions instead, each
+# played twice with colors swapped: for example endgames only, from
+# scripts/endgame_book.py.
+#
 # fastchess is looked up as $FASTCHESS, then on the PATH, then ~/tools/fastchess.
 set -euo pipefail
 
@@ -42,8 +46,12 @@ engine_args() {
 }
 
 mkdir -p "$here/matches"
-book="$here/matches/openings.epd"
-grep -v '^#' "$here/../engine-1/test/openings.epd" | grep -v '^$' > "$book"
+if [ -n "${BOOK:-}" ]; then
+  book="$(realpath "$BOOK")"
+else
+  book="$here/matches/openings.epd"
+  grep -v '^#' "$here/../engine-1/test/openings.epd" | grep -v '^$' > "$book"
+fi
 stamp="$(date +%Y%m%d-%H%M%S)"
 
 sprt=()

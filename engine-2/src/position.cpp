@@ -159,6 +159,9 @@ bool Position::set(const std::string& fen) {
         s.ep = sq;
     }
   }
+  // Not a position that can arise: the side not to move in check (its
+  // king could be taken), or a pawn on the first or last rank.
+  if (ok && (is_attacked(king_square(~side_), side_) || (pieces(PAWN) & 0xFF000000000000FFULL))) ok = false;
   states_.push_back(s);
   accumulators_.resize(std::max<std::size_t>(accumulators_.size(), 1));
   accumulators_[0].net = 0;
