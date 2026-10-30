@@ -86,22 +86,6 @@ def main():
     e.send("go movetime 50")
     check(e.read_until("bestmove")[-1] == "bestmove 0000", "bestmove 0000 when mated")
 
-    # Several search threads (Lazy SMP): a normal answer, also after stop,
-    # and back to one thread.
-    e.send("setoption name Threads value 3")
-    e.send("position startpos moves e2e4")
-    e.send("go depth 8")
-    best = e.read_until("bestmove")[-1].split()[1]
-    check(best in {"e7e5", "c7c5", "e7e6", "c7c6", "d7d5", "d7d6", "g8f6", "b8c6", "g7g6"},
-          f"bestmove {best} with 3 threads")
-    e.send("go infinite")
-    e.read_until("info")
-    e.send("stop")
-    e.read_until("bestmove")
-    e.send("setoption name Threads value 1")
-    e.send("isready")
-    e.read_until("readyok")
-
     # Bad input is reported, not fatal.
     e.send("position startpos moves e2e5")
     e.send("isready")

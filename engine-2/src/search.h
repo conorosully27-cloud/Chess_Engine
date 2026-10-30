@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -77,12 +76,6 @@ class SearchWorker {
 
   void new_game();  // clears history; the caller clears the TT
 
-  // Nodes searched so far; may be read from another thread while searching.
-  std::uint64_t nodes() const { return nodes_.load(std::memory_order_relaxed); }
-  // Other workers searching the same position (Lazy SMP helpers): the info
-  // lines report the nodes of all of them together.
-  void set_peers(const std::vector<std::unique_ptr<SearchWorker>>* peers) { peers_ = peers; }
-
  private:
   // `excluded`: a move to leave out (the singular extension's test search).
   int negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded = Move());
@@ -125,12 +118,7 @@ class SearchWorker {
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
 
-  // Written by this worker only, as plain loads and stores (no locked
-  // increment); atomic so that other threads may read it.
-  std::atomic<std::uint64_t> nodes_{0};
-  void count_node() { nodes_.store(nodes_.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed); }
-  std::uint64_t total_nodes() const;
-  const std::vector<std::unique_ptr<SearchWorker>>* peers_ = nullptr;
+  std::uint64_t nodes_ = 0;
   std::uint64_t max_nodes_ = 0;
   std::int64_t hard_ms_ = -1;
   int root_depth_ = 0;  // the iteration in progress
@@ -153,9 +141,6 @@ class Searcher {
 
   // Only while not searching.
   void set_hash_mb(std::size_t mb) { tt_.resize(mb); }
-  // Search threads (Lazy SMP): the main one plus threads - 1 helpers that
-  // search the same position, sharing the transposition table.
-  void set_threads(int threads);
   void new_game();
 
  private:
@@ -163,10 +148,8 @@ class Searcher {
 
   TranspositionTable tt_;
   SearchWorker worker_;
-  std::vector<std::unique_ptr<SearchWorker>> helpers_;
   std::thread thread_;
   std::atomic<bool> stop_{false};
-  std::atomic<bool> helpers_stop_{false};
   Position root_;
   SearchLimits limits_;
   TimeBudget budget_;

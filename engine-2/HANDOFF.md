@@ -361,9 +361,20 @@ SPRT against the best build at the time:
 11. **SEE with tuned piece values** (owner's parked idea): phase-blended
     material from the evaluation instead of 100/325/325/500/900; the tuned
     middlegame values rate a queen above two rooks.
-12. **Lazy SMP (threads)**: big gain on the owner's laptop in Cute Chess;
-    hard to test here with 3 of 4 cores in use. Do last, confirm on the
-    laptop.
+12. **Lazy SMP (threads)**: **built and parked** (owner's call, Oct 30:
+    "keep this in the back pocket", not a version improvement). Code in
+    commit `8abc9f3` on `claude/loving-ramanujan-lewlp6` (taken out again
+    right after): a `Threads` UCI option; helper workers search the same
+    position on their own copies with their own history, sharing the TT,
+    until the main search is done; info lines sum every thread's nodes.
+    One thread is unchanged (bench 3027103). Start position, 4 s: 1.9M,
+    3.9M, 7.2M nodes/s at 1, 2, 4 threads; a 300-search stress test and a
+    UCI test check passed. **2 threads vs 4.0 at 1** (cloud, 8+0.08, 2
+    games at a time): stopped by the owner at 120 games, +48 -14 =58,
+    **+101 +/- 38 Elo**, LOS 100%, LLR 1.52. Strength ratings against
+    Stockfish stay 1 thread each (`strength_match.sh` sets Stockfish's
+    Threads=1). For the phone app it would also need a threaded
+    WebAssembly build and cross-origin isolation in the WebView.
 
 **NNUE (started Oct 2026).** Plan: self-play data from Engine 2 (cloud,
 and the owner's laptop when free), a PyTorch trainer on the owner's laptop

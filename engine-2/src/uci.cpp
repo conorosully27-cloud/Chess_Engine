@@ -92,8 +92,6 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
   }
   if (name == "Move Overhead") {
     move_overhead = std::clamp(n, 0, 5000);
-  } else if (name == "Threads") {
-    searcher.set_threads(std::clamp(n, 1, 64));
   } else if (name == "Hash") {
     searcher.set_hash_mb(std::size_t(std::clamp(n, 1, 65536)));
   } else {
@@ -158,7 +156,6 @@ void uci_loop() {
       uci_send(std::string("id name ") + ENGINE_NAME);
       uci_send(std::string("id author ") + ENGINE_AUTHOR);
       uci_send("option name Hash type spin default 64 min 1 max 65536");
-      uci_send("option name Threads type spin default 1 min 1 max 64");
       uci_send("option name Move Overhead type spin default 50 min 0 max 5000");
       uci_send("option name EvalFile type string default <empty>");
 #ifdef ENGINE_TUNE
