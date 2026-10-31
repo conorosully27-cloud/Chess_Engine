@@ -71,6 +71,9 @@ class MovePicker {
         cont2_(cont2) {}
 
   Move next();
+  // The search will prune every remaining quiet move that doesn't give
+  // check: hand them out as generated, without scoring or sorting them.
+  void skip_quiets() { skip_quiets_ = true; }
 
  private:
   enum Stage { HASH_MOVE, GEN_CAPTURES, GOOD_CAPTURES, KILLERS, GEN_QUIETS, QUIET_MOVES, BAD_CAPTURES, DONE };
@@ -86,6 +89,7 @@ class MovePicker {
   int next_capture_ = 0, next_quiet_ = 0, next_bad_ = 0;
   int next_killer_ = 0;
   bool killers_first_ = false;  // the killers were tried before the quiet moves
+  bool skip_quiets_ = false;
 };
 
 }  // namespace chess

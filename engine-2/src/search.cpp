@@ -340,9 +340,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         if (checks < 0) checks = pos.gives_check(move);
         return checks == 1;
       };
-      if (futile && quiet && !gives_check()) continue;
+      // Once one quiet move is pruned by these two rules, every later one is
+      // too unless it gives check: the picker stops sorting them.
+      if (futile && quiet && !gives_check()) {
+        picker.skip_quiets();
+        continue;
+      }
       // Late move pruning: moves ordered this late almost never matter here.
-      if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) continue;
+      if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) {
+        picker.skip_quiets();
+        continue;
+      }
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
       if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
           !gives_check())
