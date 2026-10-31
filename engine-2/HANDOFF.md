@@ -172,8 +172,15 @@ history behind the search and evaluation.
 - **Engine 4.2** = 4.1 with no scoring or sorting of quiet moves once
   futility or late move pruning prunes one (`fcda4f4`): **vs 4.1 H1 after
   976 games**, +259 -208 =509 (52.6%), **+18 +/- 13** (cloud, 8+0.08).
-  **The new baseline**, bench 3005772. Code only, no APK. Next in the
-  owner's plan: smarter time use (best-move stability, score drops) vs 4.2.
+  Bench 3005772. Code only, no APK.
+- **Engine 4.3** = 4.2 with time use scaled by best-move stability and
+  score drops (`0476b93`): **vs 4.2 H1 after 600 games**, +168 -121 =311
+  (53.9%), **+27 +/- 17** (cloud, 8+0.08). **The new baseline**, bench
+  3005772 (unchanged: the bench has no clock). Code only, no APK. The
+  owner's speed/time plan (4.1-4.3) is finished: about +57 Elo over 4.0
+  by self-play. Next candidates: tune the TM_* values, measure a PGO
+  build, a fresh network when the data allows, and a new Stockfish-3200
+  test for 5.0.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious

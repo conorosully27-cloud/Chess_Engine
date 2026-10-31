@@ -58,6 +58,17 @@ TUNE_PARAM(LMR_HISTORY, 200, 50, 1000);
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
 TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 
+// Time use, in percent of the planned time: after a depth, the search stops
+// once past the plan scaled by how settled it is. A best move just changed
+// gets TM_STABLE_BASE; each further depth it survives takes TM_STABLE_STEP
+// off, for up to TM_STABLE_DEPTHS depths. A score that fell since the last
+// depth adds TM_DROP_PER_CP per centipawn, at most TM_DROP_MAX.
+TUNE_PARAM(TM_STABLE_BASE, 130, 60, 250);
+TUNE_PARAM(TM_STABLE_STEP, 10, 0, 40);
+TUNE_PARAM(TM_STABLE_DEPTHS, 6, 1, 12);
+TUNE_PARAM(TM_DROP_PER_CP, 1, 0, 5);
+TUNE_PARAM(TM_DROP_MAX, 40, 0, 150);
+
 // Correction history entries are in 1/CORR_GRAIN centipawns, each within
 // +/-CORR_LIMIT_CP; each update moves every table's entry by depth + 1
 // parts in CORR_WEIGHT_SCALE (at most CORR_MAX_WEIGHT) of what the tables
@@ -137,6 +148,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   const std::int64_t hard_cap = moves_to_go == 1 ? remaining * 3 / 4 : remaining / 2;
   b.soft_ms = std::max<std::int64_t>(1, std::min(soft_cap, remaining / moves_to_go + inc * 3 / 4));
   b.hard_ms = std::max<std::int64_t>(b.soft_ms, std::min(hard_cap, b.soft_ms * 3));
+  b.adaptive = true;
   return b;
 }
 
@@ -189,6 +201,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
 
   const int max_depth = limits.depth > 0 ? std::min(limits.depth, MAX_PLY - 1) : MAX_PLY - 1;
   int previous = 0;
+  int stable_depths = 0;  // depths the best move has stayed the same
   for (int depth = 1; depth <= max_depth; depth++) {
     root_depth_ = depth;
     int score;
@@ -210,11 +223,14 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
     if (stopped_) break;  // an unfinished depth can't be trusted
     can_stop_ = true;
 
+    const int drop = depth > 1 ? previous - score : 0;
     previous = score;
+    const Move last_best = result.best;
     if (pv_length_[0] > 0) {
       result.pv.assign(pv_table_[0], pv_table_[0] + pv_length_[0]);
       result.best = result.pv[0];
     }
+    stable_depths = result.best == last_best ? stable_depths + 1 : 0;
     result.score = score;
     result.depth = depth;
 
@@ -230,7 +246,17 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
 
     if (legal.size() == 1 && depth >= 4) break;  // only one move: no need to think
     if (is_mate_score(score) && MATE - std::abs(score) <= depth) break;  // forced mate found
-    if (budget.soft_ms >= 0 && elapsed >= budget.soft_ms) break;
+    if (budget.soft_ms >= 0) {
+      std::int64_t soft = budget.soft_ms;
+      if (budget.adaptive) {
+        // Settled searches stop early, unsettled ones think on (the hard
+        // limit still applies).
+        const int stability = TM_STABLE_BASE - TM_STABLE_STEP * std::min(stable_depths, int(TM_STABLE_DEPTHS));
+        const int falling = std::clamp(drop * TM_DROP_PER_CP, 0, int(TM_DROP_MAX));
+        soft = soft * stability / 100 * (100 + falling) / 100;
+      }
+      if (elapsed >= soft) break;
+    }
     if (stop && stop->load(std::memory_order_relaxed)) break;
   }
   result.nodes = nodes_;

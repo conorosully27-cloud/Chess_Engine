@@ -44,6 +44,7 @@ struct SearchLimits {
 struct TimeBudget {
   std::int64_t soft_ms = -1;
   std::int64_t hard_ms = -1;
+  bool adaptive = false;  // a share of a clock: the search may stop before or after soft_ms
   // Measured from when "go" arrived, not when the search thread got going.
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 };

@@ -5,6 +5,23 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.3: smarter time use
+
+4.2 plus the change below (commit `0476b93`; same network and search).
+**Against 4.2** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1
+accepted after 600 games**, 168 wins, 121 losses, 311 draws (53.9%),
+**+27 Elo (+/- 17)**. Bench **3005772**, unchanged (only clock-based
+searches are affected). Code only, no APK. State in
+`release-matches/timeman/`.
+
+- **Time use** (`src/search.*`): after each depth the planned time
+  (remaining / 40 + 3/4 of the increment, as before) is scaled by how
+  settled the search is: 130% when the best move just changed, 10% less
+  for each depth it has survived (down to 70% after 6), plus 1% per
+  centipawn the score fell since the last depth (at most 40%). The hard
+  limit (3x the plan, half the clock) is unchanged; fixed `movetime`
+  searches are not scaled. The five values are tunable (`TM_*`).
+
 ## 4.2: no sorting of quiet moves that will all be pruned
 
 4.1 plus the change below (commit `fcda4f4`; same network). **Against 4.1**
