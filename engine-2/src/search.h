@@ -79,7 +79,9 @@ class SearchWorker {
 
  private:
   // `excluded`: a move to leave out (the singular extension's test search).
-  int negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded = Move());
+  // cut_node: a null-window node expected to fail high (its parent expects
+  // every move here to be refuted quickly), as opposed to a PV or all node.
+  int negamax(int depth, int alpha, int beta, int ply, bool cut_node, bool after_null, Move excluded = Move());
   int quiesce(int alpha, int beta, int ply);
   void update_pv(int ply, Move m);
   void check_limits();
