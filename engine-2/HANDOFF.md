@@ -168,9 +168,12 @@ history behind the search and evaluation.
 - **Engine 4.1** = 4.0 with faster code from a profile (cheap check test,
   killers before quiet moves, SEE only when reached; `a4eb9f8`): **vs 4.0
   H1 after 1,810 games**, +502 -437 =871 (51.8%), **+12 +/- 10** (cloud,
-  8+0.08). **The new baseline**, bench 3236061. Code only, no APK. Next in
-  the owner's plan: stop sorting quiet moves once all are pruned (vs 4.1),
-  then smarter time use.
+  8+0.08). **The new baseline**, bench 3236061. Code only, no APK.
+- **Engine 4.2** = 4.1 with no scoring or sorting of quiet moves once
+  futility or late move pruning prunes one (`fcda4f4`): **vs 4.1 H1 after
+  976 games**, +259 -208 =509 (52.6%), **+18 +/- 13** (cloud, 8+0.08).
+  **The new baseline**, bench 3005772. Code only, no APK. Next in the
+  owner's plan: smarter time use (best-move stability, score drops) vs 4.2.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
