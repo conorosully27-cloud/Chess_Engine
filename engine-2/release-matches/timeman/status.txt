@@ -1,0 +1,4 @@
+saved: new-0476b93 vs old-a55fcad: 600 games, +168 -121 =311
+LLR: 3.01 (102.1%) (-2.94, 2.94) [0.00, 10.00]
+SPRT ([0.00, 10.00]) completed - H1 was accepted
+Finished match
