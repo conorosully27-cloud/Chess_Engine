@@ -5,6 +5,21 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.2: no sorting of quiet moves that will all be pruned
+
+4.1 plus the change below (commit `fcda4f4`; same network). **Against 4.1**
+(cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1 accepted after 976
+games**, 259 wins, 208 losses, 509 draws (52.6%), **+18 Elo (+/- 13)**.
+New bench signature **3005772** (4.1: 3236061), the same as the tested
+build. Code only, no APK. State in `release-matches/speed2/`.
+
+- **Skip sorting pruned quiet moves** (`src/movepick.*`, `src/search.cpp`):
+  once futility or late move pruning prunes one quiet move, every later
+  one is pruned too unless it gives check, so the picker hands the rest out
+  as generated, without scoring or sorting, and the search tests each only
+  for check (cheap since 4.1). Only the order of the few quiet checks
+  searched changes. 15% more nodes/s, and 15% less time to depth 15.
+
 ## 4.1: faster code
 
 4.0 with speed changes found by profiling (commits `66fc41c`, `a4eb9f8`;

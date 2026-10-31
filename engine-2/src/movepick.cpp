@@ -101,14 +101,14 @@ Move MovePicker::next() {
       [[fallthrough]];
     case GEN_QUIETS:
       generate<QUIETS>(pos_, quiets_);
-      score_moves(pos_, quiets_, quiet_scores_, Move(), killer1_, killer2_, history_, cont1_, cont2_);
+      if (!skip_quiets_) score_moves(pos_, quiets_, quiet_scores_, Move(), killer1_, killer2_, history_, cont1_, cont2_);
       stage_ = QUIET_MOVES;
       [[fallthrough]];
     case QUIET_MOVES:
       // The killers keep their scores, so the other moves come out in the
       // same order as when the killers came from this list.
       while (next_quiet_ < quiets_.count) {
-        const Move m = pick_next(quiets_, quiet_scores_, next_quiet_++);
+        const Move m = skip_quiets_ ? quiets_.moves[next_quiet_++] : pick_next(quiets_, quiet_scores_, next_quiet_++);
         if (m != tt_move_ && !(killers_first_ && (m == killer1_ || m == killer2_))) return m;
       }
       stage_ = BAD_CAPTURES;
