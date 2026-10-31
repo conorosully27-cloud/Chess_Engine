@@ -30,6 +30,12 @@ struct StateInfo {
   int fullmove = 1;
   Bitboard checkers = 0;      // enemy pieces giving check to the side to move
   Bitboard pinned = 0;        // pieces of the side to move pinned to their king
+  // For gives_check, worked out on its first call at this position: the
+  // squares from which each of our piece types would check the enemy king,
+  // and our pieces that would uncover a check by one of our sliders.
+  mutable bool check_info_ready = false;
+  mutable Bitboard check_squares[PIECE_TYPE_NB] = {};
+  mutable Bitboard discoverers = 0;
 };
 
 class Position {
@@ -90,6 +96,9 @@ class Position {
   bool legal(Move m) const;
   // Whether a legal move checks the enemy king, without making it.
   bool gives_check(Move m) const;
+  // The same from scratch, without the per-position check squares: used for
+  // castling, en passant and promotions, and by the tests.
+  bool gives_check_full(Move m) const;
   // Static exchange evaluation: whether m, followed by the best sequence of
   // recaptures on its square (each side taking with its cheapest piece, and
   // free to stop), wins at least threshold centipawns. Pins are ignored and
@@ -116,6 +125,7 @@ class Position {
   void remove_piece(Square s);
   void move_piece(Square from, Square to);
   void update_check_info(StateInfo& s) const;
+  void compute_check_squares(const StateInfo& s) const;
   bool ep_capturable(Square ep, Color stm) const;
   // Marks the accumulator of the position the next move (or null move)
   // makes as not computed and returns its record of changes, emptied.
