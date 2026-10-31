@@ -49,7 +49,16 @@ TUNE_PARAM(LMR_DIV, 198, 100, 500);
 // A quiet move's history (its own plus both continuation histories) takes
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
-TUNE_PARAM(LMR_HISTORY, 200, 50, 1000);
+TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
+// Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
+// (at most HIST_BONUS_MAX) for the move that cut off, the same against the
+// quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
+// (main table) and +/-CONT_HIST_GRAVITY (continuation tables).
+TUNE_PARAM(HIST_BONUS_MUL, 200, 50, 600);
+TUNE_PARAM(HIST_BONUS_SUB, 150, 0, 600);
+TUNE_PARAM(HIST_BONUS_MAX, 1800, 300, 4000);
+TUNE_PARAM(HIST_GRAVITY, 16384, 4000, 30000);
+TUNE_PARAM(CONT_HIST_GRAVITY, 16384, 4000, 30000);
 
 // Singular extensions: from SINGULAR_DEPTH, a hash move that the table
 // rates well above every alternative is searched a ply deeper. The test
@@ -441,18 +450,24 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
-            const int bonus = depth * depth;
-            const auto cont_add = [](std::int16_t* row, int index, int amount) {
-              if (row) row[index] = std::int16_t(std::clamp(row[index] + amount, -CONT_HISTORY_LIMIT, CONT_HISTORY_LIMIT));
+            // History gravity: each update moves an entry toward +/-the
+            // limit by a share of the bonus that shrinks as it nears it, so
+            // entries saturate smoothly and recent results still count.
+            const int bonus = std::min(HIST_BONUS_MUL * depth - HIST_BONUS_SUB, HIST_BONUS_MAX);
+            const auto gravity = [](int value, int amount, int limit) {
+              return value + amount - value * std::abs(amount) / limit;
+            };
+            const auto cont_add = [&](std::int16_t* row, int index, int amount) {
+              if (row) row[index] = std::int16_t(gravity(row[index], amount, CONT_HIST_GRAVITY));
             };
             int& h = history_[piece][move.to()];
-            h = std::min(h + bonus, HISTORY_LIMIT);
+            h = gravity(h, bonus, HIST_GRAVITY);
             cont_add(cont1, piece * 64 + move.to(), bonus);
             cont_add(cont2, piece * 64 + move.to(), bonus);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
-              hq = std::max(hq - bonus, -HISTORY_LIMIT);
+              hq = gravity(hq, -bonus, HIST_GRAVITY);
               cont_add(cont1, quiets_searched[q], -bonus);
               cont_add(cont2, quiets_searched[q], -bonus);
             }
