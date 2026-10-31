@@ -5,6 +5,23 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.5: capture history
+
+4.4 plus the change below (commit `f3a8b73`; same network).
+**Against 4.4** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **accepted
+by the owner's LOS rule** (release when LOS reaches 97.5% if the SPRT has
+not decided) after 1,720 games, 437 wins, 389 losses, 894 draws (51.4%),
+**+10 Elo (+/- 10)**, LOS 97.7%, LLR 1.99 (SPRT undecided). Bench
+**2926457**. Code only, no APK. State in `release-matches/capthist/`.
+
+- **Capture history** (`src/movepick.*`, `src/search.*`): a table by
+  moving piece, destination and captured piece type, updated with the
+  same bonus and gravity as the quiet history (toward +/-16384, tunable
+  `CAPT_HIST_GRAVITY`): a bonus for a capture that cuts off, a malus for
+  every capture tried before the move that did. Captures are ordered by
+  10 x the victim's value less the attacker's, plus history / 8, in the
+  main search and in quiescence.
+
 ## 4.4: history gravity
 
 4.3 plus the change below (commit `537f61e`; same network).

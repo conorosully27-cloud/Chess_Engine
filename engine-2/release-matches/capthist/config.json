@@ -131,15 +131,15 @@
     ],
     "stats": {
         "new-f3a8b73 vs old-179df5a": {
-            "wins": 181,
-            "losses": 154,
-            "draws": 413,
-            "penta_WW": 12,
-            "penta_WD": 90,
-            "penta_WL": 67,
-            "penta_DD": 125,
-            "penta_LD": 73,
-            "penta_LL": 7
+            "wins": 436,
+            "losses": 387,
+            "draws": 893,
+            "penta_WW": 32,
+            "penta_WD": 198,
+            "penta_WL": 174,
+            "penta_DD": 261,
+            "penta_LD": 173,
+            "penta_LL": 20
         }
     }
 }
