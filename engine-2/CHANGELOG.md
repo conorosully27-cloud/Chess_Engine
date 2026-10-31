@@ -5,6 +5,23 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.4: history gravity
+
+4.3 plus the change below (commit `537f61e`; same network).
+**Against 4.3** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1
+accepted after 718 games**, 202 wins, 154 losses, 362 draws (53.3%),
+**+23 Elo (+/- 15)**. Bench **2930588**. Code only, no APK. State in
+`release-matches/gravity/`.
+
+- **History gravity** (`src/search.cpp`): quiet-move history updates
+  (the main table and both continuation tables) now move an entry toward
+  +/-16384 by a share of the bonus that shrinks as it nears the limit,
+  instead of adding until a hard cap. The bonus is larger and linear:
+  min(200 x depth - 150, 1800), was depth squared. Late move reductions'
+  history divisor is rescaled to match (`LMR_HISTORY` 200 -> 2600: the
+  mean history seen there on the bench went from 164 to 2144). The five
+  new values are tunable (`HIST_*`, `CONT_HIST_GRAVITY`).
+
 ## 4.3: smarter time use
 
 4.2 plus the change below (commit `0476b93`; same network and search).
