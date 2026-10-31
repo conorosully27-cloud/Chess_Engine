@@ -23,6 +23,10 @@ State in `release-matches/corrsize/`.
 this time control the search can't afford them. Retried with the
 reductions half only (`CORR_PRUNE_PCT` 0).
 
+**Reductions only** (`30cdaf4`, bench 3111031): vs 4.0, stopped by the
+owner at about 320 games, -14 +/- 24, LLR -1.30 (`release-matches/corrlmr/`).
+Owner: may come back to it.
+
 ## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026) — owner: a good candidate to come back to
 
 **Change:** the table below at 10% learning rate with its own limit:
