@@ -181,6 +181,9 @@ history behind the search and evaluation.
   by self-play. Next candidates: tune the TM_* values, measure a PGO
   build, a fresh network when the data allows, and a new Stockfish-3200
   test for 5.0.
+  **vs Stockfish 18 at `UCI_Elo` 3150** (`scripts/strength_match.sh`,
+  cloud, 10+0.1, 4 at a time): stopped by the owner undecided after 1,480
+  games, +427 -415 =638 (50.4%), **+3 +/- 13**, LLR 1.29: **about 3150**.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
