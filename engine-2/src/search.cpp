@@ -71,14 +71,6 @@ TUNE_PARAM(CORR_LIMIT_CP, 50, 16, 127);
 TUNE_PARAM(CORR_MAX_WEIGHT, 15, 4, 64);
 TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 
-// A large correction says the network misjudges this kind of position, so
-// the search trusts the static evaluation less there: CORR_PRUNE_PCT
-// percent of the correction's size widens the reverse futility and
-// futility margins, and late move reductions are a ply less per
-// CORR_LMR_DIV centipawns of it (corrections: median 7 cp, 90% under 40).
-TUNE_PARAM(CORR_PRUNE_PCT, 0, 0, 200);  // 50 (with the reductions) lost; off
-TUNE_PARAM(CORR_LMR_DIV, 40, 10, 200);
-
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
   LmrTable t{};
@@ -293,17 +285,15 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   // here is poor, so a full-depth search is mostly wasted; go a ply shallower.
   if (ply > 0 && depth >= 4 && !tt_move) depth--;
 
-  int raw_eval = 0, static_eval = 0, corr_size = 0;
+  int raw_eval = 0, static_eval = 0;
   if (!in_check) {
     // The table keeps the static evaluation: reuse it rather than evaluate again.
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
     // Corrected by what searches of this pawn structure have found.
     static_eval = raw_eval + corr_entries(pos).total() / CORR_GRAIN;
-    corr_size = std::abs(static_eval - raw_eval);
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it.
-      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth - corr_size * CORR_PRUNE_PCT / 100 >= beta)
-        return static_eval;
+      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
@@ -319,8 +309,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH &&
-                      static_eval + FUT_BASE + FUT_MARGIN * depth + corr_size * CORR_PRUNE_PCT / 100 <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
   const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
@@ -395,7 +384,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
-        reduction -= corr_size / CORR_LMR_DIV;  // less where the evaluation is unreliable
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
