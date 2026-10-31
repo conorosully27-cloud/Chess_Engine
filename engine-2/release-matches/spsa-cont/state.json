@@ -1,0 +1,10 @@
+{
+ "theta": {
+  "CORR_CONT_RATE": 11.045685593062801,
+  "CORR_CONT_LIMIT_CP": 16.151016086308182
+ },
+ "pairs": 882,
+ "wins": 461,
+ "losses": 488,
+ "draws": 815
+}

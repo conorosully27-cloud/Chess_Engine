@@ -5,6 +5,76 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Trust the evaluation less where the correction is large, on 4.0 (Oct 2026)
+
+**Change:** with `corr_size` = |corrected - raw static evaluation|
+(median 7 cp at search nodes, 90% under 40): half of it widens the
+reverse futility and futility margins (`CORR_PRUNE_PCT` 50), and late
+move reductions are a ply less per 40 cp of it (`CORR_LMR_DIV`). Commit
+`0b860fe`. Bench 3027103 -> 3704838 (22% more nodes).
+
+**Result:** vs 4.0 (cloud, 8+0.08, 4 at a time), stopped by the owner at
+658 games: +154 -173 =331 (48.6%), Elo -10 +/- 16, LOS 12%, LLR -2.15.
+State in `release-matches/corrsize/`.
+
+**Prior:** 6/10 (Stockfish uses the correction's size in several places).
+
+**Commentary:** the wider margins cost most of the extra nodes, and at
+this time control the search can't afford them. Retried with the
+reductions half only (`CORR_PRUNE_PCT` 0).
+
+**Reductions only** (`30cdaf4`, bench 3111031): vs 4.0, stopped by the
+owner at about 320 games, -14 +/- 24, LLR -1.30 (`release-matches/corrlmr/`).
+Owner: may come back to it.
+
+## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026) — owner: a good candidate to come back to
+
+**Change:** the table below at 10% learning rate with its own limit:
+16 cp first (`3072e9a`), then 18 cp after two SPSA runs of the rate and
+limit (`e899aa8`; 882 and 824 pairs, both stopped by the owner, both
+ending near 10% / 16-18 cp). Bench 2841857.
+
+**Result:** cautious version vs 4.0: +23 +/- 34 after 180 games (stopped
+to tune). Tuned version vs 4.0 (cloud, 8+0.08, 4 at a time): **H0
+accepted after 1,646 games**, +414 -427 =805 (49.6%), Elo -3 +/- 10.
+State in `release-matches/contcorr-tuned/`.
+The cautious version itself, resumed at the owner's request from its 180
+games: stopped by the owner at 800 games, exactly even: +199 -199 =402,
+0 +/- 15, LLR -0.83 (`release-matches/contcorr2/`).
+
+**Owner's note: a good candidate to come back to.** Neither version lost
+(0 +/- 15 and -3 +/- 10), so it costs nothing; it just hasn't shown a
+gain yet. Retry when the table can fill: at a longer time control
+(20+0.2 or more), with a new network, or with a coarser key (the last move
+alone). The code is in `3072e9a` (cautious) and `e899aa8` (tuned).
+
+**Prior:** 6/10.
+
+**Commentary:** worth nothing measurable: the early +23 was luck, and
+the tuner never moved far from the cautious values because there was no
+gain to find. A two-move key is too sparse at our node counts (each entry
+sees a handful of updates a game). If retried: a coarser key (the last
+move alone, 768 entries), or with far more nodes per game.
+
+## Continuation correction history at the non-pawn settings, on 4.0 (Oct 2026)
+
+**Change:** a fourth correction table keyed by the last two moves (piece *
+64 + to of each, 768 x 768 int16), summed with the pawn and non-pawn
+tables and updated with them at the non-pawn rate (27%) and the shared
+50 cp limit; quiescence records its moves for the key. Commit `d8657e6`.
+Bench 3027103 -> 3008416 (exactly 4.0's with the table off).
+
+**Result:** vs 4.0 (cloud, 8+0.08, 4 at a time), stopped by the owner at
+180 games: +38 -54 =88 (45.6%), Elo -31 +/- 32, LOS 2.7%, LLR -1.37.
+State in `release-matches/contcorr/`.
+
+**Prior:** 6/10.
+
+**Commentary:** the table has ~590,000 entries against 16K per pawn or
+non-pawn table, so each is updated a few times a game and stays noisy,
+and through the shared error its noise also disturbs the other tables'
+learning. Retried cautiously: 10% learning rate and its own 16 cp limit.
+
 ## Non-pawn correction history at full learning rate, on 3.4 (Oct 2026)
 
 **Change:** two more correction tables beside 3.4's pawn table, keyed by

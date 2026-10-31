@@ -326,6 +326,7 @@ nnue::DirtyPieces& Position::next_dirty_pieces() {
 
 void Position::make_move(Move m) {
   StateInfo s = states_.back();
+  s.check_info_ready = false;
   nnue::DirtyPieces& dirty = next_dirty_pieces();
   const Color us = side_;
   const Square from = m.from(), to = m.to();
@@ -418,6 +419,7 @@ void Position::unmake_move() {
 
 void Position::make_null_move() {
   StateInfo s = states_.back();
+  s.check_info_ready = false;
   next_dirty_pieces();
   Key k = s.key;
   if (ep_capturable(s.ep, side_)) k ^= Zobrist::ep_file[file_of(s.ep)];
@@ -463,7 +465,41 @@ bool Position::legal(Move m) const {
   return true;
 }
 
+void Position::compute_check_squares(const StateInfo& s) const {
+  const Color us = side_, them = ~us;
+  const Square ksq = king_square(them);
+  s.check_squares[PAWN] = PawnAttacks[them][ksq];
+  s.check_squares[KNIGHT] = KnightAttacks[ksq];
+  s.check_squares[BISHOP] = bishop_attacks(ksq, occ_);
+  s.check_squares[ROOK] = rook_attacks(ksq, occ_);
+  s.check_squares[QUEEN] = s.check_squares[BISHOP] | s.check_squares[ROOK];
+  s.check_squares[KING] = 0;
+  // Our pieces that are the only thing between one of our sliders and the
+  // enemy king.
+  s.discoverers = 0;
+  Bitboard snipers = (rook_attacks(ksq, 0) & pieces(us, ROOK, QUEEN)) | (bishop_attacks(ksq, 0) & pieces(us, BISHOP, QUEEN));
+  while (snipers) {
+    const Bitboard between = BetweenBB[ksq][pop_lsb(snipers)] & occ_;
+    if (between && !more_than_one(between) && (between & pieces(us))) s.discoverers |= between;
+  }
+  s.check_info_ready = true;
+}
+
+// Direct check: the piece lands on one of its check squares (worked out with
+// the board before the move: a slider moving along a line through the king
+// that it doesn't already check stays blocked). Discovered check: a
+// discoverer leaves the line to the king. Castling, en passant (which
+// removes a second piece) and promotions go the long way.
 bool Position::gives_check(Move m) const {
+  if (m.is_castle() || m.is_ep() || m.is_promotion()) return gives_check_full(m);
+  const StateInfo& s = st();
+  if (!s.check_info_ready) compute_check_squares(s);
+  const Square from = m.from(), to = m.to();
+  if (s.check_squares[type_of(board_[from])] & square_bb(to)) return true;
+  return (s.discoverers & square_bb(from)) && !aligned(from, to, king_square(~side_));
+}
+
+bool Position::gives_check_full(Move m) const {
   const Color us = side_, them = ~us;
   const Square from = m.from(), to = m.to();
   const Square ksq = king_square(them);
