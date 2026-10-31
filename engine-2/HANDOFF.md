@@ -190,6 +190,14 @@ history behind the search and evaluation.
   (cloud, 8+0.08). **The new baseline**, bench 2930588. Code only, no
   APK. Next candidates: capture history, reductions for captures and
   cut nodes, ProbCut, then SPSA of the new history values.
+- **Engine 4.5** = 4.4 with capture history (`f3a8b73`): vs 4.4 after
+  1,720 games, +437 -389 =894 (51.4%), **+10 +/- 10**, LOS 97.7%, LLR
+  1.99 (SPRT undecided): **released by the owner's LOS rule** (Oct 31: if
+  the SPRT can't pass, release when LOS reaches 97.5%; if H0 comes first,
+  extend to 3,000 games and release only if LOS gets there). **The new
+  baseline**, bench 2926457. Code only, no APK. Next candidates:
+  reductions for captures and cut nodes, ProbCut, then SPSA of the history
+  values.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious

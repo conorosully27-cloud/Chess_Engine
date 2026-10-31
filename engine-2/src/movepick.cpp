@@ -28,10 +28,16 @@ void score_moves(const Position& pos, const MoveList& list, int* scores, Move tt
   }
 }
 
-void score_tactical(const Position& pos, const MoveList& list, int* scores) {
+void score_tactical(const Position& pos, const MoveList& list, int* scores, const CaptureHistory* capt) {
   for (int i = 0; i < list.count; i++) {
     const Move m = list.moves[i];
-    const int mvv_lva = m.is_capture() ? ORDER_VALUE[captured_type(pos, m)] * 10 - ORDER_VALUE[type_of(pos.piece_on(m.from()))] : 0;
+    int mvv_lva = 0;
+    if (m.is_capture()) {
+      const Piece piece = pos.piece_on(m.from());
+      const PieceType victim = captured_type(pos, m);
+      mvv_lva = ORDER_VALUE[victim] * 10 - ORDER_VALUE[type_of(piece)];
+      if (capt) mvv_lva += (*capt)[piece][m.to()][victim] / CAPT_HIST_DIV;
+    }
     if (!m.is_promotion()) scores[i] = CAPTURE_SCORE + mvv_lva;
     else if (m.is_capture())  // as score_moves
       scores[i] = (pos.see_ge(m, 0) ? CAPTURE_SCORE : BAD_CAPTURE_SCORE) + mvv_lva + ORDER_VALUE[m.promotion_type()];
@@ -72,7 +78,7 @@ Move MovePicker::next() {
       [[fallthrough]];
     case GEN_CAPTURES:
       generate<CAPTURES>(pos_, captures_);
-      score_tactical(pos_, captures_, capture_scores_);
+      score_tactical(pos_, captures_, capture_scores_, capt_);
       stage_ = GOOD_CAPTURES;
       [[fallthrough]];
     case GOOD_CAPTURES:
