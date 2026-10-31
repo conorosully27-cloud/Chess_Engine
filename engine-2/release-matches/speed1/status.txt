@@ -1,0 +1,4 @@
+saved: new-a4eb9f8 vs old-c46d4e7: 1810 games, +502 -437 =871
+LLR: 3.01 (102.4%) (-2.94, 2.94) [0.00, 10.00]
+SPRT ([0.00, 10.00]) completed - H1 was accepted
+Finished match

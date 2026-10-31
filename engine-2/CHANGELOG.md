@@ -5,6 +5,30 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.1: faster code
+
+4.0 with speed changes found by profiling (commits `66fc41c`, `a4eb9f8`;
+same network and search rules). **Against 4.0** (`scripts/release_match.sh`,
+cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1 accepted after 1,810
+games**, 502 wins, 437 losses, 871 draws (51.8%), **+12 Elo (+/- 10)**.
+New bench signature **3236061** (4.0: 3027103), the same as the tested
+build. Code only: no APK (owner). State in `release-matches/speed1/`.
+
+- **Cheap check test** (`src/position.*`): the squares from which each
+  piece type would check the enemy king, and the pieces that would uncover
+  a check, are worked out once per position on the first `gives_check`;
+  each test is then a few bitwise ANDs instead of two slider lookups.
+  Same search (bench unchanged); about 10% more nodes/s.
+- **Move picker** (`src/movepick.*`, `src/search.cpp`): killer moves are
+  tried before the quiet moves are generated and scored (unless a pawn can
+  promote by a push), and captures are SEE-tested only when reached, in
+  the main search and in quiescence. At depth 15, 3% less time than the
+  check test alone.
+- Profile of 4.0 before (callgrind, bench depth 9, search only): network
+  ~20%, picking and scoring quiet moves ~15%, SEE at generation ~5%,
+  check tests ~5.5%. Link-time optimization was tried and was 2-5%
+  slower, so it was left out.
+
 ## 4.0: non-pawn correction history, tuned; above 3100
 
 3.4 plus the change below (commit `01ca8c6`; same network). **Against
