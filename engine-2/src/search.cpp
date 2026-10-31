@@ -487,7 +487,9 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   MoveList moves;
   generate_pseudo_legal(pos, moves, !in_check);
   int scores[MoveList::MAX_MOVES];
-  score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
+  // Captures: SEE only for those reached (below); evasions: the full ordering.
+  if (in_check) score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
+  else score_tactical(pos, moves, scores);
 
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
@@ -497,8 +499,8 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       const PieceType victim = captured_type(pos, move);
       if (best_score + ORDER_VALUE[victim] + 200 < alpha) continue;
       // Bad captures: skip any that lose material once the recaptures on
-      // the square are played out (score_moves has already checked).
-      if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
+      // the square are played out.
+      if (!pos.see_ge(move, 0)) continue;
     }
     if (!pos.legal(move)) continue;
     pos.make_move(move);
