@@ -89,6 +89,7 @@ class SearchWorker {
   Position* pos_ = nullptr;
   Move killers_[MAX_PLY][2] = {};
   int history_[PIECE_NB][64] = {};
+  CaptureHistory capt_history_ = {};  // src/movepick.h
   // Continuation history (src/movepick.h), indexed [earlier move][this move]
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).

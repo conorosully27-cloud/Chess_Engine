@@ -59,6 +59,9 @@ TUNE_PARAM(HIST_BONUS_SUB, 150, 0, 600);
 TUNE_PARAM(HIST_BONUS_MAX, 1800, 300, 4000);
 TUNE_PARAM(HIST_GRAVITY, 16384, 4000, 30000);
 TUNE_PARAM(CONT_HIST_GRAVITY, 16384, 4000, 30000);
+// Capture history (src/movepick.h): the same bonus, gravity toward
+// +/-CAPT_HIST_GRAVITY.
+TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 
 // Singular extensions: from SINGULAR_DEPTH, a hash move that the table
 // rates well above every alternative is searched a ply deeper. The test
@@ -165,6 +168,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
+  std::fill(&capt_history_[0][0][0], &capt_history_[0][0][0] + PIECE_NB * 64 * 6, std::int16_t(0));
   std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
@@ -197,6 +201,9 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
   for (std::int16_t& h : cont_history_) h = std::int16_t(h >> 2);
+  for (auto& by_piece : capt_history_)
+    for (auto& by_to : by_piece)
+      for (std::int16_t& h : by_to) h = std::int16_t(h >> 2);
 
   SearchResult result;
   MoveList legal;
@@ -350,12 +357,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
+  std::int16_t* captures_searched[MoveList::MAX_MOVES];  // capture history entries of captures tried
+  int captures_count = 0;
   int quiets_count = 0;
 
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
   std::int16_t* const cont1 = cont_row(ply, 1);
   std::int16_t* const cont2 = cont_row(ply, 2);
-  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2);
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2, &capt_history_);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
@@ -365,6 +374,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (move == excluded || !pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
+    std::int16_t* const capt_entry = move.is_capture() ? &capt_history_[piece][move.to()][captured_type(pos, move)] : nullptr;
     legal++;
 
     // Pruned moves are decided before making them, which is cheaper. None
@@ -445,18 +455,23 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         alpha = score;
         update_pv(ply, move);
         if (score >= beta) {
+          // History gravity: each update moves an entry toward +/-the
+          // limit by a share of the bonus that shrinks as it nears it, so
+          // entries saturate smoothly and recent results still count.
+          const int bonus = std::min(HIST_BONUS_MUL * depth - HIST_BONUS_SUB, HIST_BONUS_MAX);
+          const auto gravity = [](int value, int amount, int limit) {
+            return value + amount - value * std::abs(amount) / limit;
+          };
+          // Capture history: for the capture that cut off, and against the
+          // captures tried before the move that did.
+          if (capt_entry) *capt_entry = std::int16_t(gravity(*capt_entry, bonus, CAPT_HIST_GRAVITY));
+          for (int c = 0; c < captures_count; c++)
+            *captures_searched[c] = std::int16_t(gravity(*captures_searched[c], -bonus, CAPT_HIST_GRAVITY));
           if (quiet) {
             if (move != killer1) {
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
-            // History gravity: each update moves an entry toward +/-the
-            // limit by a share of the bonus that shrinks as it nears it, so
-            // entries saturate smoothly and recent results still count.
-            const int bonus = std::min(HIST_BONUS_MUL * depth - HIST_BONUS_SUB, HIST_BONUS_MAX);
-            const auto gravity = [](int value, int amount, int limit) {
-              return value + amount - value * std::abs(amount) / limit;
-            };
             const auto cont_add = [&](std::int16_t* row, int index, int amount) {
               if (row) row[index] = std::int16_t(gravity(row[index], amount, CONT_HIST_GRAVITY));
             };
@@ -477,6 +492,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       }
     }
     if (quiet) quiets_searched[quiets_count++] = piece * 64 + move.to();
+    else if (capt_entry) captures_searched[captures_count++] = capt_entry;
   }
 
   // Checkmate or stalemate; with a move left out, the only move was that one.
@@ -538,7 +554,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   int scores[MoveList::MAX_MOVES];
   // Captures: SEE only for those reached (below); evasions: the full ordering.
   if (in_check) score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
-  else score_tactical(pos, moves, scores);
+  else score_tactical(pos, moves, scores, &capt_history_);
 
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
