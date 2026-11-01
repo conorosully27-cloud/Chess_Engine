@@ -50,6 +50,9 @@ TUNE_PARAM(LMR_DIV, 198, 100, 500);
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
 TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
+// Extra late move reduction at cut nodes (null-window nodes expected to
+// fail high).
+TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
 // (at most HIST_BONUS_MAX) for the move that cut off, the same against the
 // quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
@@ -226,7 +229,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
       int delta = 35;
       int alpha = previous - delta, beta = previous + delta;
       for (;;) {
-        score = negamax(depth, alpha, beta, 0, false);
+        score = negamax(depth, alpha, beta, 0, false, false);
         if (stopped_) break;
         if (score <= alpha) alpha = std::max(-INF, alpha - delta);
         else if (score >= beta) beta = std::min(INF, beta + delta);
@@ -234,7 +237,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
         delta *= 2;
       }
     } else {
-      score = negamax(depth, -INF, INF, 0, false);
+      score = negamax(depth, -INF, INF, 0, false, false);
     }
     if (stopped_) break;  // an unfinished depth can't be trusted
     can_stop_ = true;
@@ -279,7 +282,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   return result;
 }
 
-int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded) {
+int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node, bool after_null, Move excluded) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
   if ((++nodes_ & 2047) == 0) check_limits();
@@ -342,7 +345,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         const int reduction = depth >= 7 ? 3 : 2;
         ply_move_[ply] = -1;
         pos.make_null_move();
-        const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
+        const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, !cut_node, true);
         pos.unmake_null_move();
         if (stopped_) return 0;
         if (score >= beta) return is_mate_score(score) ? beta : score;
@@ -410,7 +413,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
         tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
       const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
-      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, false, move);
+      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
       pv_length_[ply] = ply;  // the test search wrote this node's PV
       if (stopped_) return 0;
       if (score < singular_beta) extension = 1;
@@ -424,7 +427,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
     int score;
     if (legal == 1) {
-      score = -negamax(new_depth, -beta, -alpha, ply + 1, false);
+      score = -negamax(new_depth, -beta, -alpha, ply + 1, !pv_node && !cut_node, false);
     } else {
       // Late move reductions: moves ordered late are rarely best, so search
       // them shallower first and only re-search if they surprise us.
@@ -433,6 +436,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       if (depth >= 3 && legal > 2 && quiet && !in_check && !pos.in_check() && ply > 0) {  // pos: after the move
         reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
+        if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
@@ -441,9 +445,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
-      score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, false);
-      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, false);
-      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false);
+      score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, true, false);
+      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
+      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false, false);
     }
     pos.unmake_move();
     if (stopped_) return 0;
