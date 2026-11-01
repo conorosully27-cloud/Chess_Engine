@@ -204,8 +204,11 @@ history behind the search and evaluation.
   **The new baseline**, bench 3078714. Code only, no APK. **Owner: retune
   it** (it passed only as a small gain): SPSA of `CUT_NODE_LMR` with the
   LMR values (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`), and the history values.
-  Next: 4.6 vs Stockfish 3200 (owner's request), then ProbCut, reductions
-  for captures, singular extension variants.
+  **vs Stockfish 18 at `UCI_Elo` 3190** (its maximum: Stockfish ignores
+  3200 and would play at its default, 1320), `scripts/strength_match.sh`,
+  cloud, 10+0.1, 4 at a time: **H0 after 278 games**, +61 -84 =133
+  (45.9%), **-29 +/- 27**: about 3160 (3130-3190). Next: ProbCut,
+  reductions for captures, singular extension variants, SPSA retune.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
