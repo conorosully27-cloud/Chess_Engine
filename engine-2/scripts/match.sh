@@ -20,6 +20,9 @@
 # pawns of level for 8 moves in a row after move 34. About 20-30% less time
 # per game. ADJUDICATE=0 plays every game out (as before Oct 2026).
 #
+# OPTS_A / OPTS_B add UCI options for engine A or B in fastchess's form,
+# for example OPTS_A="option.Threads=2" for a thread-scaling test.
+#
 # BOOK=<file.epd> starts the games from those positions instead, each
 # played twice with colors swapped: for example endgames only, from
 # scripts/endgame_book.py.
@@ -60,8 +63,8 @@ sprt=()
 adjudicate=()
 [ "${ADJUDICATE:-1}" = "1" ] && adjudicate=(-resign movecount=3 score=600 twosided=true -draw movenumber=34 movecount=8 score=20)
 
-engine_a="$(engine_args "$a")"
-engine_b="$(engine_args "$b")"
+engine_a="$(engine_args "$a") ${OPTS_A:-}"
+engine_b="$(engine_args "$b") ${OPTS_B:-}"
 # fastchess writes its resume file (config.json) to the working directory:
 # one folder per run, so matches running side by side don't overwrite each
 # other's. To resume a run: cd into its folder, fastchess -config file=config.json

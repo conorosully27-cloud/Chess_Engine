@@ -204,6 +204,14 @@ history behind the search and evaluation.
   **The new baseline**, bench 3078714. Code only, no APK. **Owner: retune
   it** (it passed only as a small gain): SPSA of `CUT_NODE_LMR` with the
   LMR values (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`), and the history values.
+- **Engine 5.0** = 4.6 with a new network (`nets/engine-5.0.nnue`, the
+  owner's laptop run `run6/net-15.nnue`, 512 units, from scratch, 15
+  epochs on 215.9M positions: data runs 4, 5 and 6 from 3.3, 4.0 and
+  4.5). **Owner: +21.5 Elo against Stockfish 18 at `UCI_Elo` 3190.**
+  **The new baseline**, bench 2795181. Code only (the app stays on 4.0;
+  `build_wasm.sh` now embeds the 5.0 network for the next app build).
+  Next: data run 7 from 5.0 on the owner's laptop
+  (`C:\Users\conor\nnue-data\v7\v7_part-1..16.bin`, seeds 11001-11016).
   Next: 4.6 vs Stockfish 3200 (owner's request), then ProbCut, reductions
   for captures, singular extension variants.
 - **Continuation correction history (after 4.0):** a fourth correction
@@ -238,8 +246,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2826031** (`build/engine2 bench`, with the
-  built-in network; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2795181** (`build/engine2 bench`, with the
+  built-in network; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
@@ -414,9 +422,20 @@ SPRT against the best build at the time:
 11. **SEE with tuned piece values** (owner's parked idea): phase-blended
     material from the evaluation instead of 100/325/325/500/900; the tuned
     middlegame values rate a queen above two rooks.
-12. **Lazy SMP (threads)**: big gain on the owner's laptop in Cute Chess;
-    hard to test here with 3 of 4 cores in use. Do last, confirm on the
-    laptop.
+12. **Lazy SMP (threads)**: **built and parked** (owner's call, Oct 30:
+    "keep this in the back pocket", not a version improvement). Code in
+    commit `8abc9f3` on `claude/loving-ramanujan-lewlp6` (taken out again
+    right after): a `Threads` UCI option; helper workers search the same
+    position on their own copies with their own history, sharing the TT,
+    until the main search is done; info lines sum every thread's nodes.
+    One thread is unchanged (bench 3027103). Start position, 4 s: 1.9M,
+    3.9M, 7.2M nodes/s at 1, 2, 4 threads; a 300-search stress test and a
+    UCI test check passed. **2 threads vs 4.0 at 1** (cloud, 8+0.08, 2
+    games at a time): stopped by the owner at 120 games, +48 -14 =58,
+    **+101 +/- 38 Elo**, LOS 100%, LLR 1.52. Strength ratings against
+    Stockfish stay 1 thread each (`strength_match.sh` sets Stockfish's
+    Threads=1). For the phone app it would also need a threaded
+    WebAssembly build and cross-origin isolation in the WebView.
 
 **NNUE (started Oct 2026).** Plan: self-play data from Engine 2 (cloud,
 and the owner's laptop when free), a PyTorch trainer on the owner's laptop
@@ -583,6 +602,19 @@ square, per side) -> 128 hidden per side -> 1.
    (bench 3027103; copied to `C:\Users\conor\engine-4.0-datagen.exe`),
    same settings and files, seeds 8601-8616: the later positions of each
    part come from 4.0's games.
+
+13. **Data run 5 (Oct 30, owner's request, this session's cloud machine):
+   Engine 4.0** (bench 3027103, binary `~/engines/engine2-4.0-datagen`),
+   the same settings as run 4: keep 4, `8moves_v3` book openings + 2-5
+   random plies, 5,000 nodes a move. 4 processes x 25M into
+   `~/nnue-data/v5/part-1..4.bin`, seeds 9101-9104. About **1.06M
+   positions an hour** in all (keep 4 and the 512-unit network make it
+   ~8x slower than run 3), so ~95 h for 100M. **Resume with
+   `~/nnue-data/v5/run.sh`** (detached; takes the next seed block itself,
+   9201-9204, ...). **Stopped by the owner Nov 1, 12:35 UTC at
+   45,447,892 positions** (4 x ~11.36M, no partial records; seed blocks
+   9101-9504 after container restarts). This machine also holds 2.3's 50M and 2.7's 100M
+   (`~/nnue-data/part-*.bin`, `~/nnue-data/v2/`; copies sent to the owner).
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
