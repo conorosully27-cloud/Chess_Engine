@@ -49,7 +49,22 @@ TUNE_PARAM(LMR_DIV, 198, 100, 500);
 // A quiet move's history (its own plus both continuation histories) takes
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
-TUNE_PARAM(LMR_HISTORY, 200, 50, 1000);
+TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
+// Extra late move reduction at cut nodes (null-window nodes expected to
+// fail high).
+TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
+// Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
+// (at most HIST_BONUS_MAX) for the move that cut off, the same against the
+// quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
+// (main table) and +/-CONT_HIST_GRAVITY (continuation tables).
+TUNE_PARAM(HIST_BONUS_MUL, 200, 50, 600);
+TUNE_PARAM(HIST_BONUS_SUB, 150, 0, 600);
+TUNE_PARAM(HIST_BONUS_MAX, 1800, 300, 4000);
+TUNE_PARAM(HIST_GRAVITY, 16384, 4000, 30000);
+TUNE_PARAM(CONT_HIST_GRAVITY, 16384, 4000, 30000);
+// Capture history (src/movepick.h): the same bonus, gravity toward
+// +/-CAPT_HIST_GRAVITY.
+TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 
 // Singular extensions: from SINGULAR_DEPTH, a hash move that the table
 // rates well above every alternative is searched a ply deeper. The test
@@ -57,6 +72,17 @@ TUNE_PARAM(LMR_HISTORY, 200, 50, 1000);
 // SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
 TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
+
+// Time use, in percent of the planned time: after a depth, the search stops
+// once past the plan scaled by how settled it is. A best move just changed
+// gets TM_STABLE_BASE; each further depth it survives takes TM_STABLE_STEP
+// off, for up to TM_STABLE_DEPTHS depths. A score that fell since the last
+// depth adds TM_DROP_PER_CP per centipawn, at most TM_DROP_MAX.
+TUNE_PARAM(TM_STABLE_BASE, 130, 60, 250);
+TUNE_PARAM(TM_STABLE_STEP, 10, 0, 40);
+TUNE_PARAM(TM_STABLE_DEPTHS, 6, 1, 12);
+TUNE_PARAM(TM_DROP_PER_CP, 1, 0, 5);
+TUNE_PARAM(TM_DROP_MAX, 40, 0, 150);
 
 // Correction history entries are in 1/CORR_GRAIN centipawns, each within
 // +/-CORR_LIMIT_CP; each update moves every table's entry by depth + 1
@@ -137,6 +163,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   const std::int64_t hard_cap = moves_to_go == 1 ? remaining * 3 / 4 : remaining / 2;
   b.soft_ms = std::max<std::int64_t>(1, std::min(soft_cap, remaining / moves_to_go + inc * 3 / 4));
   b.hard_ms = std::max<std::int64_t>(b.soft_ms, std::min(hard_cap, b.soft_ms * 3));
+  b.adaptive = true;
   return b;
 }
 
@@ -144,6 +171,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
+  std::fill(&capt_history_[0][0][0], &capt_history_[0][0][0] + PIECE_NB * 64 * 6, std::int16_t(0));
   std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
@@ -176,6 +204,9 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& row : history_)
     for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
   for (std::int16_t& h : cont_history_) h = std::int16_t(h >> 2);
+  for (auto& by_piece : capt_history_)
+    for (auto& by_to : by_piece)
+      for (std::int16_t& h : by_to) h = std::int16_t(h >> 2);
 
   SearchResult result;
   MoveList legal;
@@ -189,6 +220,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
 
   const int max_depth = limits.depth > 0 ? std::min(limits.depth, MAX_PLY - 1) : MAX_PLY - 1;
   int previous = 0;
+  int stable_depths = 0;  // depths the best move has stayed the same
   for (int depth = 1; depth <= max_depth; depth++) {
     root_depth_ = depth;
     int score;
@@ -197,7 +229,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
       int delta = 35;
       int alpha = previous - delta, beta = previous + delta;
       for (;;) {
-        score = negamax(depth, alpha, beta, 0, false);
+        score = negamax(depth, alpha, beta, 0, false, false);
         if (stopped_) break;
         if (score <= alpha) alpha = std::max(-INF, alpha - delta);
         else if (score >= beta) beta = std::min(INF, beta + delta);
@@ -205,16 +237,19 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
         delta *= 2;
       }
     } else {
-      score = negamax(depth, -INF, INF, 0, false);
+      score = negamax(depth, -INF, INF, 0, false, false);
     }
     if (stopped_) break;  // an unfinished depth can't be trusted
     can_stop_ = true;
 
+    const int drop = depth > 1 ? previous - score : 0;
     previous = score;
+    const Move last_best = result.best;
     if (pv_length_[0] > 0) {
       result.pv.assign(pv_table_[0], pv_table_[0] + pv_length_[0]);
       result.best = result.pv[0];
     }
+    stable_depths = result.best == last_best ? stable_depths + 1 : 0;
     result.score = score;
     result.depth = depth;
 
@@ -230,14 +265,24 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
 
     if (legal.size() == 1 && depth >= 4) break;  // only one move: no need to think
     if (is_mate_score(score) && MATE - std::abs(score) <= depth) break;  // forced mate found
-    if (budget.soft_ms >= 0 && elapsed >= budget.soft_ms) break;
+    if (budget.soft_ms >= 0) {
+      std::int64_t soft = budget.soft_ms;
+      if (budget.adaptive) {
+        // Settled searches stop early, unsettled ones think on (the hard
+        // limit still applies).
+        const int stability = TM_STABLE_BASE - TM_STABLE_STEP * std::min(stable_depths, int(TM_STABLE_DEPTHS));
+        const int falling = std::clamp(drop * TM_DROP_PER_CP, 0, int(TM_DROP_MAX));
+        soft = soft * stability / 100 * (100 + falling) / 100;
+      }
+      if (elapsed >= soft) break;
+    }
     if (stop && stop->load(std::memory_order_relaxed)) break;
   }
   result.nodes = nodes_;
   return result;
 }
 
-int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded) {
+int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node, bool after_null, Move excluded) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
   if ((++nodes_ & 2047) == 0) check_limits();
@@ -300,7 +345,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         const int reduction = depth >= 7 ? 3 : 2;
         ply_move_[ply] = -1;
         pos.make_null_move();
-        const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, true);
+        const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, !cut_node, true);
         pos.unmake_null_move();
         if (stopped_) return 0;
         if (score >= beta) return is_mate_score(score) ? beta : score;
@@ -315,12 +360,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
+  std::int16_t* captures_searched[MoveList::MAX_MOVES];  // capture history entries of captures tried
+  int captures_count = 0;
   int quiets_count = 0;
 
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
   std::int16_t* const cont1 = cont_row(ply, 1);
   std::int16_t* const cont2 = cont_row(ply, 2);
-  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2);
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2, &capt_history_);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
@@ -330,6 +377,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (move == excluded || !pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
+    std::int16_t* const capt_entry = move.is_capture() ? &capt_history_[piece][move.to()][captured_type(pos, move)] : nullptr;
     legal++;
 
     // Pruned moves are decided before making them, which is cheaper. None
@@ -340,9 +388,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         if (checks < 0) checks = pos.gives_check(move);
         return checks == 1;
       };
-      if (futile && quiet && !gives_check()) continue;
+      // Once one quiet move is pruned by these two rules, every later one is
+      // too unless it gives check: the picker stops sorting them.
+      if (futile && quiet && !gives_check()) {
+        picker.skip_quiets();
+        continue;
+      }
       // Late move pruning: moves ordered this late almost never matter here.
-      if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) continue;
+      if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) {
+        picker.skip_quiets();
+        continue;
+      }
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
       if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
           !gives_check())
@@ -357,7 +413,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
     if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
         tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
       const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
-      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, false, move);
+      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
       pv_length_[ply] = ply;  // the test search wrote this node's PV
       if (stopped_) return 0;
       if (score < singular_beta) extension = 1;
@@ -371,7 +427,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
 
     int score;
     if (legal == 1) {
-      score = -negamax(new_depth, -beta, -alpha, ply + 1, false);
+      score = -negamax(new_depth, -beta, -alpha, ply + 1, !pv_node && !cut_node, false);
     } else {
       // Late move reductions: moves ordered late are rarely best, so search
       // them shallower first and only re-search if they surprise us.
@@ -380,6 +436,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       if (depth >= 3 && legal > 2 && quiet && !in_check && !pos.in_check() && ply > 0) {  // pos: after the move
         reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
+        if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
@@ -388,9 +445,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
-      score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, false);
-      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, false);
-      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false);
+      score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, true, false);
+      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
+      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false, false);
     }
     pos.unmake_move();
     if (stopped_) return 0;
@@ -402,23 +459,34 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
         alpha = score;
         update_pv(ply, move);
         if (score >= beta) {
+          // History gravity: each update moves an entry toward +/-the
+          // limit by a share of the bonus that shrinks as it nears it, so
+          // entries saturate smoothly and recent results still count.
+          const int bonus = std::min(HIST_BONUS_MUL * depth - HIST_BONUS_SUB, HIST_BONUS_MAX);
+          const auto gravity = [](int value, int amount, int limit) {
+            return value + amount - value * std::abs(amount) / limit;
+          };
+          // Capture history: for the capture that cut off, and against the
+          // captures tried before the move that did.
+          if (capt_entry) *capt_entry = std::int16_t(gravity(*capt_entry, bonus, CAPT_HIST_GRAVITY));
+          for (int c = 0; c < captures_count; c++)
+            *captures_searched[c] = std::int16_t(gravity(*captures_searched[c], -bonus, CAPT_HIST_GRAVITY));
           if (quiet) {
             if (move != killer1) {
               killers_[ply][1] = killer1;
               killers_[ply][0] = move;
             }
-            const int bonus = depth * depth;
-            const auto cont_add = [](std::int16_t* row, int index, int amount) {
-              if (row) row[index] = std::int16_t(std::clamp(row[index] + amount, -CONT_HISTORY_LIMIT, CONT_HISTORY_LIMIT));
+            const auto cont_add = [&](std::int16_t* row, int index, int amount) {
+              if (row) row[index] = std::int16_t(gravity(row[index], amount, CONT_HIST_GRAVITY));
             };
             int& h = history_[piece][move.to()];
-            h = std::min(h + bonus, HISTORY_LIMIT);
+            h = gravity(h, bonus, HIST_GRAVITY);
             cont_add(cont1, piece * 64 + move.to(), bonus);
             cont_add(cont2, piece * 64 + move.to(), bonus);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
-              hq = std::max(hq - bonus, -HISTORY_LIMIT);
+              hq = gravity(hq, -bonus, HIST_GRAVITY);
               cont_add(cont1, quiets_searched[q], -bonus);
               cont_add(cont2, quiets_searched[q], -bonus);
             }
@@ -428,6 +496,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool after_nu
       }
     }
     if (quiet) quiets_searched[quiets_count++] = piece * 64 + move.to();
+    else if (capt_entry) captures_searched[captures_count++] = capt_entry;
   }
 
   // Checkmate or stalemate; with a move left out, the only move was that one.
@@ -487,7 +556,9 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   MoveList moves;
   generate_pseudo_legal(pos, moves, !in_check);
   int scores[MoveList::MAX_MOVES];
-  score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
+  // Captures: SEE only for those reached (below); evasions: the full ordering.
+  if (in_check) score_moves(pos, moves, scores, Move(), killers_[ply][0], killers_[ply][1], history_);
+  else score_tactical(pos, moves, scores, &capt_history_);
 
   int legal = 0;
   for (int i = 0; i < moves.count; i++) {
@@ -497,8 +568,8 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
       const PieceType victim = captured_type(pos, move);
       if (best_score + ORDER_VALUE[victim] + 200 < alpha) continue;
       // Bad captures: skip any that lose material once the recaptures on
-      // the square are played out (score_moves has already checked).
-      if (scores[i] < BAD_CAPTURE_SCORE / 2) continue;
+      // the square are played out.
+      if (!pos.see_ge(move, 0)) continue;
     }
     if (!pos.legal(move)) continue;
     pos.make_move(move);

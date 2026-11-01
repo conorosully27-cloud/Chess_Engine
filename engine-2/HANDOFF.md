@@ -165,6 +165,59 @@ history behind the search and evaluation.
   **released as 4.0** by the owner's rule. **The new baseline**, bench
   3027103. Code only: the phone app stays on 3.0. Next major version,
   5.0, at 3200.
+- **Engine 4.1** = 4.0 with faster code from a profile (cheap check test,
+  killers before quiet moves, SEE only when reached; `a4eb9f8`): **vs 4.0
+  H1 after 1,810 games**, +502 -437 =871 (51.8%), **+12 +/- 10** (cloud,
+  8+0.08). **The new baseline**, bench 3236061. Code only, no APK.
+- **Engine 4.2** = 4.1 with no scoring or sorting of quiet moves once
+  futility or late move pruning prunes one (`fcda4f4`): **vs 4.1 H1 after
+  976 games**, +259 -208 =509 (52.6%), **+18 +/- 13** (cloud, 8+0.08).
+  Bench 3005772. Code only, no APK.
+- **Engine 4.3** = 4.2 with time use scaled by best-move stability and
+  score drops (`0476b93`): **vs 4.2 H1 after 600 games**, +168 -121 =311
+  (53.9%), **+27 +/- 17** (cloud, 8+0.08). **The new baseline**, bench
+  3005772 (unchanged: the bench has no clock). Code only, no APK. The
+  owner's speed/time plan (4.1-4.3) is finished: about +57 Elo over 4.0
+  by self-play. Next candidates: tune the TM_* values, measure a PGO
+  build, a fresh network when the data allows, and a new Stockfish-3200
+  test for 5.0.
+  **vs Stockfish 18 at `UCI_Elo` 3150** (`scripts/strength_match.sh`,
+  cloud, 10+0.1, 4 at a time): stopped by the owner undecided after 1,480
+  games, +427 -415 =638 (50.4%), **+3 +/- 13**, LLR 1.29: **about 3150**.
+- **Engine 4.4** = 4.3 with history gravity (bonus min(200 x depth - 150,
+  1800), entries pulled toward +/-16384; `LMR_HISTORY` 2600; `537f61e`):
+  **vs 4.3 H1 after 718 games**, +202 -154 =362 (53.3%), **+23 +/- 15**
+  (cloud, 8+0.08). **The new baseline**, bench 2930588. Code only, no
+  APK. Next candidates: capture history, reductions for captures and
+  cut nodes, ProbCut, then SPSA of the new history values.
+- **Engine 4.5** = 4.4 with capture history (`f3a8b73`): vs 4.4 after
+  1,720 games, +437 -389 =894 (51.4%), **+10 +/- 10**, LOS 97.7%, LLR
+  1.99 (SPRT undecided): **released by the owner's LOS rule** (Oct 31: if
+  the SPRT can't pass, release when LOS reaches 97.5%; if H0 comes first,
+  extend to 3,000 games and release only if LOS gets there). **The new
+  baseline**, bench 2926457. Code only, no APK. Next candidates:
+  reductions for captures and cut nodes, ProbCut, then SPSA of the history
+  values.
+- **Engine 4.6** = 4.5 with one more ply of LMR at cut nodes (`c41831d`):
+  vs 4.5 after 3,760 games, +917 -849 =1994 (50.9%), **+6 +/- 6**, LOS
+  97.5%, LLR 1.25 (SPRT undecided): **released by the owner's LOS rule**.
+  **The new baseline**, bench 3078714. Code only, no APK. **Owner: retune
+  it** (it passed only as a small gain): SPSA of `CUT_NODE_LMR` with the
+  LMR values (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`), and the history values.
+  Next: 4.6 vs Stockfish 3200 (owner's request), then ProbCut, reductions
+  for captures, singular extension variants.
+- **Continuation correction history (after 4.0):** a fourth correction
+  table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
+  -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
+  (`3072e9a`: 10% rate, own 16 cp limit, bench 2841857) vs 4.0: stopped by
+  the owner at 180 games, +57 -45 =78, +23 +/- 34, LOS 91%, to tune it:
+  SPSA of `CORR_CONT_RATE` and `CORR_CONT_LIMIT_CP` (1,500 pairs, `--r-end
+  0.005 --c-scale 2`, `~/spsa-cont/`), then an SPRT of the tuned build vs
+  4.0. Tuned (10% / 18 cp, `e899aa8`) vs 4.0: **H0 after 1,646 games**,
+  -3 +/- 10 (FAILED_EXPERIMENTS). Not kept: **4.0 stays the best build.**
+  The cautious version resumed: exactly even at 800 games (0 +/- 15).
+  **Owner: a good candidate to come back to** (longer time control, new
+  network, or a coarser key).
 - **Version numbering (owner's rule, Oct 2026):** a new major version
   each time a hundred mark on Stockfish's scale is passed: **4.0** for the
   first version stronger than 3100, 5.0 at 3200, and so on (3.0 was the
@@ -536,6 +589,11 @@ square, per side) -> 128 hidden per side -> 1.
    `C:\Users\conor\nnue-data\v4\part-1..10.bin` (20M each, seeds
    8401-8410; resume with new seeds). The cloud copy of run 3 was deleted
    too.
+   The owner added parts 11-16 (seeds 8411-8416), resumed once with
+   seeds 8501-8516, then (Oct 30) **switched the generator to Engine 4.0**
+   (bench 3027103; copied to `C:\Users\conor\engine-4.0-datagen.exe`),
+   same settings and files, seeds 8601-8616: the later positions of each
+   part come from 4.0's games.
 
 13. **Data run 5 (Oct 30, owner's request, this session's cloud machine):
    Engine 4.0** (bench 3027103, binary `~/engines/engine2-4.0-datagen`),

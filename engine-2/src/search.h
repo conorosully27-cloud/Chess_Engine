@@ -44,6 +44,7 @@ struct SearchLimits {
 struct TimeBudget {
   std::int64_t soft_ms = -1;
   std::int64_t hard_ms = -1;
+  bool adaptive = false;  // a share of a clock: the search may stop before or after soft_ms
   // Measured from when "go" arrived, not when the search thread got going.
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 };
@@ -78,7 +79,9 @@ class SearchWorker {
 
  private:
   // `excluded`: a move to leave out (the singular extension's test search).
-  int negamax(int depth, int alpha, int beta, int ply, bool after_null, Move excluded = Move());
+  // cut_node: a null-window node expected to fail high (its parent expects
+  // every move here to be refuted quickly), as opposed to a PV or all node.
+  int negamax(int depth, int alpha, int beta, int ply, bool cut_node, bool after_null, Move excluded = Move());
   int quiesce(int alpha, int beta, int ply);
   void update_pv(int ply, Move m);
   void check_limits();
@@ -88,6 +91,7 @@ class SearchWorker {
   Position* pos_ = nullptr;
   Move killers_[MAX_PLY][2] = {};
   int history_[PIECE_NB][64] = {};
+  CaptureHistory capt_history_ = {};  // src/movepick.h
   // Continuation history (src/movepick.h), indexed [earlier move][this move]
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).

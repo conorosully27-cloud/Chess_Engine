@@ -5,6 +5,113 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.6: more reduction at cut nodes
+
+4.5 plus the change below (commit `c41831d`; same network).
+**Against 4.5** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **accepted
+by the owner's LOS rule** (97.5%) after 3,760 games, 917 wins, 849
+losses, 1,994 draws (50.9%), **+6 Elo (+/- 6)**, LOS 97.5%, LLR 1.25
+(SPRT undecided). Bench **3078714**. Code only, no APK. State in
+`release-matches/cutnode/`. **To be retuned** (owner): a small gain, so
+`CUT_NODE_LMR` goes into an SPSA with the other LMR values.
+
+- **Cut nodes** (`src/search.*`): `negamax` knows whether a node is a
+  cut node (a null-window node expected to fail high). The first move of
+  a non-PV node flips it, later null-window moves are cut nodes, a
+  re-search after a reduction flips it, full-window searches are not;
+  null move flips it and the singular test keeps it. Late move reductions
+  take one more ply at cut nodes (`CUT_NODE_LMR`, tunable).
+
+## 4.5: capture history
+
+4.4 plus the change below (commit `f3a8b73`; same network).
+**Against 4.4** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **accepted
+by the owner's LOS rule** (release when LOS reaches 97.5% if the SPRT has
+not decided) after 1,720 games, 437 wins, 389 losses, 894 draws (51.4%),
+**+10 Elo (+/- 10)**, LOS 97.7%, LLR 1.99 (SPRT undecided). Bench
+**2926457**. Code only, no APK. State in `release-matches/capthist/`.
+
+- **Capture history** (`src/movepick.*`, `src/search.*`): a table by
+  moving piece, destination and captured piece type, updated with the
+  same bonus and gravity as the quiet history (toward +/-16384, tunable
+  `CAPT_HIST_GRAVITY`): a bonus for a capture that cuts off, a malus for
+  every capture tried before the move that did. Captures are ordered by
+  10 x the victim's value less the attacker's, plus history / 8, in the
+  main search and in quiescence.
+
+## 4.4: history gravity
+
+4.3 plus the change below (commit `537f61e`; same network).
+**Against 4.3** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1
+accepted after 718 games**, 202 wins, 154 losses, 362 draws (53.3%),
+**+23 Elo (+/- 15)**. Bench **2930588**. Code only, no APK. State in
+`release-matches/gravity/`.
+
+- **History gravity** (`src/search.cpp`): quiet-move history updates
+  (the main table and both continuation tables) now move an entry toward
+  +/-16384 by a share of the bonus that shrinks as it nears the limit,
+  instead of adding until a hard cap. The bonus is larger and linear:
+  min(200 x depth - 150, 1800), was depth squared. Late move reductions'
+  history divisor is rescaled to match (`LMR_HISTORY` 200 -> 2600: the
+  mean history seen there on the bench went from 164 to 2144). The five
+  new values are tunable (`HIST_*`, `CONT_HIST_GRAVITY`).
+
+## 4.3: smarter time use
+
+4.2 plus the change below (commit `0476b93`; same network and search).
+**Against 4.2** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1
+accepted after 600 games**, 168 wins, 121 losses, 311 draws (53.9%),
+**+27 Elo (+/- 17)**. Bench **3005772**, unchanged (only clock-based
+searches are affected). Code only, no APK. State in
+`release-matches/timeman/`.
+
+- **Time use** (`src/search.*`): after each depth the planned time
+  (remaining / 40 + 3/4 of the increment, as before) is scaled by how
+  settled the search is: 130% when the best move just changed, 10% less
+  for each depth it has survived (down to 70% after 6), plus 1% per
+  centipawn the score fell since the last depth (at most 40%). The hard
+  limit (3x the plan, half the clock) is unchanged; fixed `movetime`
+  searches are not scaled. The five values are tunable (`TM_*`).
+
+## 4.2: no sorting of quiet moves that will all be pruned
+
+4.1 plus the change below (commit `fcda4f4`; same network). **Against 4.1**
+(cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1 accepted after 976
+games**, 259 wins, 208 losses, 509 draws (52.6%), **+18 Elo (+/- 13)**.
+New bench signature **3005772** (4.1: 3236061), the same as the tested
+build. Code only, no APK. State in `release-matches/speed2/`.
+
+- **Skip sorting pruned quiet moves** (`src/movepick.*`, `src/search.cpp`):
+  once futility or late move pruning prunes one quiet move, every later
+  one is pruned too unless it gives check, so the picker hands the rest out
+  as generated, without scoring or sorting, and the search tests each only
+  for check (cheap since 4.1). Only the order of the few quiet checks
+  searched changes. 15% more nodes/s, and 15% less time to depth 15.
+
+## 4.1: faster code
+
+4.0 with speed changes found by profiling (commits `66fc41c`, `a4eb9f8`;
+same network and search rules). **Against 4.0** (`scripts/release_match.sh`,
+cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1 accepted after 1,810
+games**, 502 wins, 437 losses, 871 draws (51.8%), **+12 Elo (+/- 10)**.
+New bench signature **3236061** (4.0: 3027103), the same as the tested
+build. Code only: no APK (owner). State in `release-matches/speed1/`.
+
+- **Cheap check test** (`src/position.*`): the squares from which each
+  piece type would check the enemy king, and the pieces that would uncover
+  a check, are worked out once per position on the first `gives_check`;
+  each test is then a few bitwise ANDs instead of two slider lookups.
+  Same search (bench unchanged); about 10% more nodes/s.
+- **Move picker** (`src/movepick.*`, `src/search.cpp`): killer moves are
+  tried before the quiet moves are generated and scored (unless a pawn can
+  promote by a push), and captures are SEE-tested only when reached, in
+  the main search and in quiescence. At depth 15, 3% less time than the
+  check test alone.
+- Profile of 4.0 before (callgrind, bench depth 9, search only): network
+  ~20%, picking and scoring quiet moves ~15%, SEE at generation ~5%,
+  check tests ~5.5%. Link-time optimization was tried and was 2-5%
+  slower, so it was left out.
+
 ## 4.0: non-pawn correction history, tuned; above 3100
 
 3.4 plus the change below (commit `01ca8c6`; same network). **Against
