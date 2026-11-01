@@ -204,6 +204,14 @@ history behind the search and evaluation.
   **The new baseline**, bench 3078714. Code only, no APK. **Owner: retune
   it** (it passed only as a small gain): SPSA of `CUT_NODE_LMR` with the
   LMR values (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`), and the history values.
+- **Engine 5.0** = 4.6 with a new network (`nets/engine-5.0.nnue`, the
+  owner's laptop run `run6/net-15.nnue`, 512 units, from scratch, 15
+  epochs on 215.9M positions: data runs 4, 5 and 6 from 3.3, 4.0 and
+  4.5). **Owner: +21.5 Elo against Stockfish 18 at `UCI_Elo` 3190.**
+  **The new baseline**, bench 2795181. Code only (the app stays on 4.0;
+  `build_wasm.sh` now embeds the 5.0 network for the next app build).
+  Next: data run 7 from 5.0 on the owner's laptop
+  (`C:\Users\conor\nnue-data\v7\v7_part-1..16.bin`, seeds 11001-11016).
   Next: 4.6 vs Stockfish 3200 (owner's request), then ProbCut, reductions
   for captures, singular extension variants.
 - **Continuation correction history (after 4.0):** a fourth correction
@@ -238,8 +246,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2826031** (`build/engine2 bench`, with the
-  built-in network; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2795181** (`build/engine2 bench`, with the
+  built-in network; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

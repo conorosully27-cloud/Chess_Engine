@@ -5,6 +5,20 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.0: a network trained on 216M positions from 3.3-4.5
+
+4.6's search with a new 512-unit network (`nets/engine-5.0.nnue`, the
+owner's laptop run `run6/net-15.nnue`, replacing `engine-3.3.nnue`),
+trained from scratch for 15 epochs on the owner's laptop GPU on
+**215.9M positions**, all with book openings and `keep 4` (each quiet
+position kept with probability 1/4): run 4's games from 3.3 (`part-*`),
+run 5's 45.4M from 4.0 (cloud, `4.0-part-*`) and run 6's from 4.5
+(`v6_part-*`). Validation 0.00867 at epoch 7 (not comparable with
+earlier runs: harder, less repetitive data). **Owner's test: +21.5 Elo
+against Stockfish 18 at `UCI_Elo` 3190** (the top of its scale), the
+strongest version yet, hence 5.0. New bench signature **2795181** (4.6:
+3078714). Code only: the phone app stays on 4.0.
+
 ## 4.6: more reduction at cut nodes
 
 4.5 plus the change below (commit `c41831d`; same network).
