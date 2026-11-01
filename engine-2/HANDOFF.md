@@ -545,7 +545,9 @@ square, per side) -> 128 hidden per side -> 1.
    positions an hour** in all (keep 4 and the 512-unit network make it
    ~8x slower than run 3), so ~95 h for 100M. **Resume with
    `~/nnue-data/v5/run.sh`** (detached; takes the next seed block itself,
-   9201-9204, ...). This machine also holds 2.3's 50M and 2.7's 100M
+   9201-9204, ...). **Stopped by the owner Nov 1, 12:35 UTC at
+   45,447,892 positions** (4 x ~11.36M, no partial records; seed blocks
+   9101-9504 after container restarts). This machine also holds 2.3's 50M and 2.7's 100M
    (`~/nnue-data/part-*.bin`, `~/nnue-data/v2/`; copies sent to the owner).
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
