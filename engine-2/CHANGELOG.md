@@ -5,6 +5,23 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 4.6: more reduction at cut nodes
+
+4.5 plus the change below (commit `c41831d`; same network).
+**Against 4.5** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **accepted
+by the owner's LOS rule** (97.5%) after 3,760 games, 917 wins, 849
+losses, 1,994 draws (50.9%), **+6 Elo (+/- 6)**, LOS 97.5%, LLR 1.25
+(SPRT undecided). Bench **3078714**. Code only, no APK. State in
+`release-matches/cutnode/`. **To be retuned** (owner): a small gain, so
+`CUT_NODE_LMR` goes into an SPSA with the other LMR values.
+
+- **Cut nodes** (`src/search.*`): `negamax` knows whether a node is a
+  cut node (a null-window node expected to fail high). The first move of
+  a non-PV node flips it, later null-window moves are cut nodes, a
+  re-search after a reduction flips it, full-window searches are not;
+  null move flips it and the singular test keeps it. Late move reductions
+  take one more ply at cut nodes (`CUT_NODE_LMR`, tunable).
+
 ## 4.5: capture history
 
 4.4 plus the change below (commit `f3a8b73`; same network).

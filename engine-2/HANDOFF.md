@@ -198,6 +198,14 @@ history behind the search and evaluation.
   baseline**, bench 2926457. Code only, no APK. Next candidates:
   reductions for captures and cut nodes, ProbCut, then SPSA of the history
   values.
+- **Engine 4.6** = 4.5 with one more ply of LMR at cut nodes (`c41831d`):
+  vs 4.5 after 3,760 games, +917 -849 =1994 (50.9%), **+6 +/- 6**, LOS
+  97.5%, LLR 1.25 (SPRT undecided): **released by the owner's LOS rule**.
+  **The new baseline**, bench 3078714. Code only, no APK. **Owner: retune
+  it** (it passed only as a small gain): SPSA of `CUT_NODE_LMR` with the
+  LMR values (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`), and the history values.
+  Next: 4.6 vs Stockfish 3200 (owner's request), then ProbCut, reductions
+  for captures, singular extension variants.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
