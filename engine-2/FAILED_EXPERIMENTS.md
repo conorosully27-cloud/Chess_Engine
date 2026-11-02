@@ -5,6 +5,29 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## ProbCut, on 5.0 (Nov 2026)
+
+**Change:** non-PV nodes from depth 5, not in check: captures whose SEE
+gains at least beta + 200 less the static eval get a quiescence check
+against beta + 200, then a search 4 plies shallower; a pass stores a
+lower bound and returns. Skipped when the table holds a search at least
+depth - 3 deep scoring below beta + 200. Tunable `PROBCUT_DEPTH`,
+`PROBCUT_MARGIN`, `PROBCUT_REDUCTION`. Commit `cf40104`. Bench 2795181 ->
+2399325 (14% fewer nodes).
+
+**Result:** vs 5.0 (cloud, 8+0.08, 3 at a time, SPRT 0/10), stopped at
+1,978 games (owner: 1,000 more after the first ~1,000): +501 -480 =997
+(50.5%), Elo +4 +/- 9, LOS 79%, LLR -0.61. It led +60 at 140 games, +13
+at 700, +11 at 1,000, then faded.
+
+**Prior:** 6/10 (a standard technique, small gains elsewhere).
+
+**Commentary:** flat. Captures already get a lot of pruning here (SEE
+pruning, capture history, the null move cuts most of what ProbCut would),
+so the saved nodes buy little. Could come back with tuned values (SPSA of
+the margin and reduction), or a margin that shrinks when the static eval
+is improving, as Stockfish does.
+
 ## Trust the evaluation less where the correction is large, on 4.0 (Oct 2026)
 
 **Change:** with `corr_size` = |corrected - raw static evaluation|

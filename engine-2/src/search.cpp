@@ -73,13 +73,6 @@ TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
 TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 
-// ProbCut: from PROBCUT_DEPTH at a non-PV node, a capture that wins enough
-// material (SEE) and still beats beta + PROBCUT_MARGIN in a search
-// PROBCUT_REDUCTION plies shallower is taken as proof of a cutoff.
-TUNE_PARAM(PROBCUT_DEPTH, 5, 3, 10);
-TUNE_PARAM(PROBCUT_MARGIN, 200, 50, 500);
-TUNE_PARAM(PROBCUT_REDUCTION, 4, 2, 6);
-
 // Time use, in percent of the planned time: after a depth, the search stops
 // once past the plan scaled by how settled it is. A best move just changed
 // gets TM_STABLE_BASE; each further depth it survives takes TM_STABLE_STEP
@@ -356,41 +349,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         pos.unmake_null_move();
         if (stopped_) return 0;
         if (score >= beta) return is_mate_score(score) ? beta : score;
-      }
-      // ProbCut: a good capture that beats beta by a wide margin in a
-      // shallower search almost surely beats beta here. Skipped when the
-      // table already says a search this deep stays below that margin.
-      const int probcut_beta = beta + PROBCUT_MARGIN;
-      if (depth >= PROBCUT_DEPTH && !is_mate_score(probcut_beta) &&
-          !(tt_bound != BOUND_NONE && tt_depth >= depth - (PROBCUT_REDUCTION - 1) && tt_score < probcut_beta)) {
-        MoveList captures;
-        generate_pseudo_legal(pos, captures, true);
-        int scores[MoveList::MAX_MOVES];
-        score_tactical(pos, captures, scores, &capt_history_);
-        const int probcut_depth = depth - PROBCUT_REDUCTION;
-        for (int i = 0; i < captures.count; i++) {
-          const Move move = pick_next(captures, scores, i);
-          if (!pos.see_ge(move, probcut_beta - static_eval) || !pos.legal(move)) continue;
-          ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();
-          pos.make_move(move);
-          // A quiescence search first, which is cheap; the real test only if it passes.
-          int score = -quiesce(-probcut_beta, -probcut_beta + 1, ply + 1);
-          if (score >= probcut_beta && probcut_depth > 0)
-            score = -negamax(probcut_depth, -probcut_beta, -probcut_beta + 1, ply + 1, !cut_node, false);
-          pos.unmake_move();
-          if (stopped_) return 0;
-          if (score >= probcut_beta) {
-            if (tte.key != check || tte.depth <= probcut_depth + 1) {
-              tte.key = check;
-              tte.move = move.raw();
-              tte.score = std::int16_t(to_tt(score, ply));
-              tte.depth = std::int8_t(probcut_depth + 1);
-              tte.bound = BOUND_LOWER;
-              tte.eval = std::int16_t(raw_eval);
-            }
-            return score;
-          }
-        }
       }
     }
   }
