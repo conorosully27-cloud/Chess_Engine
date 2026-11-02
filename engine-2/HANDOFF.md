@@ -214,6 +214,15 @@ history behind the search and evaluation.
   (`C:\Users\conor\nnue-data\v7\v7_part-1..16.bin`, seeds 11001-11016).
   Next: 4.6 vs Stockfish 3200 (owner's request), then ProbCut, reductions
   for captures, singular extension variants.
+- **ProbCut on 5.0 (Nov 2, candidate, not yet tested):** non-PV nodes
+  from depth 5 (`PROBCUT_DEPTH`), not in check: captures whose SEE gains
+  at least beta + 200 (`PROBCUT_MARGIN`) less the static eval get a
+  quiescence check against beta + 200, then a search 4 plies shallower
+  (`PROBCUT_REDUCTION`); a pass stores a lower bound and returns. Skipped
+  when the table holds a search at least depth - 3 deep scoring below
+  beta + 200. Bench **2399325** (5.0: 2795181), tests pass. Next: SPRT
+  vs 5.0, `SPRT=1 scripts/match.sh build/engine2 ~/matches/engine2-5.0
+  20000 8+0.08`.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
