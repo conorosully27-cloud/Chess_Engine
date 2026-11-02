@@ -76,7 +76,7 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // ProbCut: from PROBCUT_DEPTH at a non-PV node, a capture that wins enough
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
 // PROBCUT_REDUCTION plies shallower is taken as proof of a cutoff.
-TUNE_PARAM(PROBCUT_DEPTH, 5, 3, 10);
+TUNE_PARAM(PROBCUT_DEPTH, 4, 3, 10);
 TUNE_PARAM(PROBCUT_MARGIN, 200, 50, 500);
 TUNE_PARAM(PROBCUT_REDUCTION, 4, 2, 6);
 
