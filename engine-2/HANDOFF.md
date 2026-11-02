@@ -684,6 +684,16 @@ Next for the app, in order (owner's phone is Android):
    owner to sideload. **Installed and working on the owner's Android
    phone** (Oct 2026): Engine 2 plays offline on the phone. Rebuild the
    wasm and the APK after each accepted engine release.
+   **Signing key in the repo** (owner's call, Nov 2026; the repo is
+   public): `engine-1/mobile/android/keys/debug.keystore`, the debug key
+   that signed every APK so far (alias `androiddebugkey`, passwords
+   `android`; certificate SHA-256 `45c53a1f...a36bb`). `app/build.gradle`
+   signs debug builds with it, so an APK from any session or machine
+   installs over the app on the owner's phone. Steps for a new app build:
+   `scripts/build_wasm.sh`, check `node scripts/wasm_bench.mjs` against the
+   native bench, bump `versionCode`/`versionName` in
+   `engine-1/mobile/android/app/build.gradle`, then `npm run apk` in
+   `engine-1/mobile` (APK in `android/app/build/outputs/apk/debug/`).
 
 For each release: set `ENGINE_NAME` in `src/uci.cpp`, update `CHANGELOG.md`
 and this file, and let the owner start the release match. NNUE after these
