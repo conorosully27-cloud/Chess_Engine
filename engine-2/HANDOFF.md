@@ -236,8 +236,11 @@ history behind the search and evaluation.
   4 at a time, 1 thread, Hash 64):** 5.2 vs **Stash 37.0 (CCRL Blitz
   3417)**: **H1 after 176 games**, +71 -38 =67 (59.4%), +66 +/- 40. A
   forum repost had given Stash 37.0 as 3255; the live list (Oct 31, 2026)
-  says 3417. Then 5.2 vs **Smallbrain 7.0 (3454, +/- 8)**: running, about
-  even at 300 games. Engines are built in `~/tools/` (not in the repo).
+  says 3417. Then 5.2 vs **Smallbrain 7.0 (3454, +/- 8)**: **H0 after
+  486 games**, +106 -130 =250 (47.5%), -17 +/- 21. So 5.2 is about
+  **3420-3440 on CCRL Blitz** at these conditions (far above the ~3210
+  that Stockfish's UCI_Elo suggested for 5.0: its limited mode is a rough
+  ruler). Engines are built in `~/tools/` (not in the repo).
   CCRL Blitz candidates near 3450: Seer 2.4.0, Marvin 6.3.0, Berserk 6.0,
   Igel 3.1.0.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
