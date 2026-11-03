@@ -27,6 +27,9 @@ constexpr int MATE = 30000;  // mate now; mate in n plies scores MATE - n
 constexpr int INF = 32000;
 constexpr int MAX_PLY = 100;
 inline bool is_mate_score(int s) { return std::abs(s) >= MATE - MAX_PLY; }
+// A tablebase win n plies from the root scores TB_WIN - n: above every
+// evaluation, below every mate.
+constexpr int TB_WIN = MATE - 2 * MAX_PLY;
 
 // What "go" asked for. -1 means "not given".
 struct SearchLimits {
@@ -96,6 +99,7 @@ class SearchWorker {
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).
   std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
+  std::uint64_t tbhits_ = 0;  // tablebase probes that found the position
   int double_exts_[MAX_PLY + 2] = {};  // double extensions on the line from the root to each ply
   int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
   // The continuation history row after the move made `back` plies before

@@ -6,6 +6,7 @@
 
 #include "evaluate.h"
 #include "movepick.h"
+#include "syzygy.h"
 #include "tune.h"
 #include "uci.h"
 
@@ -128,16 +129,23 @@ LmrTable LMR = make_lmr();
 
 // Mate scores are stored relative to the position, not the root, so they
 // stay correct when the position is reached at a different depth.
+// Tablebase scores too.
 int to_tt(int score, int ply) {
-  if (score >= MATE - MAX_PLY) return score + ply;
-  if (score <= -(MATE - MAX_PLY)) return score - ply;
+  if (score >= TB_WIN - MAX_PLY) return score + ply;
+  if (score <= -(TB_WIN - MAX_PLY)) return score - ply;
   return score;
 }
 
 int from_tt(int score, int ply) {
-  if (score >= MATE - MAX_PLY) return score - ply;
-  if (score <= -(MATE - MAX_PLY)) return score + ply;
+  if (score >= TB_WIN - MAX_PLY) return score - ply;
+  if (score <= -(TB_WIN - MAX_PLY)) return score + ply;
   return score;
+}
+
+// The tables apply with no castling rights, few enough pieces, and (for
+// the win/draw/loss tables in the search) right after a capture or pawn move.
+bool tb_applies(const Position& pos) {
+  return tb::largest() > 0 && pos.castling_rights() == 0 && popcount(pos.pieces()) <= tb::largest();
 }
 
 // Does the side to move have anything besides pawns and its king?
@@ -213,6 +221,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
   nodes_ = 0;
+  tbhits_ = 0;
   stopped_ = false;
   can_stop_ = false;
   stop_flag_ = stop;
@@ -236,6 +245,21 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   }
   result.best = legal[0];
   result.pv = {legal[0]};
+
+  // In the tables: play their move (it keeps the result and, by distance
+  // to zero, wins within the fifty-move rule), no search needed.
+  Move tb_move;
+  tb::Wdl tb_wdl;
+  if (tb_applies(pos) && tb::probe_root(pos, legal, tb_move, tb_wdl)) {
+    result.best = tb_move;
+    result.pv = {tb_move};
+    result.score = tb_wdl == tb::WIN ? TB_WIN - 1 : tb_wdl == tb::LOSS ? -(TB_WIN - 1) : 0;
+    result.depth = 1;
+    if (on_info)
+      on_info("info depth 1 score " + score_to_uci(result.score) + " nodes 0 tbhits 1 time " +
+              std::to_string(elapsed_ms()) + " pv " + tb_move.uci());
+    return result;
+  }
 
   const int max_depth = limits.depth > 0 ? std::min(limits.depth, MAX_PLY - 1) : MAX_PLY - 1;
   int previous = 0;
@@ -277,7 +301,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
       std::string line = "info depth " + std::to_string(depth) + " score " + score_to_uci(score) +
                          " nodes " + std::to_string(nodes_) + " nps " +
                          std::to_string(nodes_ * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
-                         std::to_string(elapsed) + " pv";
+                         std::to_string(elapsed) + (tbhits_ ? " tbhits " + std::to_string(tbhits_) : "") + " pv";
       for (Move m : result.pv) line += " " + m.uci();
       on_info(line);
     }
@@ -346,6 +370,26 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         return score;
     }
   }
+  // Tablebases: an exact result for this position. Off the root, only right
+  // after a capture or pawn move (the tables don't know the fifty-move count).
+  if (ply > 0 && !excluding && pos.halfmove_clock() == 0 && tb_applies(pos)) {
+    const tb::Wdl wdl = tb::probe_wdl(pos);
+    if (wdl != tb::FAILED) {
+      tbhits_++;
+      const int score = wdl == tb::WIN ? TB_WIN - ply : wdl == tb::LOSS ? -TB_WIN + ply : 0;
+      const Bound bound = wdl == tb::WIN ? BOUND_LOWER : wdl == tb::LOSS ? BOUND_UPPER : BOUND_EXACT;
+      if (bound == BOUND_EXACT || (bound == BOUND_LOWER && score >= beta) || (bound == BOUND_UPPER && score <= alpha)) {
+        tte.key = check;
+        tte.move = 0;
+        tte.score = std::int16_t(to_tt(score, ply));
+        tte.depth = std::int8_t(std::min(depth + 6, MAX_PLY - 1));
+        tte.bound = bound;
+        tte.eval = EVAL_NONE;
+        return score;
+      }
+    }
+  }
+
   // Internal iterative reduction: with no remembered best move the ordering
   // here is poor, so a full-depth search is mostly wasted; go a ply shallower.
   if (ply > 0 && depth >= 4 && !tt_move) depth--;

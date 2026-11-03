@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(engine2 CXX)
+project(engine2 C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -56,10 +56,17 @@ add_library(engine2_core STATIC
   src/nnue.cpp
   src/evaluate.cpp
   src/search.cpp
+  src/syzygy.cpp
+  src/fathom/tbprobe.c
   src/tt.cpp
   src/uci.cpp
   ${DEFAULT_NET_CPP})
 target_include_directories(engine2_core PUBLIC src)
+# Syzygy tablebases through Fathom (src/fathom, third-party, MIT): built
+# as it is, without our warnings; the WebAssembly build leaves it out.
+target_compile_definitions(engine2_core PUBLIC ENGINE_SYZYGY)
+target_include_directories(engine2_core PRIVATE src/fathom)
+set_source_files_properties(src/fathom/tbprobe.c PROPERTIES COMPILE_OPTIONS "-w")
 find_package(Threads REQUIRED)
 target_link_libraries(engine2_core PUBLIC engine2_options Threads::Threads)
 

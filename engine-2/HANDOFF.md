@@ -243,6 +243,19 @@ history behind the search and evaluation.
   ruler). Engines are built in `~/tools/` (not in the repo).
   CCRL Blitz candidates near 3450: Seer 2.4.0, Marvin 6.3.0, Berserk 6.0,
   Igel 3.1.0.
+- **Syzygy tablebases (Nov 3, owner's go; in progress):** Fathom (MIT,
+  `src/fathom/`, copied unchanged) behind `src/syzygy.*`, native build
+  only (the WebAssembly app has stubs: same size, no tables). UCI option
+  `SyzygyPath`. Root: in the tables, play their move (distance-to-zero,
+  so wins respect the fifty-move rule), no search. Search: win/draw/loss
+  probe off the root right after a capture or pawn move with no castling
+  rights; a result that decides the node is stored in the TT and returned.
+  Scores: TB win = `TB_WIN` (MATE - 2 x MAX_PLY) - ply, above every eval,
+  below every mate. With no tables, bench unchanged (2626846). Not yet
+  checked on real tables: lichess's host `tablebase.lichess.ovh` must be
+  allowed in the environment's network settings. Then: correctness checks
+  (3-4-5 men) and an SPRT vs 5.2 with tables for both. After that (owner):
+  endgame eval scaling by material and by the fifty-move counter.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
