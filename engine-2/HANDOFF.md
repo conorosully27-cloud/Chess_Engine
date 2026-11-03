@@ -223,6 +223,16 @@ history behind the search and evaluation.
   **The new baseline**, bench **2607254**. Code only, no APK (the app
   stays on 4.0). Next: more reduction for captures, singular extension
   variants, the 4.6 retune (`CUT_NODE_LMR` with the LMR values).
+- **Capture LMR + singular extension variants on 5.1 (Nov 3, under
+  test, owner: both together):** late captures (from the third move,
+  depth >= 3) reduced by the LMR table less one ply (`CAPT_LMR_BASE`),
+  a ply less per 4000 of capture history (`CAPT_LMR_HISTORY`, at most two
+  either way), one less on PV, `CUT_NODE_LMR` more at cut nodes. Singular
+  test: off the PV, alternatives more than 20 cp (`DOUBLE_EXT_MARGIN`)
+  below the test score give a double extension, at most 6 on a line
+  (`DOUBLE_EXT_MAX`); if not singular, no multi-cut, but the table's score
+  beats beta, the hash move gets -1 (negative extension). Bench 2626846.
+  SPRT vs 5.1.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
