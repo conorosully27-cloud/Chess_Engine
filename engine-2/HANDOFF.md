@@ -251,10 +251,13 @@ history behind the search and evaluation.
   probe off the root right after a capture or pawn move with no castling
   rights; a result that decides the node is stored in the TT and returned.
   Scores: TB win = `TB_WIN` (MATE - 2 x MAX_PLY) - ply, above every eval,
-  below every mate. With no tables, bench unchanged (2626846). Not yet
-  checked on real tables: lichess's host `tablebase.lichess.ovh` must be
-  allowed in the environment's network settings. Then: correctness checks
-  (3-4-5 men) and an SPRT vs 5.2 with tables for both. After that (owner):
+  below every mate. With no tables, bench unchanged (2626846). Tables on
+  the cloud machine: `~/syzygy/345` (3-5 men, 290 files, 939 MB, from
+  `tablebase.lichess.ovh/tables/standard/3-4-5-{wdl,dtz}/`, sha256 checked;
+  not in the repo). Checked: 300 random 3-5 man positions, root result
+  and move agree with python-chess's own Syzygy reader (0 mismatches);
+  in-search probes hit. SPRT running: with tables vs 5.2 without
+  (8+0.08, 4 at a time). After that (owner):
   endgame eval scaling by material and by the fifty-move counter.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
