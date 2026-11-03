@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Endgame scaling of the network's score, on 5.2 (Nov 2026)
+
+**Change** (`src/evaluate.cpp`, commit `48fe632`, both off by default
+there): two candidates, each alone vs 5.2 (cloud, 8+0.08, SPRT 0/10, 2
+games at a time each), stopped by the owner at 660 games:
+- **Material:** below 40 units of material (pawn 1, minor 3, rook 5,
+  queen 9; 78 at the start) the score is multiplied by (120 + material) /
+  160, so 75% with kings and pawns only (`MAT_SCALE_BASE` 120). Bench
+  2507298. **+156 -154 =350, +1 +/- 15**, LOS 55%, LLR -0.64.
+- **Fifty-move counter:** the score is multiplied by (200 - counter) /
+  200 (`FIFTY_SCALE_DIV` 200). Bench 2467733. **+167 -177 =316, -5 +/-
+  16**, LOS 26%, LLR -1.53.
+
+**Prior:** 6/10 (standard in strong engines; the Smallbrain game review
+found endgame misjudgements).
+
+**Commentary:** flat. The network's endgame errors are about which
+endgames are good, not how big the score is, and shrinking the score
+doesn't fix that. Next (owner): both together, to be sure.
+
 ## ProbCut from depth 4 instead of 5 (Nov 2026)
 
 **Change:** `PROBCUT_DEPTH` 4 (commit `c901da5`, bench 2487259). With the
