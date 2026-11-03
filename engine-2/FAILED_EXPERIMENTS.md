@@ -5,6 +5,22 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## ProbCut from depth 4 instead of 5 (Nov 2026)
+
+**Change:** `PROBCUT_DEPTH` 4 (commit `c901da5`, bench 2487259). With the
+reduction at 4, depth-4 nodes get only the quiescence check. An SPSA
+(780 of 1,000 pairs, `--r-end 0.005 --c-scale 2`, 4 workers) had the
+values at depth 4.9, margin 222, reduction 3.9.
+
+**Result:** vs ProbCut from depth 5 (cloud, 8+0.08, 4 at a time),
+stopped at 2,220 games: +556 -531 =1133 (50.6%), Elo +4 +/- 9, LOS 81%,
+LLR -0.57. Flat.
+
+**Prior:** 5/10.
+
+**Commentary:** no measurable difference. Next (owner): depth 4 with the
+tuned margin 222 against 5.0 itself.
+
 ## ProbCut, on 5.0 (Nov 2026)
 
 **Change:** non-PV nodes from depth 5, not in check: captures whose SEE

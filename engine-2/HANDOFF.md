@@ -217,6 +217,9 @@ history behind the search and evaluation.
 - **ProbCut on 5.0 (Nov 2): flat**, +4 +/- 9 after 1,978 games vs 5.0
   (LOS 79%), stopped and taken out (`FAILED_EXPERIMENTS.md`, code in
   `cf40104`). **5.0 stays the best build**, bench 2795181.
+- **ProbCut retuned (Nov 3, under test):** depth 4, margin 222 (SPSA),
+  reduction 4; bench 2607254. SPRT vs 5.0. (Depth 4 vs 5 alone was flat,
+  `FAILED_EXPERIMENTS.md`.)
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious

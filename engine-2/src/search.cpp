@@ -77,7 +77,7 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
 // PROBCUT_REDUCTION plies shallower is taken as proof of a cutoff.
 TUNE_PARAM(PROBCUT_DEPTH, 4, 3, 10);
-TUNE_PARAM(PROBCUT_MARGIN, 200, 50, 500);
+TUNE_PARAM(PROBCUT_MARGIN, 222, 50, 500);
 TUNE_PARAM(PROBCUT_REDUCTION, 4, 2, 6);
 
 // Time use, in percent of the planned time: after a depth, the search stops
