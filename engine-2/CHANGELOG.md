@@ -5,6 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.2: reductions for captures, double and negative extensions
+
+5.1 plus the changes below (commit `7a0a684`; same network).
+**Against 5.1** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **H1
+accepted after 482 games**, 133 wins, 88 losses, 261 draws (54.7%),
+**+33 Elo (+/- 19)**, LOS 99.96%, no time losses. Bench **2626846**.
+Code only, no APK. Each alone vs 5.1 first (2 at a time each, stopped
+early by the owner): reductions for captures +10 +/- 15 after 640 games,
+singular variants +20 +/- 16 after 660.
+
+- **Late move reductions for captures** (`src/search.cpp`): captures
+  from the third move at depth >= 3 get the LMR table's value less a ply
+  (`CAPT_LMR_BASE`), a ply less per 4000 of capture history or more below
+  zero (`CAPT_LMR_HISTORY`, at most two either way), one less on the main
+  line and `CUT_NODE_LMR` more at cut nodes.
+- **Double extension:** off the main line, a singular hash move whose
+  alternatives fall more than 20 cp (`DOUBLE_EXT_MARGIN`) short of the
+  test score gets two plies, at most 6 times on a line (`DOUBLE_EXT_MAX`).
+- **Negative extension:** when the alternatives reach the test score
+  (not singular), the test score is below beta (no multi-cut) but the
+  table's score beats beta, the hash move is searched a ply shallower.
+
 ## 5.1: ProbCut
 
 5.0 plus the change below (same network).
