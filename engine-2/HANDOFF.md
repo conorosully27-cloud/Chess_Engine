@@ -232,7 +232,11 @@ history behind the search and evaluation.
   below the test score give a double extension, at most 6 on a line
   (`DOUBLE_EXT_MAX`); if not singular, no multi-cut, but the table's score
   beats beta, the hash move gets -1 (negative extension). Bench 2626846.
-  SPRT vs 5.1.
+  Each alone vs 5.1 (cloud, 8+0.08, 2 at a time each), stopped by the
+  owner as both looked good: capture LMR (bench 2509582) +163 -145 =332
+  after 640 games, +10 +/- 15, LOS 89%; singular variants (bench 2866265)
+  +181 -143 =336 after 660 games, +20 +/- 16, LOS 99.3%, LLR 2.28. Now
+  the combined SPRT vs 5.1; **owner: if it passes, it is 5.2.**
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
