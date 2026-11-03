@@ -232,6 +232,25 @@ history behind the search and evaluation.
   `CAPT_LMR_HISTORY` 4000) are first guesses: an SPSA of them is a likely
   further gain. Owner's next idea: a test against an engine rated about
   3250 on the CCRL Blitz list (Stash 37.0 is a lead, unverified).
+- **Strength vs real engines (Nov 3, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64):** 5.2 vs **Stash 37.0 (CCRL Blitz
+  3417)**: **H1 after 176 games**, +71 -38 =67 (59.4%), +66 +/- 40. A
+  forum repost had given Stash 37.0 as 3255; the live list (Oct 31, 2026)
+  says 3417. Then 5.2 vs **Smallbrain 7.0 (3454, +/- 8)**: running, about
+  even at 300 games. Engines are built in `~/tools/` (not in the repo).
+  CCRL Blitz candidates near 3450: Seer 2.4.0, Marvin 6.3.0, Berserk 6.0,
+  Igel 3.1.0.
+- **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
+  (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
+  TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
+  no own book, no learning) already fit. Before releasing: add a licence
+  file (none yet, so "all rights reserved"; MIT or GPL-3.0 for "open
+  source"), credit the `8moves_v3` book (from Stockfish's books repo,
+  used for datagen openings), short release notes. Originality check
+  (Nov 3): code written here (ported from Engine 1.6), magics generated
+  at startup, the network trained by our trainer on our self-play data
+  only, standard public search ideas; no copied engine code found. Be
+  open that much of the code was written with Claude if asked.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
