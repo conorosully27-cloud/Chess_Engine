@@ -72,6 +72,18 @@ TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 // SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
 TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
+// Double extension: off the main line, a hash move whose alternatives fall
+// short by more than DOUBLE_EXT_MARGIN gets two plies, at most
+// DOUBLE_EXT_MAX times on one line. Negative extension: when the
+// alternatives do reach the test's score and the table's score beats beta,
+// the hash move is searched a ply shallower.
+TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
+TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Late move reductions for captures: the table's value less
+// CAPT_LMR_BASE / 100 plies, a ply less per CAPT_LMR_HISTORY of capture
+// history (or more below zero), at most two either way.
+TUNE_PARAM(CAPT_LMR_BASE, 100, 0, 300);
+TUNE_PARAM(CAPT_LMR_HISTORY, 4000, 500, 16000);
 
 // ProbCut: from PROBCUT_DEPTH at a non-PV node, a capture that wins enough
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
@@ -306,6 +318,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (alpha >= beta) return alpha;
   }
 
+  double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
   if (in_check) depth++;  // look further when in check
   if (depth <= 0) return quiesce(alpha, beta, ply);
@@ -458,10 +471,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
       pv_length_[ply] = ply;  // the test search wrote this node's PV
       if (stopped_) return 0;
-      if (score < singular_beta) extension = 1;
-      else if (singular_beta >= beta) return singular_beta;
+      if (score < singular_beta) {
+        extension = 1;
+        if (!pv_node && score < singular_beta - DOUBLE_EXT_MARGIN && double_exts_[ply] < DOUBLE_EXT_MAX) extension = 2;
+      } else if (singular_beta >= beta) {
+        return singular_beta;
+      } else if (tt_score >= beta) {
+        extension = -1;  // other moves come close and this one is expected to cut: less effort here
+      }
     }
     const int new_depth = depth - 1 + extension;
+    double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
 
     ply_move_[ply] = piece * 64 + move.to();
     pos.make_move(move);
@@ -483,6 +503,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
+        reduction = std::clamp(reduction, 0, depth - 2);
+      } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
+        // Captures ordered late (losing ones, or ones that did badly before)
+        // get a milder reduction, steered by capture history.
+        reduction = LMR[std::min(depth, 63)][std::min(legal, 63)] - CAPT_LMR_BASE / 100;
+        if (pv_node) reduction--;
+        if (cut_node) reduction += CUT_NODE_LMR;
+        reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null

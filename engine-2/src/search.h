@@ -96,6 +96,7 @@ class SearchWorker {
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).
   std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
+  int double_exts_[MAX_PLY + 2] = {};  // double extensions on the line from the root to each ply
   int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
   // The continuation history row after the move made `back` plies before
   // ply, or nullptr if there was none (before the root, a null move).

@@ -223,6 +223,15 @@ history behind the search and evaluation.
   **The new baseline**, bench **2607254**. Code only, no APK (the app
   stays on 4.0). Next: more reduction for captures, singular extension
   variants, the 4.6 retune (`CUT_NODE_LMR` with the LMR values).
+- **Engine 5.2** = 5.1 with late move reductions for captures and two
+  singular extension variants, double and negative (`7a0a684`; details
+  in `CHANGELOG.md`): **vs 5.1 H1 after 482 games**, +133 -88 =261
+  (54.7%), **+33 +/- 19** (cloud, 8+0.08, 4 at a time). **The new
+  baseline**, bench **2626846**. Code only, no APK. The new values
+  (`DOUBLE_EXT_MARGIN` 20, `DOUBLE_EXT_MAX` 6, `CAPT_LMR_BASE` 100,
+  `CAPT_LMR_HISTORY` 4000) are first guesses: an SPSA of them is a likely
+  further gain. Owner's next idea: a test against an engine rated about
+  3250 on the CCRL Blitz list (Stash 37.0 is a lead, unverified).
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
@@ -255,8 +264,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2607254** (`build/engine2 bench`, with the
-  built-in network; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2626846** (`build/engine2 bench`, with the
+  built-in network; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
