@@ -5,6 +5,25 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.1: ProbCut
+
+5.0 plus the change below (same network).
+**Against 5.0** (cloud, 8+0.08, SPRT 0/10, 4 games at a time): **accepted
+by the owner** after 1,340 games, 381 wins, 336 losses, 623 draws
+(51.7%), **+12 Elo (+/- 11)**, LOS 97.9%, LLR 2.00 (SPRT undecided).
+Bench **2607254**. Code only, no APK.
+
+- **ProbCut** (`src/search.cpp`): at a non-PV node from depth 4
+  (`PROBCUT_DEPTH`), not in check, captures whose SEE gains at least
+  beta + 222 (`PROBCUT_MARGIN`) less the static eval get a quiescence
+  check against beta + 222, then a search 4 plies shallower
+  (`PROBCUT_REDUCTION`; at depth 4 the quiescence check alone). A pass
+  stores a lower bound and returns. Skipped when the table holds a search
+  at least depth - 3 deep scoring below beta + 222. The margin is from an
+  SPSA (780 pairs; 200 -> 222); untuned (depth 5, margin 200) it was
+  +4 +/- 9 over 1,978 games, and depth 4 vs 5 alone was flat
+  (`FAILED_EXPERIMENTS.md`).
+
 ## 5.0: a network trained on 216M positions from 3.3-4.5
 
 4.6's search with a new 512-unit network (`nets/engine-5.0.nnue`, the
