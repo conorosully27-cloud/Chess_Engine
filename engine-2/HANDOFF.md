@@ -256,8 +256,10 @@ history behind the search and evaluation.
   `tablebase.lichess.ovh/tables/standard/3-4-5-{wdl,dtz}/`, sha256 checked;
   not in the repo). Checked: 300 random 3-5 man positions, root result
   and move agree with python-chess's own Syzygy reader (0 mismatches);
-  in-search probes hit. SPRT running: with tables vs 5.2 without
-  (8+0.08, 4 at a time). After that (owner):
+  in-search probes hit. With tables vs 5.2 without (cloud, 8+0.08, 4 at
+  a time): stopped by the owner after 580 games, +155 -122 =303,
+  **+32 +/- 28**, LOS 98.7%, LLR 1.86: it helps, as
+  expected. **Kept** (an option; the release default is no tables). After that (owner):
   endgame eval scaling by material and by the fifty-move counter.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
