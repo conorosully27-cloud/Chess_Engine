@@ -288,7 +288,9 @@ history behind the search and evaluation.
   is unchanged (2626846), 110 and 150 now differ. Candidate (owner: the
   values that really changed): 18 / 21 / 3867, `CAPT_LMR_BASE` stays 100;
   vs 5.2: -7 +/- 14 after 860 games, scrapped (`FAILED_EXPERIMENTS.md`).
-  Next (owner): an SPSA of `CAPT_LMR_BASE` alone (`~/spsa-captbase/`).
+  Then an SPSA of `CAPT_LMR_BASE` alone (`~/spsa-captbase/`, 1,000 pairs
+  planned): stopped by the owner at about 440 pairs, still at 99.4 (from
+  100). The 5.2 values look close to right; **5.2 stays the best build**.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
