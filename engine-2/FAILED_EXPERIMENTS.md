@@ -5,6 +5,27 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## History pruning, alone and with the endgame scalings, on 5.2 (Nov 2026)
+
+**Change:** history pruning (commit `5bb015c`): off the main line at
+depth <= 3 (`HIST_PRUNE_DEPTH`), a quiet move whose history plus both
+continuation histories is below -4000 per ply (`HIST_PRUNE_MARGIN`) is
+skipped once a move has been searched. Bench 2970089. Then (owner's idea)
+together with both endgame scalings (`20e12d9`, bench 2480606).
+
+**Result** (vs 5.2, cloud, 8+0.08, 4 at a time):
+- Alone: stopped by the owner at 2,120 games, +548 -527 =1045, **+3 +/-
+  9**, LOS 78%, LLR -0.81.
+- All three together: **H0 after 886 games**, +206 -230 =450, **-9 +/-
+  14**, LOS 9%.
+
+**Prior:** 6/10 (standard in strong engines; on the plan since 3.1).
+
+**Commentary:** each alone looked +2 to +3, which was noise: together they
+lost. All three switched off (`HIST_PRUNE_DEPTH`, `MAT_SCALE_BASE`,
+`FIFTY_SCALE_DIV` 0); the code stays. Could come back in a tune, or with
+history pruning on continuation history alone, as Stash does.
+
 ## Endgame scaling of the network's score, on 5.2 (Nov 2026)
 
 **Change** (`src/evaluate.cpp`, commit `48fe632`, both off by default

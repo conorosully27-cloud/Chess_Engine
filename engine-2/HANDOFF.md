@@ -271,7 +271,14 @@ history behind the search and evaluation.
   4 at a time): stopped by the owner at 2,120 games, +548 -527 =1045,
   +3 +/- 9, LOS 78%, LLR -0.81 (flattish). **Owner: combine it with the
   two endgame scalings** (each flattish too) and test the three together
-  vs 5.2: bench 2480606.
+  vs 5.2: bench 2480606: **H0 after 886 games, -9 +/- 14**. All three
+  switched off (`FAILED_EXPERIMENTS.md`); 5.2 stays the best build.
+- **SPSA of 5.2's new values (Nov 4, owner: all 5 together, 2,000
+  pairs):** `DOUBLE_EXT_MARGIN`, `DOUBLE_EXT_MAX`, `CAPT_LMR_BASE`,
+  `CAPT_LMR_HISTORY`, `SINGULAR_MARGIN`; small steps for the small values
+  (owner: no 3-vs-9 swings for `DOUBLE_EXT_MAX`): c_end 0.4 for it (about
+  +/-1.7 at the start, +/-0.8 at the end with `--c-scale 2`), `--r-end
+  0.005`, 4 workers, state in `~/spsa-52/` (resume with `~/spsa-52/run.sh`).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
