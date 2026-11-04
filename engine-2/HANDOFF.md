@@ -264,6 +264,14 @@ history behind the search and evaluation.
   **flat** (each alone and both together, 8,510 games, +2 Elo), switched
   off; see `FAILED_EXPERIMENTS.md`. **5.2 stays the best build** (bench
   2626846).
+- **History pruning on 5.2 (Nov 4, `5bb015c`):** off the main line at
+  depth <= 3 (`HIST_PRUNE_DEPTH`), a quiet move with history plus both
+  continuation histories below -4000 per ply (`HIST_PRUNE_MARGIN`) is
+  skipped once a move has been searched. Bench 2970089. vs 5.2 (8+0.08,
+  4 at a time): stopped by the owner at 2,120 games, +548 -527 =1045,
+  +3 +/- 9, LOS 78%, LLR -0.81 (flattish). **Owner: combine it with the
+  two endgame scalings** (each flattish too) and test the three together
+  vs 5.2: bench 2480606.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
