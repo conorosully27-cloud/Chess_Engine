@@ -5,6 +5,24 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## SPSA of 5.2's singular and capture-reduction values (Nov 2026)
+
+**Change:** an SPSA of `SINGULAR_MARGIN`, `DOUBLE_EXT_MARGIN`,
+`DOUBLE_EXT_MAX`, `CAPT_LMR_BASE`, `CAPT_LMR_HISTORY` (2,000 pairs,
+8+0.08, `~/spsa-52/`). Moved: 19 -> 17.6, 20 -> 21.3, 6 -> 6.1, 100 ->
+110 (no effect then: a whole-ply division, since fixed), 4000 -> 3867.
+Candidate with the three that changed: 18 / 21 / 3867 (commit `97ca359`,
+bench 2674412).
+
+**Result:** vs 5.2 (cloud, 8+0.08, 4 at a time), stopped by the owner
+at 860 games: +207 -224 =429, **-7 +/- 14**, LOS 17%, LLR -2.32.
+
+**Prior:** 5/10 (the guesses had hardly moved, so little to gain).
+
+**Commentary:** the guesses were already about right; the drift was
+noise. Values back to 5.2's. Next (owner): tune `CAPT_LMR_BASE` alone,
+now that it works in hundredths.
+
 ## History pruning, alone and with the endgame scalings, on 5.2 (Nov 2026)
 
 **Change:** history pruning (commit `5bb015c`): off the main line at

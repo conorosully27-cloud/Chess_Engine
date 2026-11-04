@@ -77,19 +77,19 @@ TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 // searches the other moves to half depth against the table's score less
 // SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
-TUNE_PARAM(SINGULAR_MARGIN, 18, 5, 80);
+TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // Double extension: off the main line, a hash move whose alternatives fall
 // short by more than DOUBLE_EXT_MARGIN gets two plies, at most
 // DOUBLE_EXT_MAX times on one line. Negative extension: when the
 // alternatives do reach the test's score and the table's score beats beta,
 // the hash move is searched a ply shallower.
-TUNE_PARAM(DOUBLE_EXT_MARGIN, 21, 0, 100);
+TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
 TUNE_PARAM(CAPT_LMR_BASE, 100, 0, 300);
-TUNE_PARAM(CAPT_LMR_HISTORY, 3867, 500, 16000);
+TUNE_PARAM(CAPT_LMR_HISTORY, 4000, 500, 16000);
 
 // ProbCut: from PROBCUT_DEPTH at a non-PV node, a capture that wins enough
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search

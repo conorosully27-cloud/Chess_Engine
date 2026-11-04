@@ -287,7 +287,8 @@ history behind the search and evaluation.
   hundredths (`LMR100`), rounded down after the offset; at 100 the bench
   is unchanged (2626846), 110 and 150 now differ. Candidate (owner: the
   values that really changed): 18 / 21 / 3867, `CAPT_LMR_BASE` stays 100;
-  SPRT vs 5.2.
+  vs 5.2: -7 +/- 14 after 860 games, scrapped (`FAILED_EXPERIMENTS.md`).
+  Next (owner): an SPSA of `CAPT_LMR_BASE` alone (`~/spsa-captbase/`).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
