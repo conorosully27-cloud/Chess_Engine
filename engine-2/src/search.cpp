@@ -77,19 +77,19 @@ TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 // searches the other moves to half depth against the table's score less
 // SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
-TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
+TUNE_PARAM(SINGULAR_MARGIN, 18, 5, 80);
 // Double extension: off the main line, a hash move whose alternatives fall
 // short by more than DOUBLE_EXT_MARGIN gets two plies, at most
 // DOUBLE_EXT_MAX times on one line. Negative extension: when the
 // alternatives do reach the test's score and the table's score beats beta,
 // the hash move is searched a ply shallower.
-TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
+TUNE_PARAM(DOUBLE_EXT_MARGIN, 21, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
 // Late move reductions for captures: the table's value less
-// CAPT_LMR_BASE / 100 plies, a ply less per CAPT_LMR_HISTORY of capture
+// CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
 TUNE_PARAM(CAPT_LMR_BASE, 100, 0, 300);
-TUNE_PARAM(CAPT_LMR_HISTORY, 4000, 500, 16000);
+TUNE_PARAM(CAPT_LMR_HISTORY, 3867, 500, 16000);
 
 // ProbCut: from PROBCUT_DEPTH at a non-PV node, a capture that wins enough
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
@@ -132,6 +132,18 @@ LmrTable make_lmr() {
 }
 LmrTable LMR = make_lmr();
 
+// The same reductions in hundredths of a ply (for captures, whose offset
+// CAPT_LMR_BASE is in hundredths too, so values between whole plies count).
+using Lmr100Table = std::array<std::array<std::int16_t, 64>, 64>;
+Lmr100Table make_lmr100() {
+  Lmr100Table t{};
+  for (int d = 1; d < 64; d++)
+    for (int m = 1; m < 64; m++)
+      t[d][m] = std::int16_t(LMR_BASE + std::log(d) * std::log(m) * 10000.0 / LMR_DIV);
+  return t;
+}
+Lmr100Table LMR100 = make_lmr100();
+
 // Mate scores are stored relative to the position, not the root, so they
 // stay correct when the position is reached at a different depth.
 // Tablebase scores too.
@@ -168,7 +180,10 @@ std::string score_to_uci(int score) {
 
 }  // namespace
 
-void search_params_changed() { LMR = make_lmr(); }
+void search_params_changed() {
+  LMR = make_lmr();
+  LMR100 = make_lmr100();
+}
 
 TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms) {
   TimeBudget b;
@@ -563,7 +578,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
         // get a milder reduction, steered by capture history.
-        reduction = LMR[std::min(depth, 63)][std::min(legal, 63)] - CAPT_LMR_BASE / 100;
+        // Rounded down after the offset (adding 10000 keeps the division a floor).
+        reduction = (LMR100[std::min(depth, 63)][std::min(legal, 63)] - CAPT_LMR_BASE + 10000) / 100 - 100;
         if (pv_node) reduction--;
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);

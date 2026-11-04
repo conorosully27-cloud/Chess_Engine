@@ -279,6 +279,15 @@ history behind the search and evaluation.
   (owner: no 3-vs-9 swings for `DOUBLE_EXT_MAX`): c_end 0.4 for it (about
   +/-1.7 at the start, +/-0.8 at the end with `--c-scale 2`), `--r-end
   0.005`, 4 workers, state in `~/spsa-52/` (resume with `~/spsa-52/run.sh`).
+  **Done (2,000 pairs):** `SINGULAR_MARGIN` 19 -> 17.6, `DOUBLE_EXT_MARGIN`
+  20 -> 21.3, `DOUBLE_EXT_MAX` 6 -> 6.1, `CAPT_LMR_BASE` 100 -> 110,
+  `CAPT_LMR_HISTORY` 4000 -> 3867. Found then: `CAPT_LMR_BASE` was used
+  as `/ 100` in whole plies, so 100-199 all meant one ply (the tuner moved
+  a value that did nothing). **Fixed:** captures use their own table in
+  hundredths (`LMR100`), rounded down after the offset; at 100 the bench
+  is unchanged (2626846), 110 and 150 now differ. Candidate (owner: the
+  values that really changed): 18 / 21 / 3867, `CAPT_LMR_BASE` stays 100;
+  SPRT vs 5.2.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
