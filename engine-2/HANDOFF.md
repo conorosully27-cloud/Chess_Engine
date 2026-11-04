@@ -260,7 +260,10 @@ history behind the search and evaluation.
   a time): stopped by the owner after 580 games, +155 -122 =303,
   **+32 +/- 28**, LOS 98.7%, LLR 1.86: it helps, as
   expected. **Kept** (an option; the release default is no tables). After that (owner):
-  endgame eval scaling by material and by the fifty-move counter.
+  endgame eval scaling by material and by the fifty-move counter:
+  **flat** (each alone and both together, 8,510 games, +2 Elo), switched
+  off; see `FAILED_EXPERIMENTS.md`. **5.2 stays the best build** (bench
+  2626846).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

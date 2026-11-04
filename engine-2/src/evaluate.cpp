@@ -385,11 +385,11 @@ int evaluate_uncached(const Position& pos) {
 // so it shrinks toward 0 below MAT_SCALE_FULL units of material (both sides:
 // pawn 1, minor 3, rook 5, queen 9; a start position has 78): times
 // (MAT_SCALE_BASE + material) / (MAT_SCALE_BASE + MAT_SCALE_FULL). 0 = off.
-TUNE_PARAM(MAT_SCALE_BASE, 120, 0, 400);
+TUNE_PARAM(MAT_SCALE_BASE, 0, 0, 400);
 TUNE_PARAM(MAT_SCALE_FULL, 40, 10, 78);
 // Fifty-move rule: the score shrinks as the counter runs, times
 // (FIFTY_SCALE_DIV - counter) / FIFTY_SCALE_DIV. 0 = off.
-TUNE_PARAM(FIFTY_SCALE_DIV, 200, 0, 1000);
+TUNE_PARAM(FIFTY_SCALE_DIV, 0, 0, 1000);
 
 namespace {
 int scale_endgame(const Position& pos, int score) {

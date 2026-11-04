@@ -21,9 +21,16 @@ games at a time each), stopped by the owner at 660 games:
 **Prior:** 6/10 (standard in strong engines; the Smallbrain game review
 found endgame misjudgements).
 
+**Both together** (commit `07f1d6b`, bench 2452451; vs 5.2, 4 at a
+time): the SPRT gave **H0 after 5,890 games**, +1431 -1381 =3078, +3 +/-
+5, LOS 87%. The owner had it continue (no SPRT) toward 99% LOS; stopped
+at **8,510 games** in all: +2048 -2000 =4462 (50.3%), **+2 Elo**, LOS
+about 78%. Owner: a dead end.
+
 **Commentary:** flat. The network's endgame errors are about which
 endgames are good, not how big the score is, and shrinking the score
-doesn't fix that. Next (owner): both together, to be sure.
+doesn't fix that. Switched off again (`MAT_SCALE_BASE` and
+`FIFTY_SCALE_DIV` 0 = off; the code stays for a retune or a new network).
 
 ## ProbCut from depth 4 instead of 5 (Nov 2026)
 
