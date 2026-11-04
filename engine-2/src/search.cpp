@@ -108,6 +108,14 @@ TUNE_PARAM(TM_STABLE_STEP, 10, 0, 40);
 TUNE_PARAM(TM_STABLE_DEPTHS, 6, 1, 12);
 TUNE_PARAM(TM_DROP_PER_CP, 1, 0, 5);
 TUNE_PARAM(TM_DROP_MAX, 40, 0, 150);
+// Search effort: from depth TM_NODE_DEPTH the plan is also scaled by
+// TM_NODE_BASE - TM_NODE_MUL / 100 x the percentage of the search's nodes
+// spent on the best move. A best move that took nearly all the effort (its
+// rivals fell quickly) means a clear position: stop sooner. One that took
+// little (its rivals needed real work) means a contested one: think on.
+TUNE_PARAM(TM_NODE_DEPTH, 6, 1, 20);
+TUNE_PARAM(TM_NODE_BASE, 150, 50, 300);
+TUNE_PARAM(TM_NODE_MUL, 100, 0, 250);
 
 // Correction history entries are in 1/CORR_GRAIN centipawns, each within
 // +/-CORR_LIMIT_CP; each update moves every table's entry by depth + 1
@@ -242,6 +250,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   pos_ = &pos;
   nodes_ = 0;
   tbhits_ = 0;
+  root_move_nodes_.fill(0);
   stopped_ = false;
   can_stop_ = false;
   stop_flag_ = stop;
@@ -336,6 +345,10 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
         const int stability = TM_STABLE_BASE - TM_STABLE_STEP * std::min(stable_depths, int(TM_STABLE_DEPTHS));
         const int falling = std::clamp(drop * TM_DROP_PER_CP, 0, int(TM_DROP_MAX));
         soft = soft * stability / 100 * (100 + falling) / 100;
+        if (depth >= TM_NODE_DEPTH && nodes_ > 0) {
+          const int best_share = int(root_move_nodes_[result.best.from() * 64 + result.best.to()] * 100 / nodes_);
+          soft = soft * std::max(TM_NODE_BASE - best_share * TM_NODE_MUL / 100, 10) / 100;
+        }
       }
       if (elapsed >= soft) break;
     }
@@ -555,6 +568,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
 
     ply_move_[ply] = piece * 64 + move.to();
+    const std::uint64_t nodes_before = nodes_;
     pos.make_move(move);
     if (new_depth > 0) tt_.prefetch(pos.key());  // the child probes the table (quiescence doesn't)
 
@@ -592,6 +606,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false, false);
     }
     pos.unmake_move();
+    if (ply == 0) root_move_nodes_[move.from() * 64 + move.to()] += nodes_ - nodes_before;
     if (stopped_) return 0;
 
     if (score > best_score) {

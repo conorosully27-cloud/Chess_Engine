@@ -291,6 +291,13 @@ history behind the search and evaluation.
   Then an SPSA of `CAPT_LMR_BASE` alone (`~/spsa-captbase/`, 1,000 pairs
   planned): stopped by the owner at about 440 pairs, still at 99.4 (from
   100). The 5.2 values look close to right; **5.2 stays the best build**.
+- **Time by search effort (Nov 4, candidate):** nodes spent under each
+  root move are counted; from depth 6 (`TM_NODE_DEPTH`) the soft time is
+  also scaled by (150 - share of nodes on the best move) %
+  (`TM_NODE_BASE` 150, `TM_NODE_MUL` 100): 90% on the best move (clear)
+  -> 0.6x, 40% (contested) -> 1.1x. Motivated by the Smallbrain review (7
+  of 17 mistakes fixed with more time). Bench unchanged (2626846). SPRT
+  vs 5.2.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
