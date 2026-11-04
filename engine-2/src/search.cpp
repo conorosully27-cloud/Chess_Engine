@@ -54,6 +54,11 @@ TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
 // Extra late move reduction at cut nodes (null-window nodes expected to
 // fail high).
 TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
+// History pruning: at depth <= HIST_PRUNE_DEPTH off the main line, a quiet
+// move whose history (its own plus both continuation histories) is below
+// -HIST_PRUNE_MARGIN per ply is skipped.
+TUNE_PARAM(HIST_PRUNE_DEPTH, 3, 0, 8);
+TUNE_PARAM(HIST_PRUNE_MARGIN, 4000, 500, 16000);
 // Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
 // (at most HIST_BONUS_MAX) for the move that cut off, the same against the
 // quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
@@ -497,6 +502,13 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       if (prune_late && quiet && !gives_check() && ++quiets_tried > lmp_quiets) {
         picker.skip_quiets();
         continue;
+      }
+      // History pruning: quiet moves that have kept failing in similar
+      // positions, near the leaves, once something has been searched.
+      if (!pv_node && !in_check && quiet && depth <= HIST_PRUNE_DEPTH && best_score > -(TB_WIN - MAX_PLY)) {
+        const int index = piece * 64 + move.to();
+        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+        if (history < -HIST_PRUNE_MARGIN * depth && !gives_check()) continue;
       }
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
       if (see_prune && !pos.see_ge(move, quiet ? -SEE_QUIET_MARGIN * depth * depth : -SEE_CAPTURE_MARGIN * depth) &&
