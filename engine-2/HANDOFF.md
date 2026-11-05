@@ -315,7 +315,7 @@ history behind the search and evaluation.
   move fails, the child's PV move (its refutation of the pass) is the
   threat; if it captures one of our pieces, moves of that piece get
   `THREAT_LMR` (1) ply less reduction, quiet or capture. Bench 2451392.
-  SPRT vs 5.2 (LTO).
+  **H0 after 3,836 games, +2 +/- 7**; switched off (`FAILED_EXPERIMENTS.md`).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

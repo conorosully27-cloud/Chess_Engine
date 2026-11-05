@@ -57,7 +57,8 @@ TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // Threat-aware reductions: when the null move fails, the reply that refuted
 // it is the opponent's threat. If it captures one of our pieces, moves of
 // that piece (getting it out of the way) are reduced THREAT_LMR plies less.
-TUNE_PARAM(THREAT_LMR, 1, 0, 3);
+// 0 = off (flat on 5.2).
+TUNE_PARAM(THREAT_LMR, 0, 0, 3);
 // History pruning: at depth <= HIST_PRUNE_DEPTH off the main line, a quiet
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).

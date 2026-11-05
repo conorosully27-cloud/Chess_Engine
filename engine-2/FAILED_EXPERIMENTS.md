@@ -5,6 +5,25 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Threat-aware reductions, on 5.2 (Nov 2026)
+
+**Change** (commit `c9906eb`, invented for the owner): when the null move
+fails, the child's PV move (its refutation of the pass) is the threat; if
+it captures one of our pieces, moves of that piece get one ply less
+reduction (`THREAT_LMR`), quiet or capture. Bench 2451392.
+
+**Result:** vs 5.2 built with LTO (cloud, 8+0.08, 4 at a time): **H0
+after 3,836 games**, +967 -949 =1920, **+2 +/- 7**, LOS 69%. It held about
++5 to +6 from 1,300 to 3,100 games, then faded.
+
+**Prior:** 5/10 (old engines used null-move threats; modern ones mostly
+don't).
+
+**Commentary:** flat, maybe a point or two. History and the other LMR
+terms seem to cover these moves already. Switched off (`THREAT_LMR` 0).
+A variant could use the threat for ordering, or extend only when the
+threatened piece is worth more than the attacker.
+
 ## Surprise clock, on 5.2 (Nov 2026)
 
 **Change** (commit `96344f2`, invented for the owner): after each search
