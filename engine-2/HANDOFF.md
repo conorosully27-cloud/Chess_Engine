@@ -337,9 +337,9 @@ history behind the search and evaluation.
 - **Engine 5.4 = ChessMcEngineFace 5.4:** 5.3 plus the second bumper build
   (`f4a0fea`): history pruning (`HIST_PRUNE_DEPTH` 3), continuation
   correction history (`CORR_CONT_ON`), stronger null move (`NULL_EVAL_DIV`
-  200, max 3). **Released early by the owner** at 1,258 games vs 5.3: +310
-  -271 =677, **+11 +/- 11**, LOS 97.0%, LLR 1.75, SPRT still running (old
-  1,000-opening file): **update the final result in CHANGELOG.md**.
+  200, max 3). Released early by the owner at 1,258 games; **final: vs 5.3
+  H1 after 2,658 games, +669 -595 =1394 (51.4%), +10 +/- 8**, LOS 99.3%
+  (cloud, 8+0.08, 4 at a time, old 1,000-opening file).
   **The new baseline**, bench **2822382**. Next: the root move list
   (written, in `git stash`: "root move list (not yet built)"), then SPRT
   on 8moves_v3.
