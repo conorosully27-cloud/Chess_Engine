@@ -10,6 +10,19 @@ endif()
 
 option(ENGINE_AVX2 "Compile with AVX2 (vectorizes the NNUE)" ON)
 
+# Link-time optimization (inlining across source files): about 2% faster,
+# same moves (same bench). ENGINE_LTO=OFF builds without it.
+option(ENGINE_LTO "Link-time optimization" ON)
+if(ENGINE_LTO)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT ipo_ok OUTPUT ipo_msg LANGUAGES C CXX)
+  if(ipo_ok)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+  else()
+    message(STATUS "LTO not supported here: ${ipo_msg}")
+  endif()
+endif()
+
 # Flags shared by every target.
 add_library(engine2_options INTERFACE)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
