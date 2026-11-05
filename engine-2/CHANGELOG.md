@@ -10,10 +10,10 @@ each played with both colors). Elo figures are fastchess's estimate with its
 5.3 plus the "second bumper build" (commit `f4a0fea`; same network):
 three changes that were each flat alone, together. **Released early by
 the owner** (to test it elsewhere) while its SPRT against 5.3 was still
-running: at release, **1,258 games, 310 wins, 271 losses, 677 draws
-(51.5%), +11 Elo (+/- 11)**, LOS 97.0%, LLR 1.75 (cloud, 8+0.08, SPRT
-0/10, 4 games at a time; the last test on the old 1,000-opening file).
-Final result to follow. Bench **2822382**. Code only, no APK.
+running (at release: 1,258 games, +11 +/- 11, LOS 97.0%). **Final: H1
+accepted after 2,658 games, 669 wins, 595 losses, 1,394 draws (51.4%),
++10 Elo (+/- 8)**, LOS 99.3%, no time losses (cloud, 8+0.08, SPRT 0/10, 4
+games at a time; the last test on the old 1,000-opening file). Bench **2822382**. Code only, no APK.
 
 - **History pruning:** off the main line at depth <= 3, a quiet move whose
   history plus both continuation histories is below -4000 per ply is
