@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Time by search effort, on 5.2 (Nov 2026)
+
+**Change** (commit `6f50d8e`): nodes spent under each root move are
+counted; from depth 6 the soft time is also scaled by (150 - share of the
+search's nodes on the best move) %, so a best move with 90% of the effort
+(clear position) gets 0.6x and one with 40% (contested) 1.1x. Bench
+unchanged (time only). Motivated by the Smallbrain review (7 of 17
+mistakes fixed with more time).
+
+**Result:** vs 5.2 (cloud, 8+0.08, 4 at a time): **H0 after 2,804
+games**, +671 -665 =1468, **+1 +/- 7**, LOS 58%. It led +20 at 160 games
+and +13 at 418, then faded.
+
+**Prior:** 6/10 (Stockfish uses a version of it).
+
+**Commentary:** flat. 5.2's time use already reacts to best-move changes
+and score drops, which seem to carry the same signal. Switched off
+(`TM_NODE_BASE` 100, `TM_NODE_MUL` 0); the node counts stay (cheap) for
+other uses, such as root move ordering.
+
 ## SPSA of 5.2's singular and capture-reduction values (Nov 2026)
 
 **Change:** an SPSA of `SINGULAR_MARGIN`, `DOUBLE_EXT_MARGIN`,

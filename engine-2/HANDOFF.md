@@ -296,8 +296,16 @@ history behind the search and evaluation.
   also scaled by (150 - share of nodes on the best move) %
   (`TM_NODE_BASE` 150, `TM_NODE_MUL` 100): 90% on the best move (clear)
   -> 0.6x, 40% (contested) -> 1.1x. Motivated by the Smallbrain review (7
-  of 17 mistakes fixed with more time). Bench unchanged (2626846). SPRT
-  vs 5.2.
+  of 17 mistakes fixed with more time). Bench unchanged (2626846). **H0
+  after 2,804 games, +1 +/- 7**; switched off (`FAILED_EXPERIMENTS.md`).
+- **Surprise clock (Nov 5, invented for the owner, candidate):** after
+  each search the wrapper (`Searcher`) remembers the position after the
+  PV's first two moves (our move and the expected reply). Next search: if
+  the root is that position, the soft time is scaled by `TM_EXPECTED_PCT`
+  (85: the last search already studied it and the table is full of it),
+  otherwise by `TM_SURPRISE_PCT` (115). Checked with extreme values (30 /
+  200): 0.2 s after the expected reply (still depth 14-15), 1.9 s after a
+  surprise. Bench unchanged (2626846). SPRT vs 5.2.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

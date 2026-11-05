@@ -113,9 +113,16 @@ TUNE_PARAM(TM_DROP_MAX, 40, 0, 150);
 // spent on the best move. A best move that took nearly all the effort (its
 // rivals fell quickly) means a clear position: stop sooner. One that took
 // little (its rivals needed real work) means a contested one: think on.
+// Off (base 100, mul 0): flat on 5.2.
 TUNE_PARAM(TM_NODE_DEPTH, 6, 1, 20);
-TUNE_PARAM(TM_NODE_BASE, 150, 50, 300);
-TUNE_PARAM(TM_NODE_MUL, 100, 0, 250);
+TUNE_PARAM(TM_NODE_BASE, 100, 50, 300);
+TUNE_PARAM(TM_NODE_MUL, 0, 0, 250);
+// Surprise clock: when the opponent plays the reply the last search
+// expected, that search already looked at this position (the table is full
+// of it), so the plan is scaled by TM_EXPECTED_PCT percent; after any other
+// reply, by TM_SURPRISE_PCT.
+TUNE_PARAM(TM_EXPECTED_PCT, 85, 30, 150);
+TUNE_PARAM(TM_SURPRISE_PCT, 115, 50, 200);
 
 // Correction history entries are in 1/CORR_GRAIN centipawns, each within
 // +/-CORR_LIMIT_CP; each update moves every table's entry by depth + 1
@@ -762,6 +769,7 @@ Searcher::~Searcher() {
 }
 
 void Searcher::new_game() {
+  has_prediction_ = false;
   tt_.clear();
   worker_.new_game();
 }
@@ -770,6 +778,11 @@ void Searcher::start(const Position& pos, const SearchLimits& limits, int move_o
   stop();
   wait();
   budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms);  // starts the clock
+  if (budget_.adaptive && has_prediction_) {
+    const int pct = pos.key() == predicted_key_ ? TM_EXPECTED_PCT : TM_SURPRISE_PCT;
+    budget_.soft_ms = std::clamp<std::int64_t>(budget_.soft_ms * pct / 100, 1, budget_.hard_ms);
+  }
+  has_prediction_ = false;
   root_ = pos;
   limits_ = limits;
   stop_ = false;
@@ -782,6 +795,13 @@ void Searcher::wait() {
 
 void Searcher::run() {
   SearchResult r = worker_.search(root_, limits_, budget_, &stop_, uci_send);
+  if (r.pv.size() >= 2) {
+    Position after = root_;
+    after.make_move(r.pv[0]);
+    after.make_move(r.pv[1]);
+    predicted_key_ = after.key();
+    has_prediction_ = true;
+  }
   // In infinite mode "bestmove" must wait for "stop".
   while (limits_.infinite && !stop_) std::this_thread::sleep_for(std::chrono::milliseconds(1));
   std::string line = "bestmove " + r.best.uci();

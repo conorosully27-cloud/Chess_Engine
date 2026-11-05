@@ -164,6 +164,10 @@ class Searcher {
   Position root_;
   SearchLimits limits_;
   TimeBudget budget_;
+  // The position expected after our move and the reply the last search
+  // predicted (its PV's first two moves), for the surprise clock.
+  std::uint64_t predicted_key_ = 0;
+  bool has_prediction_ = false;
 };
 
 }  // namespace chess
