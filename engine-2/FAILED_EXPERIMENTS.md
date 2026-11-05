@@ -22,8 +22,9 @@ Bench 2666511 (5.4: 2822382), same speed.
 
 **Commentary:** a fourth flat-or-worse result. At 8+0.08 the 64 MB table
 rarely fills, so better replacement has little to keep; the extra entries
-don't pay. Reverted. Only a long time control (or a small Hash) would give
-it a real chance.
+don't pay. Reverted. **Follow-up:** with both engines at Hash 2 MB (table
+squeezed, as in long games) it passed: H1 after 480 games, +93 -55 =332,
++28 +/- 17. A candidate for long time controls; see `HANDOFF.md`.
 
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 

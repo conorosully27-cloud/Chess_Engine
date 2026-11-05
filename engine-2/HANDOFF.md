@@ -343,6 +343,15 @@ history behind the search and evaluation.
   **The new baseline**, bench **2822382**. Next: the root move list
   (written, in `git stash`: "root move list (not yet built)"), then SPRT
   on 8moves_v3.
+- **TT buckets on 5.4 (Nov 5, candidate for long time controls):** 5-entry,
+  64-byte buckets with age-based replacement, commit `0ed486c` (reverted
+  in `668ee12`; bench 2666511). At the normal 64 MB, 8+0.08: **H0 after
+  754 games, -6 +/- 12** (the table never fills). With the table squeezed,
+  both engines at **Hash 2 MB**, 8+0.08: **H1 after 480 games**, +93 -55
+  =332 (54.0%), **+28 +/- 17**, LOS 99.9%. So buckets help once the table
+  is full (long games, analysis, small Hash) and cost a little when it
+  isn't. Next: a long-time-control test at normal Hash (40+0.4 or longer,
+  laptop) before it goes in a version.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
