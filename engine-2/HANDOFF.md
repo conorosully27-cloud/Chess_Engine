@@ -331,7 +331,9 @@ history behind the search and evaluation.
   values (-7). Also released with it: Syzygy support (`SyzygyPath`, off
   by default) and LTO. **The new baseline**, bench **2656864**. Code only
   (the app stays on 4.0; the next app build will show the new name).
-  Next (owner): 5.3 vs Smallbrain 7.0 (3454), tablebases for both.
+  **5.3 vs Smallbrain 7.0 (3454), 3-5 man tablebases for both** (10+0.1,
+  8moves_v3, 4 at a time): stopped by the owner at 122 games, +22 -34 =66,
+  **-34 +/- 41** (5.2 without tables had -17 +/- 21): still below 3454.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
