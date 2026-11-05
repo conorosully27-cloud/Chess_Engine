@@ -232,6 +232,117 @@ history behind the search and evaluation.
   `CAPT_LMR_HISTORY` 4000) are first guesses: an SPSA of them is a likely
   further gain. Owner's next idea: a test against an engine rated about
   3250 on the CCRL Blitz list (Stash 37.0 is a lead, unverified).
+- **Strength vs real engines (Nov 3, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64):** 5.2 vs **Stash 37.0 (CCRL Blitz
+  3417)**: **H1 after 176 games**, +71 -38 =67 (59.4%), +66 +/- 40. A
+  forum repost had given Stash 37.0 as 3255; the live list (Oct 31, 2026)
+  says 3417. Then 5.2 vs **Smallbrain 7.0 (3454, +/- 8)**: **H0 after
+  486 games**, +106 -130 =250 (47.5%), -17 +/- 21. So 5.2 is about
+  **3420-3440 on CCRL Blitz** at these conditions (far above the ~3210
+  that Stockfish's UCI_Elo suggested for 5.0: its limited mode is a rough
+  ruler). Engines are built in `~/tools/` (not in the repo).
+  CCRL Blitz candidates near 3450: Seer 2.4.0, Marvin 6.3.0, Berserk 6.0,
+  Igel 3.1.0.
+- **Syzygy tablebases (Nov 3, owner's go; in progress):** Fathom (MIT,
+  `src/fathom/`, copied unchanged) behind `src/syzygy.*`, native build
+  only (the WebAssembly app has stubs: same size, no tables). UCI option
+  `SyzygyPath`. Root: in the tables, play their move (distance-to-zero,
+  so wins respect the fifty-move rule), no search. Search: win/draw/loss
+  probe off the root right after a capture or pawn move with no castling
+  rights; a result that decides the node is stored in the TT and returned.
+  Scores: TB win = `TB_WIN` (MATE - 2 x MAX_PLY) - ply, above every eval,
+  below every mate. With no tables, bench unchanged (2626846). Tables on
+  the cloud machine: `~/syzygy/345` (3-5 men, 290 files, 939 MB, from
+  `tablebase.lichess.ovh/tables/standard/3-4-5-{wdl,dtz}/`, sha256 checked;
+  not in the repo). Checked: 300 random 3-5 man positions, root result
+  and move agree with python-chess's own Syzygy reader (0 mismatches);
+  in-search probes hit. With tables vs 5.2 without (cloud, 8+0.08, 4 at
+  a time): stopped by the owner after 580 games, +155 -122 =303,
+  **+32 +/- 28**, LOS 98.7%, LLR 1.86: it helps, as
+  expected. **Kept** (an option; the release default is no tables). After that (owner):
+  endgame eval scaling by material and by the fifty-move counter:
+  **flat** (each alone and both together, 8,510 games, +2 Elo), switched
+  off; see `FAILED_EXPERIMENTS.md`. **5.2 stays the best build** (bench
+  2626846).
+- **History pruning on 5.2 (Nov 4, `5bb015c`):** off the main line at
+  depth <= 3 (`HIST_PRUNE_DEPTH`), a quiet move with history plus both
+  continuation histories below -4000 per ply (`HIST_PRUNE_MARGIN`) is
+  skipped once a move has been searched. Bench 2970089. vs 5.2 (8+0.08,
+  4 at a time): stopped by the owner at 2,120 games, +548 -527 =1045,
+  +3 +/- 9, LOS 78%, LLR -0.81 (flattish). **Owner: combine it with the
+  two endgame scalings** (each flattish too) and test the three together
+  vs 5.2: bench 2480606: **H0 after 886 games, -9 +/- 14**. All three
+  switched off (`FAILED_EXPERIMENTS.md`); 5.2 stays the best build.
+- **SPSA of 5.2's new values (Nov 4, owner: all 5 together, 2,000
+  pairs):** `DOUBLE_EXT_MARGIN`, `DOUBLE_EXT_MAX`, `CAPT_LMR_BASE`,
+  `CAPT_LMR_HISTORY`, `SINGULAR_MARGIN`; small steps for the small values
+  (owner: no 3-vs-9 swings for `DOUBLE_EXT_MAX`): c_end 0.4 for it (about
+  +/-1.7 at the start, +/-0.8 at the end with `--c-scale 2`), `--r-end
+  0.005`, 4 workers, state in `~/spsa-52/` (resume with `~/spsa-52/run.sh`).
+  **Done (2,000 pairs):** `SINGULAR_MARGIN` 19 -> 17.6, `DOUBLE_EXT_MARGIN`
+  20 -> 21.3, `DOUBLE_EXT_MAX` 6 -> 6.1, `CAPT_LMR_BASE` 100 -> 110,
+  `CAPT_LMR_HISTORY` 4000 -> 3867. Found then: `CAPT_LMR_BASE` was used
+  as `/ 100` in whole plies, so 100-199 all meant one ply (the tuner moved
+  a value that did nothing). **Fixed:** captures use their own table in
+  hundredths (`LMR100`), rounded down after the offset; at 100 the bench
+  is unchanged (2626846), 110 and 150 now differ. Candidate (owner: the
+  values that really changed): 18 / 21 / 3867, `CAPT_LMR_BASE` stays 100;
+  vs 5.2: -7 +/- 14 after 860 games, scrapped (`FAILED_EXPERIMENTS.md`).
+  Then an SPSA of `CAPT_LMR_BASE` alone (`~/spsa-captbase/`, 1,000 pairs
+  planned): stopped by the owner at about 440 pairs, still at 99.4 (from
+  100). The 5.2 values look close to right; **5.2 stays the best build**.
+- **Time by search effort (Nov 4, candidate):** nodes spent under each
+  root move are counted; from depth 6 (`TM_NODE_DEPTH`) the soft time is
+  also scaled by (150 - share of nodes on the best move) %
+  (`TM_NODE_BASE` 150, `TM_NODE_MUL` 100): 90% on the best move (clear)
+  -> 0.6x, 40% (contested) -> 1.1x. Motivated by the Smallbrain review (7
+  of 17 mistakes fixed with more time). Bench unchanged (2626846). **H0
+  after 2,804 games, +1 +/- 7**; switched off (`FAILED_EXPERIMENTS.md`).
+- **Surprise clock (Nov 5, invented for the owner, candidate):** after
+  each search the wrapper (`Searcher`) remembers the position after the
+  PV's first two moves (our move and the expected reply). Next search: if
+  the root is that position, the soft time is scaled by `TM_EXPECTED_PCT`
+  (85: the last search already studied it and the table is full of it),
+  otherwise by `TM_SURPRISE_PCT` (115). Checked with extreme values (30 /
+  200): 0.2 s after the expected reply (still depth 14-15), 1.9 s after a
+  surprise. Bench unchanged (2626846). **H0 after 824 games, -10 +/- 14**;
+  switched off (`FAILED_EXPERIMENTS.md`).
+- **Speed (Nov 5):** LTO on by default (`ENGINE_LTO`), about +2% nodes/s,
+  same bench; PGO about the same (+2%), not adopted (would complicate the
+  Windows build). Baseline for later tests: 5.2 rebuilt with LTO,
+  `~/matches/engine2-5.2-lto` (from `84aceee`).
+- **Threat-aware reductions (Nov 5, invented, candidate):** when the null
+  move fails, the child's PV move (its refutation of the pass) is the
+  threat; if it captures one of our pieces, moves of that piece get
+  `THREAT_LMR` (1) ply less reduction, quiet or capture. Bench 2451392.
+  **H0 after 3,836 games, +2 +/- 7**; switched off (`FAILED_EXPERIMENTS.md`).
+- **Continuation correction history retried on 5.2 (Nov 5, owner's
+  "come back to it with a new network"):** the cautious version (10% rate,
+  16 cp limit, as `3072e9a`) ported onto 5.2 (`CORR_CONT_ON` in
+  `search.h`); quiescence now records `ply_move_` for its children. Bench
+  2405352. **H0 after 1,748 games, -3 +/- 10**; off again.
+- **Engine 5.3 = ChessMcEngineFace 5.3** (owner renamed the engine; `id
+  name ChessMcEngineFace 5.3`): 5.2 plus the "bumper build" (`f1161db`):
+  endgame scaling (material 120 + fifty-move 200), threat-aware reductions
+  (1), time by search effort (150 / 100), each flat alone. **vs 5.2 (LTO)
+  H1 after 868 games**, +229 -180 =459 (52.8%), **+20 +/- 14** (cloud,
+  8+0.08, 4 at a time). Left out: history pruning (with the scalings
+  -9), continuation correction (-3), surprise clock (-10), tuned singular
+  values (-7). Also released with it: Syzygy support (`SyzygyPath`, off
+  by default) and LTO. **The new baseline**, bench **2656864**. Code only
+  (the app stays on 4.0; the next app build will show the new name).
+  Next (owner): 5.3 vs Smallbrain 7.0 (3454), tablebases for both.
+- **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
+  (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
+  TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
+  no own book, no learning) already fit. Before releasing: add a licence
+  file (none yet, so "all rights reserved"; MIT or GPL-3.0 for "open
+  source"), credit the `8moves_v3` book (from Stockfish's books repo,
+  used for datagen openings), short release notes. Originality check
+  (Nov 3): code written here (ported from Engine 1.6), magics generated
+  at startup, the network trained by our trainer on our self-play data
+  only, standard public search ideas; no copied engine code found. Be
+  open that much of the code was written with Claude if asked.
 - **Continuation correction history (after 4.0):** a fourth correction
   table keyed by the last two moves. At the non-pawn settings (`d8657e6`)
   -31 +/- 32 after 180 games, stopped (FAILED_EXPERIMENTS). Cautious
@@ -264,8 +375,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2626846** (`build/engine2 bench`, with the
-  built-in network; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2656864** (`build/engine2 bench`, with the
+  built-in network; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

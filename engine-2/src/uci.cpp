@@ -11,13 +11,14 @@
 #include "nnue.h"
 #include "position.h"
 #include "search.h"
+#include "syzygy.h"
 #include "tune.h"
 
 namespace chess {
 
 namespace {
 
-constexpr const char* ENGINE_NAME = "Engine 5.2";
+constexpr const char* ENGINE_NAME = "ChessMcEngineFace 5.3";
 constexpr const char* ENGINE_AUTHOR = "Conor O'Sullivan";
 
 std::mutex output_mutex;
@@ -81,6 +82,16 @@ void set_option(std::istringstream& in, int& move_overhead, Searcher& searcher) 
     }
     clear_eval_cache();
     searcher.new_game();  // the table holds evaluations by the old network
+    return;
+  }
+  if (name == "SyzygyPath") {
+    // Syzygy tablebase directories; empty (or "<empty>") turns them off.
+    const std::string path = value == "<empty>" ? "" : value;
+    const int pieces = tb::init(path);
+    if (!path.empty())
+      uci_send(pieces ? "info string Syzygy tablebases: up to " + std::to_string(pieces) + " pieces"
+                      : "info string no Syzygy tablebases found in " + path);
+    searcher.new_game();  // the table may hold results found without them
     return;
   }
   int n = 0;
@@ -158,6 +169,9 @@ void uci_loop() {
       uci_send("option name Hash type spin default 64 min 1 max 65536");
       uci_send("option name Move Overhead type spin default 50 min 0 max 5000");
       uci_send("option name EvalFile type string default <empty>");
+#ifdef ENGINE_SYZYGY
+      uci_send("option name SyzygyPath type string default <empty>");
+#endif
 #ifdef ENGINE_TUNE
       for (const tune::Param& p : tune::params())
         uci_send(std::string("option name ") + p.name + " type spin default " + std::to_string(*p.value) +

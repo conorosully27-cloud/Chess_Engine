@@ -1,6 +1,7 @@
 #include "evaluate.h"
 
 #include "nnue.h"
+#include "tune.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -378,9 +379,36 @@ int evaluate_uncached(const Position& pos) {
 
 }  // namespace
 
+// Endgame scaling of the network's score (not the hand-written evaluation's,
+// which Engine 1.6's reference values pin down).
+// Material: thin endgames are harder to win than the network's score says,
+// so it shrinks toward 0 below MAT_SCALE_FULL units of material (both sides:
+// pawn 1, minor 3, rook 5, queen 9; a start position has 78): times
+// (MAT_SCALE_BASE + material) / (MAT_SCALE_BASE + MAT_SCALE_FULL). 0 = off.
+TUNE_PARAM(MAT_SCALE_BASE, 120, 0, 400);
+TUNE_PARAM(MAT_SCALE_FULL, 40, 10, 78);
+// Fifty-move rule: the score shrinks as the counter runs, times
+// (FIFTY_SCALE_DIV - counter) / FIFTY_SCALE_DIV. 0 = off.
+TUNE_PARAM(FIFTY_SCALE_DIV, 200, 0, 1000);
+
+namespace {
+int scale_endgame(const Position& pos, int score) {
+  if (!nnue::loaded()) return score;
+  if (MAT_SCALE_BASE > 0) {
+    const int material = popcount(pos.pieces(PAWN)) + 3 * popcount(pos.pieces(KNIGHT) | pos.pieces(BISHOP)) +
+                         5 * popcount(pos.pieces(ROOK)) + 9 * popcount(pos.pieces(QUEEN));
+    if (material < MAT_SCALE_FULL) score = score * (MAT_SCALE_BASE + material) / (MAT_SCALE_BASE + MAT_SCALE_FULL);
+  }
+  if (FIFTY_SCALE_DIV > 0) score = score * (FIFTY_SCALE_DIV - std::min(pos.halfmove_clock(), 100)) / std::max(int(FIFTY_SCALE_DIV), 1);
+  return score;
+}
+}  // namespace
+
 int evaluate(const Position& pos) {
   EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
-  if (e.key == pos.key()) return e.score;
+  // The cache is by position, and the fifty-move counter isn't part of the
+  // key: the scaling is applied on the way out.
+  if (e.key == pos.key()) return scale_endgame(pos, e.score);
   int raw;
   if (nnue::loaded())
     raw = !pos.pieces(PAWN) && pos.insufficient_material() ? 0 : nnue::evaluate(pos);
@@ -389,7 +417,7 @@ int evaluate(const Position& pos) {
   const int score = std::clamp(raw, -EVAL_LIMIT, EVAL_LIMIT);
   e.key = pos.key();
   e.score = score;
-  return score;
+  return scale_endgame(pos, score);
 }
 
 int evaluate_material(const Position& pos) {
@@ -405,7 +433,7 @@ constexpr int LAZY_MARGIN = 300;
 
 int evaluate_lazy(const Position& pos, int alpha, int beta) {
   const EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
-  if (e.key == pos.key()) return e.score;
+  if (e.key == pos.key()) return scale_endgame(pos, e.score);
   // The shortcut uses the hand-written material values, not the network's scale.
   if (nnue::loaded()) return evaluate(pos);
   const int quick = evaluate_material(pos);

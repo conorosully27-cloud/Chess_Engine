@@ -7,6 +7,7 @@
 // It runs on its own thread so the UCI loop keeps answering while it thinks.
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -27,6 +28,11 @@ constexpr int MATE = 30000;  // mate now; mate in n plies scores MATE - n
 constexpr int INF = 32000;
 constexpr int MAX_PLY = 100;
 inline bool is_mate_score(int s) { return std::abs(s) >= MATE - MAX_PLY; }
+// A tablebase win n plies from the root scores TB_WIN - n: above every
+// evaluation, below every mate.
+constexpr int TB_WIN = MATE - 2 * MAX_PLY;
+// Continuation correction history (search.cpp): a fourth correction table.
+constexpr bool CORR_CONT_ON = false;  // flat on 5.2 too (Nov 2026)
 
 // What "go" asked for. -1 means "not given".
 struct SearchLimits {
@@ -96,6 +102,8 @@ class SearchWorker {
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).
   std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
+  std::uint64_t tbhits_ = 0;
+  std::array<std::uint64_t, 64 * 64> root_move_nodes_{};  // nodes spent under each root move (from * 64 + to)  // tablebase probes that found the position
   int double_exts_[MAX_PLY + 2] = {};  // double extensions on the line from the root to each ply
   int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
   // The continuation history row after the move made `back` plies before
@@ -105,20 +113,26 @@ class SearchWorker {
   }
   // Correction history: how far the static evaluation tends to be from the
   // search's result, learned per side to move in 1/CORR_GRAIN centipawns
-  // (search.cpp) in three tables whose entries add up: one keyed by the
-  // pawn structure and one by each side's other pieces.
+  // (search.cpp) in tables whose entries add up: one keyed by the pawn
+  // structure, one by each side's other pieces, and one by the last two
+  // moves (piece * 64 + to of each; not near the root or after a null move,
+  // when entry[3] is null).
   static constexpr int CORR_SIZE = 16384;
   std::int16_t corr_history_[COLOR_NB][CORR_SIZE] = {};
   std::int16_t corr_non_pawn_[COLOR_NB][COLOR_NB][CORR_SIZE] = {};  // [side to move][pieces' color]
+  std::vector<std::int16_t> corr_cont_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);  // [move 2 back][last move]
   struct CorrEntries {
-    std::int16_t* entry[3];
-    int total() const { return *entry[0] + *entry[1] + *entry[2]; }
+    std::int16_t* entry[4];
+    int total() const { return *entry[0] + *entry[1] + *entry[2] + (entry[3] ? *entry[3] : 0); }
   };
-  CorrEntries corr_entries(const Position& pos) {
+  CorrEntries corr_entries(const Position& pos, int ply) {
     const Color us = pos.side_to_move();
+    std::int16_t* cont = nullptr;
+    if (CORR_CONT_ON && ply >= 2 && ply_move_[ply - 1] >= 0 && ply_move_[ply - 2] >= 0)
+      cont = &corr_cont_[ply_move_[ply - 2] * CONT_INDEX + ply_move_[ply - 1]];
     return {{&corr_history_[us][pos.pawn_key() & (CORR_SIZE - 1)],
              &corr_non_pawn_[us][WHITE][pos.non_pawn_key(WHITE) & (CORR_SIZE - 1)],
-             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)]}};
+             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)], cont}};
   }
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
@@ -158,6 +172,10 @@ class Searcher {
   Position root_;
   SearchLimits limits_;
   TimeBudget budget_;
+  // The position expected after our move and the reply the last search
+  // predicted (its PV's first two moves), for the surprise clock.
+  std::uint64_t predicted_key_ = 0;
+  bool has_prediction_ = false;
 };
 
 }  // namespace chess

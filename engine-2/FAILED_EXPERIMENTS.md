@@ -5,6 +5,131 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Threat-aware reductions, on 5.2 (Nov 2026)
+
+**Change** (commit `c9906eb`, invented for the owner): when the null move
+fails, the child's PV move (its refutation of the pass) is the threat; if
+it captures one of our pieces, moves of that piece get one ply less
+reduction (`THREAT_LMR`), quiet or capture. Bench 2451392.
+
+**Result:** vs 5.2 built with LTO (cloud, 8+0.08, 4 at a time): **H0
+after 3,836 games**, +967 -949 =1920, **+2 +/- 7**, LOS 69%. It held about
++5 to +6 from 1,300 to 3,100 games, then faded.
+
+**Prior:** 5/10 (old engines used null-move threats; modern ones mostly
+don't).
+
+**Commentary:** flat, maybe a point or two. History and the other LMR
+terms seem to cover these moves already. Switched off (`THREAT_LMR` 0).
+A variant could use the threat for ordering, or extend only when the
+threatened piece is worth more than the attacker.
+
+## Surprise clock, on 5.2 (Nov 2026)
+
+**Change** (commit `96344f2`, invented for the owner): after each search
+the wrapper remembers the position after the PV's first two moves (our
+move and the expected reply). Next move: if the opponent played that
+reply, the soft time is scaled by 85% (the last search already studied
+the position, the table is full of it), otherwise by 115%. Bench
+unchanged (time only); checked with extreme values that it triggers.
+
+**Result:** vs 5.2 (cloud, 8+0.08, 4 at a time): **H0 after 824 games**,
++186 -210 =428, **-10 +/- 14**, LOS 8%, no time losses.
+
+**Prior:** 4/10 (untested idea; time shifts are usually small).
+
+**Commentary:** it hurts. Likely the expected reply is often also the
+critical one (the main line is where the fight is), so saving time there
+was a false economy, while surprises were mostly weaker replies that
+needed no extra time. Switched off (`TM_EXPECTED_PCT`, `TM_SURPRISE_PCT`
+100). The reverse (more time on the expected line) might be worth a look.
+
+## Time by search effort, on 5.2 (Nov 2026)
+
+**Change** (commit `6f50d8e`): nodes spent under each root move are
+counted; from depth 6 the soft time is also scaled by (150 - share of the
+search's nodes on the best move) %, so a best move with 90% of the effort
+(clear position) gets 0.6x and one with 40% (contested) 1.1x. Bench
+unchanged (time only). Motivated by the Smallbrain review (7 of 17
+mistakes fixed with more time).
+
+**Result:** vs 5.2 (cloud, 8+0.08, 4 at a time): **H0 after 2,804
+games**, +671 -665 =1468, **+1 +/- 7**, LOS 58%. It led +20 at 160 games
+and +13 at 418, then faded.
+
+**Prior:** 6/10 (Stockfish uses a version of it).
+
+**Commentary:** flat. 5.2's time use already reacts to best-move changes
+and score drops, which seem to carry the same signal. Switched off
+(`TM_NODE_BASE` 100, `TM_NODE_MUL` 0); the node counts stay (cheap) for
+other uses, such as root move ordering.
+
+## SPSA of 5.2's singular and capture-reduction values (Nov 2026)
+
+**Change:** an SPSA of `SINGULAR_MARGIN`, `DOUBLE_EXT_MARGIN`,
+`DOUBLE_EXT_MAX`, `CAPT_LMR_BASE`, `CAPT_LMR_HISTORY` (2,000 pairs,
+8+0.08, `~/spsa-52/`). Moved: 19 -> 17.6, 20 -> 21.3, 6 -> 6.1, 100 ->
+110 (no effect then: a whole-ply division, since fixed), 4000 -> 3867.
+Candidate with the three that changed: 18 / 21 / 3867 (commit `97ca359`,
+bench 2674412).
+
+**Result:** vs 5.2 (cloud, 8+0.08, 4 at a time), stopped by the owner
+at 860 games: +207 -224 =429, **-7 +/- 14**, LOS 17%, LLR -2.32.
+
+**Prior:** 5/10 (the guesses had hardly moved, so little to gain).
+
+**Commentary:** the guesses were already about right; the drift was
+noise. Values back to 5.2's. Next (owner): tune `CAPT_LMR_BASE` alone,
+now that it works in hundredths.
+
+## History pruning, alone and with the endgame scalings, on 5.2 (Nov 2026)
+
+**Change:** history pruning (commit `5bb015c`): off the main line at
+depth <= 3 (`HIST_PRUNE_DEPTH`), a quiet move whose history plus both
+continuation histories is below -4000 per ply (`HIST_PRUNE_MARGIN`) is
+skipped once a move has been searched. Bench 2970089. Then (owner's idea)
+together with both endgame scalings (`20e12d9`, bench 2480606).
+
+**Result** (vs 5.2, cloud, 8+0.08, 4 at a time):
+- Alone: stopped by the owner at 2,120 games, +548 -527 =1045, **+3 +/-
+  9**, LOS 78%, LLR -0.81.
+- All three together: **H0 after 886 games**, +206 -230 =450, **-9 +/-
+  14**, LOS 9%.
+
+**Prior:** 6/10 (standard in strong engines; on the plan since 3.1).
+
+**Commentary:** each alone looked +2 to +3, which was noise: together they
+lost. All three switched off (`HIST_PRUNE_DEPTH`, `MAT_SCALE_BASE`,
+`FIFTY_SCALE_DIV` 0); the code stays. Could come back in a tune, or with
+history pruning on continuation history alone, as Stash does.
+
+## Endgame scaling of the network's score, on 5.2 (Nov 2026)
+
+**Change** (`src/evaluate.cpp`, commit `48fe632`, both off by default
+there): two candidates, each alone vs 5.2 (cloud, 8+0.08, SPRT 0/10, 2
+games at a time each), stopped by the owner at 660 games:
+- **Material:** below 40 units of material (pawn 1, minor 3, rook 5,
+  queen 9; 78 at the start) the score is multiplied by (120 + material) /
+  160, so 75% with kings and pawns only (`MAT_SCALE_BASE` 120). Bench
+  2507298. **+156 -154 =350, +1 +/- 15**, LOS 55%, LLR -0.64.
+- **Fifty-move counter:** the score is multiplied by (200 - counter) /
+  200 (`FIFTY_SCALE_DIV` 200). Bench 2467733. **+167 -177 =316, -5 +/-
+  16**, LOS 26%, LLR -1.53.
+
+**Prior:** 6/10 (standard in strong engines; the Smallbrain game review
+found endgame misjudgements).
+
+**Both together** (commit `07f1d6b`, bench 2452451; vs 5.2, 4 at a
+time): the SPRT gave **H0 after 5,890 games**, +1431 -1381 =3078, +3 +/-
+5, LOS 87%. The owner had it continue (no SPRT) toward 99% LOS; stopped
+at **8,510 games** in all: +2048 -2000 =4462 (50.3%), **+2 Elo**, LOS
+about 78%. Owner: a dead end.
+
+**Commentary:** flat. The network's endgame errors are about which
+endgames are good, not how big the score is, and shrinking the score
+doesn't fix that. Switched off again (`MAT_SCALE_BASE` and
+`FIFTY_SCALE_DIV` 0 = off; the code stays for a retune or a new network).
+
 ## ProbCut from depth 4 instead of 5 (Nov 2026)
 
 **Change:** `PROBCUT_DEPTH` 4 (commit `c901da5`, bench 2487259). With the
@@ -65,6 +190,20 @@ reductions half only (`CORR_PRUNE_PCT` 0).
 **Reductions only** (`30cdaf4`, bench 3111031): vs 4.0, stopped by the
 owner at about 320 games, -14 +/- 24, LLR -1.30 (`release-matches/corrlmr/`).
 Owner: may come back to it.
+
+## Continuation correction history, retried on 5.2 (Nov 2026)
+
+**Change** (commit `395c5f9`): the cautious version (10% learning rate,
+own 16 cp limit, as `3072e9a` on 4.0) ported onto 5.2, which has the 5.0
+network (owner's note: come back to it with a new network). Bench 2405352.
+
+**Result:** vs 5.2 built with LTO (cloud, 8+0.08, 4 at a time): **H0
+after 1,748 games**, +440 -453 =855, **-3 +/- 10**, LOS 30%.
+
+**Prior:** 5/10.
+
+**Commentary:** flat again, as on 4.0. Off (`CORR_CONT_ON` false in
+`search.h`; the code stays).
 
 ## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026) — owner: a good candidate to come back to
 
