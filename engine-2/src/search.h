@@ -102,8 +102,17 @@ class SearchWorker {
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).
   std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
-  std::uint64_t tbhits_ = 0;
-  std::array<std::uint64_t, 64 * 64> root_move_nodes_{};  // nodes spent under each root move (from * 64 + to)  // tablebase probes that found the position
+  // Root moves, searched in this order: at the first depth as the main
+  // search orders moves (hash move first), then re-sorted after each search
+  // of the root by the scores it gave (moves that failed low keep their
+  // earlier order).
+  struct RootMove {
+    Move move;
+    int score = -INF;  // from the latest search of the root; -INF if it failed low
+  };
+  std::vector<RootMove> root_moves_;
+  std::uint64_t tbhits_ = 0;  // tablebase probes that found the position
+  std::array<std::uint64_t, 64 * 64> root_move_nodes_{};  // nodes spent under each root move (from * 64 + to)
   int double_exts_[MAX_PLY + 2] = {};  // double extensions on the line from the root to each ply
   int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
   // The continuation history row after the move made `back` plies before

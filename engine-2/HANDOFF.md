@@ -340,9 +340,15 @@ history behind the search and evaluation.
   200, max 3). Released early by the owner at 1,258 games; **final: vs 5.3
   H1 after 2,658 games, +669 -595 =1394 (51.4%), +10 +/- 8**, LOS 99.3%
   (cloud, 8+0.08, 4 at a time, old 1,000-opening file).
-  **The new baseline**, bench **2822382**. Next: the root move list
-  (written, in `git stash`: "root move list (not yet built)"), then SPRT
-  on 8moves_v3.
+  **The new baseline**, bench **2822382**.
+- **Root move list (Nov 5, candidate on 5.4):** `SearchWorker::root_moves_`
+  holds the root moves; depth 1 orders them as the main search does (hash
+  move, captures, killers, history), and after every search of the root
+  (aspiration re-searches too) they are stable-sorted by the score each got
+  (fail-lows keep their earlier order). The root walks this list instead of
+  the move picker. Base for MultiPV, `searchmoves`, root move ordering by
+  effort and better tablebase root handling. Bench 2694575. SPRT vs 5.4,
+  the first on 8moves_v3.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
