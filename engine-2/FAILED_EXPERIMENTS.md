@@ -5,6 +5,27 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Root move list sorted by score, on 5.4 (Nov 2026)
+
+**Change** (commit `79ad246`, reverted): the root searched a list of its
+moves, ordered at depth 1 as the main search orders moves, then
+stable-sorted after every search of the root (aspiration re-searches too)
+by the score each move got, fail-lows keeping their earlier order. Bench
+2694575 (5.4: 2822382). Meant also as the base for MultiPV, `searchmoves`
+and tablebase root filtering.
+
+**Result:** vs 5.4 (cloud, 8+0.08, 4 at a time, **8moves_v3**, the first
+test on that book): **H0 after 1,036 games**, +150 -165 =721, **-5 +/-
+11**, LOS 19%. Draw rate 70% (the balanced book).
+
+**Prior:** 6/10 (standard in strong engines).
+
+**Commentary:** 5.4's picker at the root already puts the best move
+first (hash move) and orders the rest by history, killers and captures,
+renewed every depth; a frozen score order loses that. A version that keeps
+the list (for MultiPV etc.) but orders it like the picker each depth, or
+by node counts, could keep the features without the loss.
+
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 
 **Change** (commit `c9906eb`, invented for the owner): when the null move
