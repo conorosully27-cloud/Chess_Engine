@@ -58,7 +58,7 @@ TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // it is the opponent's threat. If it captures one of our pieces, moves of
 // that piece (getting it out of the way) are reduced THREAT_LMR plies less.
 // 0 = off (flat on 5.2).
-TUNE_PARAM(THREAT_LMR, 0, 0, 3);
+TUNE_PARAM(THREAT_LMR, 1, 0, 3);
 // History pruning: at depth <= HIST_PRUNE_DEPTH off the main line, a quiet
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).
@@ -120,8 +120,8 @@ TUNE_PARAM(TM_DROP_MAX, 40, 0, 150);
 // little (its rivals needed real work) means a contested one: think on.
 // Off (base 100, mul 0): flat on 5.2.
 TUNE_PARAM(TM_NODE_DEPTH, 6, 1, 20);
-TUNE_PARAM(TM_NODE_BASE, 100, 50, 300);
-TUNE_PARAM(TM_NODE_MUL, 0, 0, 250);
+TUNE_PARAM(TM_NODE_BASE, 150, 50, 300);
+TUNE_PARAM(TM_NODE_MUL, 100, 0, 250);
 // Surprise clock: when the opponent plays the reply the last search
 // expected, that search already looked at this position (the table is full
 // of it), so the plan is scaled by TM_EXPECTED_PCT percent; after any other
