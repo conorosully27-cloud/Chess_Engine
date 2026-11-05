@@ -334,12 +334,15 @@ history behind the search and evaluation.
   **5.3 vs Smallbrain 7.0 (3454), 3-5 man tablebases for both** (10+0.1,
   8moves_v3, 4 at a time): stopped by the owner at 122 games, +22 -34 =66,
   **-34 +/- 41** (5.2 without tables had -17 +/- 21): still below 3454.
-- **Second bumper build on 5.3 (Nov 5, owner):** history pruning
-  (`HIST_PRUNE_DEPTH` 3), continuation correction history
-  (`CORR_CONT_ON`), and a stronger null move (a ply more reduction per 200
-  cp above beta, at most 3: `NULL_EVAL_DIV`, `NULL_EVAL_MAX`). Each was
-  flat alone (history pruning clashed with the endgame scaling before).
-  Bench 2822382. SPRT vs 5.3.
+- **Engine 5.4 = ChessMcEngineFace 5.4:** 5.3 plus the second bumper build
+  (`f4a0fea`): history pruning (`HIST_PRUNE_DEPTH` 3), continuation
+  correction history (`CORR_CONT_ON`), stronger null move (`NULL_EVAL_DIV`
+  200, max 3). **Released early by the owner** at 1,258 games vs 5.3: +310
+  -271 =677, **+11 +/- 11**, LOS 97.0%, LLR 1.75, SPRT still running (old
+  1,000-opening file): **update the final result in CHANGELOG.md**.
+  **The new baseline**, bench **2822382**. Next: the root move list
+  (written, in `git stash`: "root move list (not yet built)"), then SPRT
+  on 8moves_v3.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
@@ -399,8 +402,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2656864** (`build/engine2 bench`, with the
-  built-in network; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2822382** (`build/engine2 bench`, with the
+  built-in network; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
