@@ -348,9 +348,16 @@ history behind the search and evaluation.
 - **Parallel tester (Nov 5):** a second cloud session, "Chess engine: TT
   buckets SPRT vs 5.4", branch `claude/tt-buckets`: TT buckets with ageing
   on 5.4, SPRT vs 5.4 (it needed the owner's approval to build fastchess).
-- **Next here:** fractional reductions (LMR in hundredths of a ply
-  everywhere; bench must not change), then an SPSA of the LMR values
-  (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`, `CUT_NODE_LMR`, `CAPT_LMR_*`).
+- **Fractional reductions (Nov 5, done, no strength change):** every LMR
+  term is in hundredths of a ply and the total is rounded down once
+  (`LMR_PV` 100, `LMR_KILLER` 100, `CUT_NODE_LMR` now 100 = 1 ply,
+  `THREAT_LMR` now 100); bench unchanged (2822382). Quiet moves still use
+  the whole-ply table times 100 (switching them to the finer `LMR100`
+  table would change the bench).
+- **SPSA of the LMR values (Nov 5, owner's 4.6 retune request):**
+  `LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`, `CUT_NODE_LMR`, `LMR_PV`,
+  `LMR_KILLER`; 2,000 pairs, 8+0.08, 8moves_v3, `--r-end 0.005 --c-scale
+  2`, 4 workers, state in `~/spsa-lmr/` (resume with `~/spsa-lmr/run.sh`).
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
