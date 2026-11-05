@@ -347,6 +347,15 @@ history behind the search and evaluation.
   random 6-ply starts, so long tests repeated each opening several times).
   The second bumper test started before the switch and stays on the old
   book.
+- **Training run 7 (Nov 5, owner's laptop):** `train.py
+  "C:\Users\conor\nnue-data\Training\*.bin" --out
+  C:\Users\conor\nnue-nets\run7 --epochs 20`: 52 files, **394,989,080
+  training positions** (run 6: 216M), 512 units, from scratch, CUDA, about
+  33 min an epoch (~11 h). Next: SPRT `net-16/18/20` vs 5.3 (8moves_v3).
+- **Data run 8 (Nov 5, owner's laptop, during training run 7):** from 5.3
+  (`C:\Users\conor\engine-5.3-datagen.exe`), 5,000 nodes, 8moves_v3 book,
+  keep 4, into `C:\Users\conor\nnue-data\v8\v8_part-N.bin`, 20M each,
+  **seeds from 14001** (resume with a new block).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
