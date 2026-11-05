@@ -271,6 +271,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
+  tt_.new_search();
   nodes_ = 0;
   tbhits_ = 0;
   root_move_nodes_.fill(0);
@@ -405,7 +406,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
 
   // Transposition table: reuse an earlier result for this position if it
   // was searched deeply enough, or at least try its best move first.
-  TTEntry& tte = tt_.entry(pos.key());
+  bool tt_hit;
+  TTEntry& tte = tt_.probe(pos.key(), tt_hit);
   const std::uint32_t check = TranspositionTable::check(pos.key());
   // A test search with a move left out doesn't take the table's result,
   // which counts every move.
@@ -413,7 +415,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   Move tt_move;
   int tt_eval = EVAL_NONE, tt_score = 0, tt_depth = 0;
   Bound tt_bound = BOUND_NONE;
-  if (tte.bound != BOUND_NONE && tte.key == check) {
+  if (tt_hit) {
     tt_move = Move::from_raw(tte.move);
     tt_eval = tte.eval;
     tt_score = from_tt(tte.score, ply);
@@ -441,6 +443,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         tte.depth = std::int8_t(std::min(depth + 6, MAX_PLY - 1));
         tte.bound = bound;
         tte.eval = EVAL_NONE;
+        tte.age = tt_.age();
         return score;
       }
     }
@@ -509,6 +512,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
               tte.depth = std::int8_t(probcut_depth + 1);
               tte.bound = BOUND_LOWER;
               tte.eval = std::int16_t(raw_eval);
+              tte.age = tt_.age();
             }
             return score;
           }
@@ -721,6 +725,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
     tte.eval = std::int16_t(in_check ? EVAL_NONE : raw_eval);
+    tte.age = tt_.age();
   }
   return best_score;
 }
