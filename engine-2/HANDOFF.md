@@ -340,9 +340,17 @@ history behind the search and evaluation.
   200, max 3). Released early by the owner at 1,258 games; **final: vs 5.3
   H1 after 2,658 games, +669 -595 =1394 (51.4%), +10 +/- 8**, LOS 99.3%
   (cloud, 8+0.08, 4 at a time, old 1,000-opening file).
-  **The new baseline**, bench **2822382**. Next: the root move list
-  (written, in `git stash`: "root move list (not yet built)"), then SPRT
-  on 8moves_v3.
+  **The new baseline**, bench **2822382**.
+- **Root move list sorted by score (Nov 5, `79ad246`): H0 vs 5.4 after
+  1,036 games, -5 +/- 11** (the first test on 8moves_v3); reverted
+  (`FAILED_EXPERIMENTS.md`). A list kept in the picker's order could still
+  serve MultiPV / `searchmoves` without the loss.
+- **Parallel tester (Nov 5):** a second cloud session, "Chess engine: TT
+  buckets SPRT vs 5.4", branch `claude/tt-buckets`: TT buckets with ageing
+  on 5.4, SPRT vs 5.4 (it needed the owner's approval to build fastchess).
+- **Next here:** fractional reductions (LMR in hundredths of a ply
+  everywhere; bench must not change), then an SPSA of the LMR values
+  (`LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`, `CUT_NODE_LMR`, `CAPT_LMR_*`).
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
