@@ -307,6 +307,15 @@ history behind the search and evaluation.
   200): 0.2 s after the expected reply (still depth 14-15), 1.9 s after a
   surprise. Bench unchanged (2626846). **H0 after 824 games, -10 +/- 14**;
   switched off (`FAILED_EXPERIMENTS.md`).
+- **Speed (Nov 5):** LTO on by default (`ENGINE_LTO`), about +2% nodes/s,
+  same bench; PGO about the same (+2%), not adopted (would complicate the
+  Windows build). Baseline for later tests: 5.2 rebuilt with LTO,
+  `~/matches/engine2-5.2-lto` (from `84aceee`).
+- **Threat-aware reductions (Nov 5, invented, candidate):** when the null
+  move fails, the child's PV move (its refutation of the pass) is the
+  threat; if it captures one of our pieces, moves of that piece get
+  `THREAT_LMR` (1) ply less reduction, quiet or capture. Bench 2451392.
+  SPRT vs 5.2 (LTO).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

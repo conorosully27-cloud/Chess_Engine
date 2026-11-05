@@ -54,6 +54,10 @@ TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
 // Extra late move reduction at cut nodes (null-window nodes expected to
 // fail high).
 TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
+// Threat-aware reductions: when the null move fails, the reply that refuted
+// it is the opponent's threat. If it captures one of our pieces, moves of
+// that piece (getting it out of the way) are reduced THREAT_LMR plies less.
+TUNE_PARAM(THREAT_LMR, 1, 0, 3);
 // History pruning: at depth <= HIST_PRUNE_DEPTH off the main line, a quiet
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).
@@ -435,6 +439,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   if (ply > 0 && depth >= 4 && !tt_move) depth--;
 
   int raw_eval = 0, static_eval = 0;
+  Square threat_sq = NO_SQUARE;  // our piece the null move's refutation captures
   if (!in_check) {
     // The table keeps the static evaluation: reuse it rather than evaluate again.
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
@@ -453,6 +458,13 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         pos.unmake_null_move();
         if (stopped_) return 0;
         if (score >= beta) return is_mate_score(score) ? beta : score;
+        // The child's PV starts with its refutation of the pass: the threat.
+        if (pv_length_[ply + 1] > ply + 1) {
+          const Move threat = pv_table_[ply + 1][ply + 1];
+          if (threat.is_capture() && pos.piece_on(threat.to()) != NO_PIECE &&
+              color_of(pos.piece_on(threat.to())) == pos.side_to_move())
+            threat_sq = threat.to();
+        }
       }
       // ProbCut: a good capture that beats beta by a wide margin in a
       // shallower search almost surely beats beta here. Skipped when the
@@ -592,6 +604,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (pv_node) reduction--;  // less on the main line
         if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
+        if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
@@ -604,6 +617,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (pv_node) reduction--;
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
+        if (move.from() == threat_sq) reduction -= THREAT_LMR;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
