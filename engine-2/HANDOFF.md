@@ -320,7 +320,7 @@ history behind the search and evaluation.
   "come back to it with a new network"):** the cautious version (10% rate,
   16 cp limit, as `3072e9a`) ported onto 5.2 (`CORR_CONT_ON` in
   `search.h`); quiescence now records `ply_move_` for its children. Bench
-  2405352. SPRT vs 5.2 (LTO).
+  2405352. **H0 after 1,748 games, -3 +/- 10**; off again.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

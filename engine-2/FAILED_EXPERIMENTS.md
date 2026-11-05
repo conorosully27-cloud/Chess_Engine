@@ -191,6 +191,20 @@ reductions half only (`CORR_PRUNE_PCT` 0).
 owner at about 320 games, -14 +/- 24, LLR -1.30 (`release-matches/corrlmr/`).
 Owner: may come back to it.
 
+## Continuation correction history, retried on 5.2 (Nov 2026)
+
+**Change** (commit `395c5f9`): the cautious version (10% learning rate,
+own 16 cp limit, as `3072e9a` on 4.0) ported onto 5.2, which has the 5.0
+network (owner's note: come back to it with a new network). Bench 2405352.
+
+**Result:** vs 5.2 built with LTO (cloud, 8+0.08, 4 at a time): **H0
+after 1,748 games**, +440 -453 =855, **-3 +/- 10**, LOS 30%.
+
+**Prior:** 5/10.
+
+**Commentary:** flat again, as on 4.0. Off (`CORR_CONT_ON` false in
+`search.h`; the code stays).
+
 ## Continuation correction history, cautious and tuned, on 4.0 (Oct 2026) — owner: a good candidate to come back to
 
 **Change:** the table below at 10% learning rate with its own limit:
