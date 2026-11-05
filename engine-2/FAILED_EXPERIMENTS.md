@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## TT buckets, on 5.4 (Nov 2026)
+
+**Change** (commit `0ed486c`): 5-entry, 64-byte buckets (bound and a 6-bit
+search age share a byte, so entries stay 12 bytes with the eval); a probe
+checks the whole bucket, a store reuses the matching entry, else an empty
+one, else the lowest depth minus 8 per search of age. Same rules for a
+matching entry, no quiescence probes. 64 MB: 5.2M entries (5.4: 4.2M).
+Bench 2666511 (5.4: 2822382), same speed.
+
+**Result:** vs 5.4 (cloud, 8+0.08, 4 at a time, 8moves_v3): **H0 after
+754 games**, +94 -108 =552, **-6 +/- 12**, LOS 15%, pentanomial
+[4, 81, 219, 71, 2].
+
+**Prior:** 4/10 (flat three times on 2.x).
+
+**Commentary:** a fourth flat-or-worse result. At 8+0.08 the 64 MB table
+rarely fills, so better replacement has little to keep; the extra entries
+don't pay. Reverted. Only a long time control (or a small Hash) would give
+it a real chance.
+
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 
 **Change** (commit `c9906eb`, invented for the owner): when the null move
