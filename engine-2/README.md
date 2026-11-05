@@ -1,4 +1,7 @@
-# Engine 2
+# ChessMcEngineFace (Engine 2)
+
+The engine's name since 5.3 ("id name ChessMcEngineFace 5.3"); "Engine 2" is
+the folder and the project's history.
 
 New session? Start with [`HANDOFF.md`](HANDOFF.md).
 
@@ -13,7 +16,7 @@ goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
 | 1. Position: bitboards, legal move generation, make/unmake, Zobrist, FEN | done, perft matches the standard counts |
 | 2. UCI front end | done |
 | 3. Search and transposition table, evaluation ported from Engine 1 | done: **Engine 2.0**, same algorithms as 1.6, about 6x faster, +372 Elo over 1.6 |
-| 4. Speed and search improvements (2.1: speed; 2.2: SEE; 2.3: IIR and LMR; 2.7: staged move generation; 2.10: hash move kept after a fail low, +56 over 2.9; **3.0**: singular extensions, +46 over 2.10, about 3010 on Stockfish's scale; **3.1**: SPSA-tuned search values and continuation history, +15 over 3.0; **3.4**: history in late move reductions and correction history, +23 over 3.3; **4.0**: non-pawn correction history, tuned, +16 over 3.4, the first version above 3100 on Stockfish's scale; **4.1**: faster code (cheap check test, killers before quiet moves, SEE only when reached), +12 over 4.0; **4.2**: no sorting of quiet moves once all are pruned, +18 over 4.1; **4.3**: time use scaled by best-move stability and score drops, +27 over 4.2; **4.4**: history gravity, +23 over 4.3; **4.5**: capture history, +10 over 4.4; **4.6**: more reduction at cut nodes, +6 over 4.5; **5.1**: ProbCut, tuned, +12 over 5.0; **5.2**: reductions for captures and singular extension variants, +33 over 5.1) | in progress; see HANDOFF.md |
+| 4. Speed and search improvements (2.1: speed; 2.2: SEE; 2.3: IIR and LMR; 2.7: staged move generation; 2.10: hash move kept after a fail low, +56 over 2.9; **3.0**: singular extensions, +46 over 2.10, about 3010 on Stockfish's scale; **3.1**: SPSA-tuned search values and continuation history, +15 over 3.0; **3.4**: history in late move reductions and correction history, +23 over 3.3; **4.0**: non-pawn correction history, tuned, +16 over 3.4, the first version above 3100 on Stockfish's scale; **4.1**: faster code (cheap check test, killers before quiet moves, SEE only when reached), +12 over 4.0; **4.2**: no sorting of quiet moves once all are pruned, +18 over 4.1; **4.3**: time use scaled by best-move stability and score drops, +27 over 4.2; **4.4**: history gravity, +23 over 4.3; **4.5**: capture history, +10 over 4.4; **4.6**: more reduction at cut nodes, +6 over 4.5; **5.1**: ProbCut, tuned, +12 over 5.0; **5.2**: reductions for captures and singular extension variants, +33 over 5.1; **5.3**: endgame scaling, threat-aware reductions and time by search effort together, +20 over 5.2, plus Syzygy tablebases and LTO) | in progress; see HANDOFF.md |
 | 5. NNUE evaluation | **Engine 2.4**: first network, +181 Elo over 2.3; **2.5**: fully trained, +80 over 2.4; **2.6**: incremental updates (speed), +102 over 2.5; **2.8**: network trained on 2.7's games (150M positions), +105 over 2.7; **2.9**: 256-unit network, +25 over 2.8; **3.2**: network trained on 350M positions (incl. 200M from 3.0 with book openings), +88 over 3.1; **3.3**: 512-unit network and faster network code, +46 over 3.2; **5.0**: network trained on 216M positions from 3.3, 4.0 and 4.5, +21.5 against Stockfish at 3190; trainer and data generator in `scripts/nnue/`, network in `nets/` |
 
 ## Build and test
@@ -41,8 +44,11 @@ with Command `C:\...\engine-2\build\engine2.exe`, Working Directory
 `C:\...\engine-2\build`, Protocol UCI. No `.bat` file or Node.js is needed.
 Rebuild (`cmake --build build`) after each `git pull`.
 
-Options: `Hash` (transposition table size in MB, default 64) and `Move
-Overhead` (ms kept spare per move for GUI and system lag, default 50).
+Options: `Hash` (transposition table size in MB, default 64), `Move
+Overhead` (ms kept spare per move for GUI and system lag, default 50) and
+`SyzygyPath` (folder(s) of Syzygy endgame tablebases, `;`-separated on
+Windows, `:` elsewhere; empty = none). Tablebase probing uses Fathom (MIT,
+`src/fathom/`); the WebAssembly app has no tablebases.
 Besides the standard commands it understands `d` (show the board, FEN and
 hash), `eval` (static evaluation), `perft <depth>` (per-move node counts) and
 `bench [depth]` for debugging.

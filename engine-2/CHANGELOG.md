@@ -5,6 +5,47 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.3: ChessMcEngineFace — endgame scaling, threat-aware reductions, time by search effort; Syzygy and LTO
+
+**Renamed:** the engine now reports itself as **ChessMcEngineFace 5.3**
+(owner's choice; author unchanged).
+
+5.2 plus the "bumper build" (commit `f1161db`; same network): three
+changes that were each flat to slightly positive alone, together:
+**against 5.2** (built with LTO; cloud, 8+0.08, SPRT 0/10, 4 games at a
+time): **H1 accepted after 868 games**, 229 wins, 180 losses, 459 draws
+(52.8%), **+20 Elo (+/- 14)**, LOS 99.75%, no time losses. Bench
+**2656864**. Code only, no APK.
+
+- **Endgame scaling** (`src/evaluate.cpp`, network scores only): below 40
+  units of material (pawn 1, minor 3, rook 5, queen 9) the score is
+  multiplied by (120 + material) / 160 (`MAT_SCALE_BASE`,
+  `MAT_SCALE_FULL`), and by (200 - fifty-move counter) / 200
+  (`FIFTY_SCALE_DIV`). Alone: +2 over 8,510 games.
+- **Threat-aware reductions** (`src/search.cpp`): when the null move fails,
+  its refutation is the opponent's threat; if it captures one of our
+  pieces, moves of that piece are reduced a ply less (`THREAT_LMR`).
+  Alone: +2 +/- 7.
+- **Time by search effort:** nodes spent under each root move are counted;
+  from depth 6 the soft time is scaled by (150 - share of nodes on the best
+  move) % (`TM_NODE_*`): a best move that took most of the effort (clear
+  position) moves sooner, a contested one gets more time. Alone: +1 +/- 7.
+
+Also in this release, outside the SPRT:
+- **Syzygy endgame tablebases** (UCI option `SyzygyPath`, off by default):
+  Fathom (MIT, `src/fathom/`, unchanged). At the root the engine plays the
+  tables' move; in the search, win/draw/loss probes after captures and
+  pawn moves cut off. Checked on the 3-5 man tables against python-chess's
+  own reader (300 positions, 0 mismatches). With tables vs without (on
+  5.2): +20 +/- 17 over 580 games. Native build only.
+- **Link-time optimization** on by default (`ENGINE_LTO`): about 2% faster,
+  same moves.
+- `CAPT_LMR_BASE` now really in hundredths of a ply (it was a whole-ply
+  division); same behaviour at its value of 100.
+- Switched-off code from the flat experiments (history pruning,
+  continuation correction history, surprise clock): see
+  `FAILED_EXPERIMENTS.md`.
+
 ## 5.2: reductions for captures, double and negative extensions
 
 5.1 plus the changes below (commit `7a0a684`; same network).
