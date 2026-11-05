@@ -316,6 +316,11 @@ history behind the search and evaluation.
   threat; if it captures one of our pieces, moves of that piece get
   `THREAT_LMR` (1) ply less reduction, quiet or capture. Bench 2451392.
   **H0 after 3,836 games, +2 +/- 7**; switched off (`FAILED_EXPERIMENTS.md`).
+- **Continuation correction history retried on 5.2 (Nov 5, owner's
+  "come back to it with a new network"):** the cautious version (10% rate,
+  16 cp limit, as `3072e9a`) ported onto 5.2 (`CORR_CONT_ON` in
+  `search.h`); quiescence now records `ply_move_` for its children. Bench
+  2405352. SPRT vs 5.2 (LTO).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
