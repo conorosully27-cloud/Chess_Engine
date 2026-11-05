@@ -57,8 +57,9 @@ hash), `eval` (static evaluation), `perft <depth>` (per-move node counts) and
 
 `scripts/match.sh` plays engine-vs-engine matches with
 [fastchess](https://github.com/Disservin/fastchess), the match runner
-Stockfish's testing uses, on the openings in `engine-1/test/openings.epd`
-(each played with both colors):
+Stockfish's testing uses, on Stockfish's 8moves_v3 opening book
+(`scripts/8moves_v3.epd`, 34,700 lines; each played with both colors;
+until Nov 2026 `engine-1/test/openings.epd`):
 
 ```sh
 scripts/match.sh build/engine2 engine1            # 200 games vs Engine 1.6 at 8+0.08

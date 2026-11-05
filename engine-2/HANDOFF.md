@@ -340,6 +340,13 @@ history behind the search and evaluation.
   cp above beta, at most 3: `NULL_EVAL_DIV`, `NULL_EVAL_MAX`). Each was
   flat alone (history pruning clashed with the endgame scaling before).
   Bench 2822382. SPRT vs 5.3.
+- **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
+  on (`scripts/8moves_v3.epd`, 34,700 lines, made from
+  `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
+  `spsa.py`. Every earlier test used `engine-1/test/openings.epd` (1,000
+  random 6-ply starts, so long tests repeated each opening several times).
+  The second bumper test started before the switch and stays on the old
+  book.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

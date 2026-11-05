@@ -90,7 +90,7 @@ def find_fastchess():
 def opening_book():
     os.makedirs(os.path.join(ENGINE2, "matches"), exist_ok=True)
     book = os.path.join(ENGINE2, "matches", "openings.epd")
-    with open(os.path.join(ENGINE2, "..", "engine-1", "test", "openings.epd")) as f:
+    with open(os.path.join(ENGINE2, "scripts", "8moves_v3.epd")) as f:  # 8moves_v3 (since Nov 5, 2026)
         lines = [l for l in f if l.strip() and not l.startswith("#")]
     with open(book, "w") as f:
         f.writelines(lines)

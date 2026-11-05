@@ -10,7 +10,8 @@
 # Both commits are built from git (so they can always be rebuilt) into
 # ~/matches/<name>/, and fastchess plays an SPRT between them: H0 "no better"
 # (0 Elo) against H1 "at least 10 Elo better", logistic Elo, 5% errors, from
-# engine-1/test/openings.epd with each opening played by both colors. Defaults:
+# scripts/8moves_v3.epd (8moves_v3, since Nov 5, 2026; engine-1/test/openings.epd
+# before) with each opening played by both colors. Defaults:
 # 8+0.08, 3 games at a time.
 #
 # fastchess saves the whole match (settings and results so far) to
@@ -58,7 +59,7 @@ prepare() {  # engines and openings, from meta
   [ -x "$fastchess" ] || { echo "fastchess not found; see engine-2/README.md" >&2; exit 1; }
   build "$NEW" "$work/engine-new"
   build "$OLD" "$work/engine-old"
-  grep -v '^#' "$repo/engine-1/test/openings.epd" | grep -v '^$' > "$work/openings.epd"
+  grep -v '^#' "$repo/engine-2/scripts/8moves_v3.epd" | grep -v '^$' > "$work/openings.epd"
 }
 
 case "$cmd" in
