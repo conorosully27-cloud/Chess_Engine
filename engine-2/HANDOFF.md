@@ -331,7 +331,34 @@ history behind the search and evaluation.
   values (-7). Also released with it: Syzygy support (`SyzygyPath`, off
   by default) and LTO. **The new baseline**, bench **2656864**. Code only
   (the app stays on 4.0; the next app build will show the new name).
-  Next (owner): 5.3 vs Smallbrain 7.0 (3454), tablebases for both.
+  **5.3 vs Smallbrain 7.0 (3454), 3-5 man tablebases for both** (10+0.1,
+  8moves_v3, 4 at a time): stopped by the owner at 122 games, +22 -34 =66,
+  **-34 +/- 41** (5.2 without tables had -17 +/- 21): still below 3454.
+- **Engine 5.4 = ChessMcEngineFace 5.4:** 5.3 plus the second bumper build
+  (`f4a0fea`): history pruning (`HIST_PRUNE_DEPTH` 3), continuation
+  correction history (`CORR_CONT_ON`), stronger null move (`NULL_EVAL_DIV`
+  200, max 3). **Released early by the owner** at 1,258 games vs 5.3: +310
+  -271 =677, **+11 +/- 11**, LOS 97.0%, LLR 1.75, SPRT still running (old
+  1,000-opening file): **update the final result in CHANGELOG.md**.
+  **The new baseline**, bench **2822382**. Next: the root move list
+  (written, in `git stash`: "root move list (not yet built)"), then SPRT
+  on 8moves_v3.
+- **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
+  on (`scripts/8moves_v3.epd`, 34,700 lines, made from
+  `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
+  `spsa.py`. Every earlier test used `engine-1/test/openings.epd` (1,000
+  random 6-ply starts, so long tests repeated each opening several times).
+  The second bumper test started before the switch and stays on the old
+  book.
+- **Training run 7 (Nov 5, owner's laptop):** `train.py
+  "C:\Users\conor\nnue-data\Training\*.bin" --out
+  C:\Users\conor\nnue-nets\run7 --epochs 20`: 52 files, **394,989,080
+  training positions** (run 6: 216M), 512 units, from scratch, CUDA, about
+  33 min an epoch (~11 h). Next: SPRT `net-16/18/20` vs 5.3 (8moves_v3).
+- **Data run 8 (Nov 5, owner's laptop, during training run 7):** from 5.3
+  (`C:\Users\conor\engine-5.3-datagen.exe`), 5,000 nodes, 8moves_v3 book,
+  keep 4, into `C:\Users\conor\nnue-data\v8\v8_part-N.bin`, 20M each,
+  **seeds from 14001** (resume with a new block).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
@@ -375,8 +402,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2656864** (`build/engine2 bench`, with the
-  built-in network; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2822382** (`build/engine2 bench`, with the
+  built-in network; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

@@ -32,7 +32,7 @@ inline bool is_mate_score(int s) { return std::abs(s) >= MATE - MAX_PLY; }
 // evaluation, below every mate.
 constexpr int TB_WIN = MATE - 2 * MAX_PLY;
 // Continuation correction history (search.cpp): a fourth correction table.
-constexpr bool CORR_CONT_ON = false;  // flat on 5.2 too (Nov 2026)
+constexpr bool CORR_CONT_ON = true;  // alone flat on 4.0 and 5.2; in the second bumper build
 
 // What "go" asked for. -1 means "not given".
 struct SearchLimits {

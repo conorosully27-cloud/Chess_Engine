@@ -49,7 +49,7 @@ C_END = {
     "DOUBLE_EXT_MARGIN": 2.5, "DOUBLE_EXT_MAX": 0.4, "CAPT_LMR_BASE": 10, "CAPT_LMR_HISTORY": 400,
     "MAT_SCALE_BASE": 25, "MAT_SCALE_FULL": 5, "FIFTY_SCALE_DIV": 30,
     "PROBCUT_DEPTH": 1, "PROBCUT_MARGIN": 25, "PROBCUT_REDUCTION": 1,
-    "LMR_HISTORY": 400, "CUT_NODE_LMR": 1, "THREAT_LMR": 1, "HIST_PRUNE_DEPTH": 1, "HIST_PRUNE_MARGIN": 600,
+    "LMR_HISTORY": 400, "CUT_NODE_LMR": 1, "THREAT_LMR": 1, "NULL_EVAL_DIV": 30, "NULL_EVAL_MAX": 1, "HIST_PRUNE_DEPTH": 1, "HIST_PRUNE_MARGIN": 600,
     "HIST_BONUS_MUL": 25, "HIST_BONUS_SUB": 40, "HIST_BONUS_MAX": 250, "HIST_GRAVITY": 2000, "CONT_HIST_GRAVITY": 2000, "CAPT_HIST_GRAVITY": 2000,
     "CORR_LIMIT_CP": 8, "CORR_MAX_WEIGHT": 3, "CORR_NON_PAWN_RATE": 6, "CORR_CONT_RATE": 3, "CORR_CONT_LIMIT_CP": 4,
     "TM_STABLE_BASE": 15, "TM_STABLE_STEP": 3, "TM_STABLE_DEPTHS": 1, "TM_DROP_PER_CP": 1, "TM_DROP_MAX": 10, "TM_NODE_DEPTH": 1, "TM_NODE_BASE": 15, "TM_NODE_MUL": 15, "TM_EXPECTED_PCT": 8, "TM_SURPRISE_PCT": 8,
@@ -90,7 +90,7 @@ def find_fastchess():
 def opening_book():
     os.makedirs(os.path.join(ENGINE2, "matches"), exist_ok=True)
     book = os.path.join(ENGINE2, "matches", "openings.epd")
-    with open(os.path.join(ENGINE2, "..", "engine-1", "test", "openings.epd")) as f:
+    with open(os.path.join(ENGINE2, "scripts", "8moves_v3.epd")) as f:  # 8moves_v3 (since Nov 5, 2026)
         lines = [l for l in f if l.strip() and not l.startswith("#")]
     with open(book, "w") as f:
         f.writelines(lines)

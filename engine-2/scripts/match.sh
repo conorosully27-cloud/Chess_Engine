@@ -4,8 +4,11 @@
 #   scripts/match.sh <engine A> <engine B> [games] [time control] [concurrency]
 #
 # Engines are executables, or "engine1" for Engine 1.6 (node ../engine-1/uci.js).
-# Each opening from engine-1/test/openings.epd is played twice with colors
-# swapped. Defaults: 200 games, 8+0.08, 3 games at a time. Prints fastchess's
+# Openings: Stockfish's 8moves_v3 book (scripts/8moves_v3.epd, 34,700
+# balanced 8-move lines, the usual standard for engine testing), in random
+# order, each played twice with colors swapped. Before Nov 5, 2026 the tests
+# used engine-1/test/openings.epd (1,000 random 6-ply starts), which
+# repeated after 2,000 games; BOOK=../engine-1/test/openings.epd gives it back. Defaults: 200 games, 8+0.08, 3 games at a time. Prints fastchess's
 # Elo estimate; the PGN and log go to matches/ (git-ignored).
 #
 # For an SPRT instead of a fixed number of games, pass SPRT=1:
@@ -53,7 +56,7 @@ if [ -n "${BOOK:-}" ]; then
   book="$(realpath "$BOOK")"
 else
   book="$here/matches/openings.epd"
-  grep -v '^#' "$here/../engine-1/test/openings.epd" | grep -v '^$' > "$book"
+  grep -v '^#' "$here/scripts/8moves_v3.epd" | grep -v '^$' > "$book"
 fi
 stamp="$(date +%Y%m%d-%H%M%S)"
 

@@ -5,6 +5,29 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.4: history pruning, continuation correction history, stronger null move
+
+5.3 plus the "second bumper build" (commit `f4a0fea`; same network):
+three changes that were each flat alone, together. **Released early by
+the owner** (to test it elsewhere) while its SPRT against 5.3 was still
+running: at release, **1,258 games, 310 wins, 271 losses, 677 draws
+(51.5%), +11 Elo (+/- 11)**, LOS 97.0%, LLR 1.75 (cloud, 8+0.08, SPRT
+0/10, 4 games at a time; the last test on the old 1,000-opening file).
+Final result to follow. Bench **2822382**. Code only, no APK.
+
+- **History pruning:** off the main line at depth <= 3, a quiet move whose
+  history plus both continuation histories is below -4000 per ply is
+  skipped once a move has been searched (`HIST_PRUNE_*`). Alone on 5.2:
+  +3 +/- 9.
+- **Continuation correction history:** a fourth correction table keyed by
+  the last two moves, learning at 10% with its own 16 cp limit
+  (`CORR_CONT_*`). Alone: -3 on 5.2, flat on 4.0.
+- **Stronger null move:** a ply more reduction per 200 cp the static
+  evaluation is above beta, at most 3 (`NULL_EVAL_*`). Alone: flat on 2.2.
+
+Also: SPRTs, tunes and release matches now use Stockfish's 8moves_v3
+opening book (`scripts/8moves_v3.epd`, 34,700 lines).
+
 ## 5.3: ChessMcEngineFace — endgame scaling, threat-aware reductions, time by search effort; Syzygy and LTO
 
 **Renamed:** the engine now reports itself as **ChessMcEngineFace 5.3**
