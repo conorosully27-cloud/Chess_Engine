@@ -313,30 +313,6 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
     return result;
   }
 
-  // Root moves in the main search's order to start with: hash move first,
-  // then captures, killers and history.
-  {
-    const TTEntry& tte = tt_.entry(pos.key());
-    const Move tt_move =
-        tte.bound != BOUND_NONE && tte.key == TranspositionTable::check(pos.key()) ? Move::from_raw(tte.move) : Move();
-    int scores[MoveList::MAX_MOVES];
-    score_moves(pos, legal, scores, tt_move, killers_[0][0], killers_[0][1], history_);
-    std::vector<std::pair<int, Move>> order;
-    for (int i = 0; i < legal.size(); i++) order.push_back({scores[i], legal[i]});
-    std::stable_sort(order.begin(), order.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
-    root_moves_.clear();
-    for (const auto& [sc, m] : order) root_moves_.push_back({m, -INF});
-  }
-  // One search of the root, then the root moves re-sorted by what it found.
-  const auto search_root = [&](int depth, int alpha, int beta) {
-    for (RootMove& rm : root_moves_) rm.score = -INF;
-    const int score = negamax(depth, alpha, beta, 0, false, false);
-    if (!stopped_)
-      std::stable_sort(root_moves_.begin(), root_moves_.end(),
-                       [](const RootMove& a, const RootMove& b) { return a.score > b.score; });
-    return score;
-  };
-
   const int max_depth = limits.depth > 0 ? std::min(limits.depth, MAX_PLY - 1) : MAX_PLY - 1;
   int previous = 0;
   int stable_depths = 0;  // depths the best move has stayed the same
@@ -348,7 +324,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
       int delta = 35;
       int alpha = previous - delta, beta = previous + delta;
       for (;;) {
-        score = search_root(depth, alpha, beta);
+        score = negamax(depth, alpha, beta, 0, false, false);
         if (stopped_) break;
         if (score <= alpha) alpha = std::max(-INF, alpha - delta);
         else if (score >= beta) beta = std::min(INF, beta + delta);
@@ -356,7 +332,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
         delta *= 2;
       }
     } else {
-      score = search_root(depth, -INF, INF);
+      score = negamax(depth, -INF, INF, 0, false, false);
     }
     if (stopped_) break;  // an unfinished depth can't be trusted
     can_stop_ = true;
@@ -561,13 +537,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   Move best_move;
   int legal = 0;
 
-  // At the root, the root moves in their order; elsewhere the picker's.
-  std::size_t root_next = 0;
-  const auto next_move = [&]() -> Move {
-    if (ply > 0) return picker.next();
-    return root_next < root_moves_.size() ? root_moves_[root_next++].move : Move();
-  };
-  while (const Move move = next_move()) {
+  while (const Move move = picker.next()) {
     if (move == excluded || !pos.legal(move)) continue;
     const bool quiet = !move.is_capture() && !move.is_promotion();
     const Piece piece = pos.piece_on(move.from());
@@ -672,7 +642,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     pos.unmake_move();
     if (ply == 0) root_move_nodes_[move.from() * 64 + move.to()] += nodes_ - nodes_before;
     if (stopped_) return 0;
-    if (ply == 0) root_moves_[root_next - 1].score = legal == 1 || score > alpha ? score : -INF;
 
     if (score > best_score) {
       best_score = score;
