@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Surprise clock, on 5.2 (Nov 2026)
+
+**Change** (commit `96344f2`, invented for the owner): after each search
+the wrapper remembers the position after the PV's first two moves (our
+move and the expected reply). Next move: if the opponent played that
+reply, the soft time is scaled by 85% (the last search already studied
+the position, the table is full of it), otherwise by 115%. Bench
+unchanged (time only); checked with extreme values that it triggers.
+
+**Result:** vs 5.2 (cloud, 8+0.08, 4 at a time): **H0 after 824 games**,
++186 -210 =428, **-10 +/- 14**, LOS 8%, no time losses.
+
+**Prior:** 4/10 (untested idea; time shifts are usually small).
+
+**Commentary:** it hurts. Likely the expected reply is often also the
+critical one (the main line is where the fight is), so saving time there
+was a false economy, while surprises were mostly weaker replies that
+needed no extra time. Switched off (`TM_EXPECTED_PCT`, `TM_SURPRISE_PCT`
+100). The reverse (more time on the expected line) might be worth a look.
+
 ## Time by search effort, on 5.2 (Nov 2026)
 
 **Change** (commit `6f50d8e`): nodes spent under each root move are

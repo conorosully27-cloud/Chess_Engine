@@ -120,9 +120,9 @@ TUNE_PARAM(TM_NODE_MUL, 0, 0, 250);
 // Surprise clock: when the opponent plays the reply the last search
 // expected, that search already looked at this position (the table is full
 // of it), so the plan is scaled by TM_EXPECTED_PCT percent; after any other
-// reply, by TM_SURPRISE_PCT.
-TUNE_PARAM(TM_EXPECTED_PCT, 85, 30, 150);
-TUNE_PARAM(TM_SURPRISE_PCT, 115, 50, 200);
+// reply, by TM_SURPRISE_PCT. Off (100 / 100): -10 on 5.2.
+TUNE_PARAM(TM_EXPECTED_PCT, 100, 30, 150);
+TUNE_PARAM(TM_SURPRISE_PCT, 100, 50, 200);
 
 // Correction history entries are in 1/CORR_GRAIN centipawns, each within
 // +/-CORR_LIMIT_CP; each update moves every table's entry by depth + 1

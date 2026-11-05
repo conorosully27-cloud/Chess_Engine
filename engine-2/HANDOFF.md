@@ -305,7 +305,8 @@ history behind the search and evaluation.
   (85: the last search already studied it and the table is full of it),
   otherwise by `TM_SURPRISE_PCT` (115). Checked with extreme values (30 /
   200): 0.2 s after the expected reply (still depth 14-15), 1.9 s after a
-  surprise. Bench unchanged (2626846). SPRT vs 5.2.
+  surprise. Bench unchanged (2626846). **H0 after 824 games, -10 +/- 14**;
+  switched off (`FAILED_EXPERIMENTS.md`).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
