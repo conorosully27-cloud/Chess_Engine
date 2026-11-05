@@ -334,6 +334,12 @@ history behind the search and evaluation.
   **5.3 vs Smallbrain 7.0 (3454), 3-5 man tablebases for both** (10+0.1,
   8moves_v3, 4 at a time): stopped by the owner at 122 games, +22 -34 =66,
   **-34 +/- 41** (5.2 without tables had -17 +/- 21): still below 3454.
+- **Second bumper build on 5.3 (Nov 5, owner):** history pruning
+  (`HIST_PRUNE_DEPTH` 3), continuation correction history
+  (`CORR_CONT_ON`), and a stronger null move (a ply more reduction per 200
+  cp above beta, at most 3: `NULL_EVAL_DIV`, `NULL_EVAL_MAX`). Each was
+  flat alone (history pruning clashed with the endgame scaling before).
+  Bench 2822382. SPRT vs 5.3.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

@@ -54,6 +54,11 @@ TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
 // Extra late move reduction at cut nodes (null-window nodes expected to
 // fail high).
 TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
+// Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
+// evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
+// 2.2 + IIR as "stronger null move v3").
+TUNE_PARAM(NULL_EVAL_DIV, 200, 0, 1000);
+TUNE_PARAM(NULL_EVAL_MAX, 3, 0, 6);
 // Threat-aware reductions: when the null move fails, the reply that refuted
 // it is the opponent's threat. If it captures one of our pieces, moves of
 // that piece (getting it out of the way) are reduced THREAT_LMR plies less.
@@ -62,7 +67,7 @@ TUNE_PARAM(THREAT_LMR, 1, 0, 3);
 // History pruning: at depth <= HIST_PRUNE_DEPTH off the main line, a quiet
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).
-TUNE_PARAM(HIST_PRUNE_DEPTH, 0, 0, 8);
+TUNE_PARAM(HIST_PRUNE_DEPTH, 3, 0, 8);
 TUNE_PARAM(HIST_PRUNE_MARGIN, 4000, 500, 16000);
 // Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
 // (at most HIST_BONUS_MAX) for the move that cut off, the same against the
@@ -458,7 +463,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
-        const int reduction = depth >= 7 ? 3 : 2;
+        const int reduction = (depth >= 7 ? 3 : 2) +
+                              (NULL_EVAL_DIV > 0 ? std::min((static_eval - beta) / std::max(int(NULL_EVAL_DIV), 1), int(NULL_EVAL_MAX)) : 0);
         ply_move_[ply] = -1;
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, !cut_node, true);
