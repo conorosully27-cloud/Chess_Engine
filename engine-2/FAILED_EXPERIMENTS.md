@@ -5,6 +5,24 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## SPSA of the LMR values, on 5.4 (Nov 2026)
+
+**Change** (commit `ace6077`): after the fractional-reduction restructure
+(every LMR term in hundredths, bench unchanged), an SPSA of `LMR_BASE`,
+`LMR_DIV`, `LMR_HISTORY`, `CUT_NODE_LMR`, `LMR_PV`, `LMR_KILLER` (2,000
+pairs, 8+0.08, 8moves_v3, `~/spsa-lmr/`): 98 -> 95, 198 -> 218, 2600 ->
+2623, 100 -> 101, 100 -> 95, 100 -> 82. Bench 2900089. (The owner's
+retune request from 4.6.)
+
+**Result:** vs 5.4 (cloud, 8+0.08, 4 at a time, 8moves_v3): **H0 after
+2,518 games**, +379 -371 =1768, **+1 +/- 7**, LOS 62%. Draw rate 70%.
+
+**Prior:** 5/10 (the SPRT-tested values had already been tuned twice).
+
+**Commentary:** flat. The LMR values look close to right as they are.
+Back to 5.4's values; the fractional-reduction restructure stays (same
+moves as 5.4, bench 2822382).
+
 ## TT buckets, on 5.4 (Nov 2026)
 
 **Change** (commit `0ed486c`): 5-entry, 64-byte buckets (bound and a 6-bit

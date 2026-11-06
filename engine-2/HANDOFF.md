@@ -361,8 +361,9 @@ history behind the search and evaluation.
   **Done (2,000 pairs):** `LMR_BASE` 98 -> 95, `LMR_DIV` 198 -> 218,
   `LMR_HISTORY` 2600 -> 2623, `LMR_PV` 100 -> 95, `LMR_KILLER` 100 -> 82,
   `CUT_NODE_LMR` 100 -> 101 (in place in `src/search.cpp`; bench 2900089).
-  SPRT vs 5.4 (8moves_v3) started automatically by `~/spsa-lmr/after.sh`,
-  log `~/matches/lmrtuned.out`.
+  vs 5.4 (8moves_v3): **H0 after 2,518 games, +1 +/- 7**; back to 5.4's
+  values (`FAILED_EXPERIMENTS.md`). **5.4 stays the best build** (bench
+  2822382). Next big lever: training run 7's network (owner's laptop).
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
