@@ -368,11 +368,25 @@ history behind the search and evaluation.
   "C:\Users\conor\nnue-data\Training\*.bin" --out
   C:\Users\conor\nnue-nets\run7 --epochs 20`: 52 files, **394,989,080
   training positions** (run 6: 216M), 512 units, from scratch, CUDA, about
-  33 min an epoch (~11 h). Next: SPRT `net-16/18/20` vs 5.3 (8moves_v3).
+  33 min an epoch (~11 h). `net-20` became 5.5 (below).
 - **Data run 8 (Nov 5, owner's laptop, during training run 7):** from 5.3
   (`C:\Users\conor\engine-5.3-datagen.exe`), 5,000 nodes, 8moves_v3 book,
   keep 4, into `C:\Users\conor\nnue-data\v8\v8_part-N.bin`, 20M each,
   **seeds from 14001** (resume with a new block).
+- **Re-measurement (Nov 6, cloud, 800 games each, 8moves_v3):** 5.4 vs
+  5.0 **+23 +/- 13** (the recorded steps add up to +76); step by step
+  5.1 +10, 5.2 +4, 5.3 +3, 5.4 +7 (each +/- 13). The early-stopped SPRTs
+  (5.2, 5.3) overstated. Removing groups of three of 5.2-5.4's changes
+  from 5.4 cost -7, -16 and -7: no harmful change found, all kept
+  (`CHANGELOG.md`). **Rule from now on: extend an accepted SPRT to a fixed
+  800+ games (`release_match.sh extend`) before recording its Elo.**
+- **Engine 5.5 = ChessMcEngineFace 5.5:** 5.4's code with training run 7's
+  `net-20` (395M positions, 20 epochs, 512 units) as
+  `nets/engine-5.5.nnue`. vs 5.4: H1 after 388 games (+42 +/- 21), extended
+  to 800: +181 -105 =514, **+33 +/- 14** (`release-matches/net20/`).
+  **The new baseline**, bench **2808189**. `build_wasm.sh` embeds the 5.5
+  network (app not rebuilt). Next: data run 8 (from 5.3) for training run
+  8; the root move list (in `git stash`).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
@@ -416,8 +430,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2822382** (`build/engine2 bench`, with the
-  built-in network; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2808189** (`build/engine2 bench`, with the
+  built-in network; 5.4 was 2822382; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

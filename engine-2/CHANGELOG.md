@@ -5,6 +5,42 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.5: a network trained on 395M positions (run 7)
+
+5.4's code with a new 512-unit network (`nets/engine-5.5.nnue`, the
+owner's laptop run 7 `net-20.nnue`, replacing `engine-5.0.nnue`), trained
+from scratch for 20 epochs on **394,989,080 positions** (52 files; run 6
+had 216M). **Against 5.4** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games
+at a time; `release-matches/net20/`): **H1 accepted after 388 games**,
++92 -45 =251 (56.1%), +42 +/- 21, then extended to a fixed 800 games:
+**+181 -105 =514 (54.75%), +33 Elo (+/- 14)**, LOS 100%, no time losses.
+Bench **2808189**. `build_wasm.sh` now embeds the 5.5 network for the next
+app build (the app is not rebuilt).
+
+## Re-measurement of 5.1 to 5.4 (Nov 6, 2026)
+
+Each release against the one before, rebuilt from its release commit, over
+a fixed 800 games (cloud, 8+0.08, 8moves_v3, 4 games at a time,
+`scripts/match.sh` with adjudication), against the figures recorded
+above:
+
+| Step | Recorded | Re-measured |
+|---|---|---|
+| 5.0 -> 5.1 | +12 +/- 11 | +10 +/- 13 |
+| 5.1 -> 5.2 | +33 +/- 19 | +4 +/- 13 |
+| 5.2 -> 5.3 | +20 +/- 14 | +3 +/- 13 |
+| 5.3 -> 5.4 | +11 +/- 11 | +7 +/- 13 |
+
+5.4 against 5.0 directly (800 games, 3 at a time): **+23 +/- 13**, not the
++76 the recorded steps add up to. Most of the gap is in 5.2 and 5.3, whose
+SPRTs stopped early (482 and 868 games). Taking changes back out of 5.4 in
+groups of three (800 games each, against 5.4) found nothing harmful:
+reductions for captures, time by search effort and continuation
+correction history together -7 +/- 12; negative extension, endgame scaling
+and the stronger null move -16 +/- 13; double extension, threat-aware
+reductions and history pruning -7 +/- 13. All nine stay. From 5.5 on, an
+accepted SPRT is extended to a fixed length before its Elo is recorded.
+
 ## 5.4: history pruning, continuation correction history, stronger null move
 
 5.3 plus the "second bumper build" (commit `f4a0fea`; same network):
