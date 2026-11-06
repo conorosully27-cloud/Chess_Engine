@@ -364,6 +364,12 @@ history behind the search and evaluation.
   vs 5.4 (8moves_v3): **H0 after 2,518 games, +1 +/- 7**; back to 5.4's
   values (`FAILED_EXPERIMENTS.md`). **5.4 stays the best build** (bench
   2822382). Next big lever: training run 7's network (owner's laptop).
+- **SPSA convergence check (Nov 6, owner):** does the tuner find the right
+  values or stay near its start? `LMR_BASE`, `LMR_DIV`, `LMR_KILLER` started
+  far away (30, 290, 200; 5.4: 98, 198, 100; last tune: 95, 218, 82), all
+  else at 5.4's values; 2,000 pairs, same settings, `~/spsa-far/` (resume
+  with `~/spsa-far/run.sh`). Expect them back near 95-100, 200-220, 80-100
+  if the tuner works.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
