@@ -358,6 +358,11 @@ history behind the search and evaluation.
   `LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`, `CUT_NODE_LMR`, `LMR_PV`,
   `LMR_KILLER`; 2,000 pairs, 8+0.08, 8moves_v3, `--r-end 0.005 --c-scale
   2`, 4 workers, state in `~/spsa-lmr/` (resume with `~/spsa-lmr/run.sh`).
+  **Done (2,000 pairs):** `LMR_BASE` 98 -> 95, `LMR_DIV` 198 -> 218,
+  `LMR_HISTORY` 2600 -> 2623, `LMR_PV` 100 -> 95, `LMR_KILLER` 100 -> 82,
+  `CUT_NODE_LMR` 100 -> 101 (in place in `src/search.cpp`; bench 2900089).
+  SPRT vs 5.4 (8moves_v3) started automatically by `~/spsa-lmr/after.sh`,
+  log `~/matches/lmrtuned.out`.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
