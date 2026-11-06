@@ -24,7 +24,11 @@ Bench 2666511 (5.4: 2822382), same speed.
 rarely fills, so better replacement has little to keep; the extra entries
 don't pay. Reverted. **Follow-up:** with both engines at Hash 2 MB (table
 squeezed, as in long games) it passed: H1 after 480 games, +93 -55 =332,
-+28 +/- 17. A candidate for long time controls; see `HANDOFF.md`.
++28 +/- 17. But at normal Hash and a long time control (64 MB, 40+0.4,
+cloud, 4 at a time): **H0 after 676 games**, +58 -66 =552, **-4 +/- 11**,
+pentanomial [3, 50, 238, 46, 1]. Even at 40+0.4 the 64 MB table doesn't
+fill enough for the better replacement to pay; buckets only win when the
+table is badly overloaded (2 MB). Rejected for good at these settings.
 
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 
