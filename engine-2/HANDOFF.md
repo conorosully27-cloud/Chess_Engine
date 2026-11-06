@@ -368,8 +368,14 @@ history behind the search and evaluation.
   values or stay near its start? `LMR_BASE`, `LMR_DIV`, `LMR_KILLER` started
   far away (30, 290, 200; 5.4: 98, 198, 100; last tune: 95, 218, 82), all
   else at 5.4's values; 2,000 pairs, same settings, `~/spsa-far/` (resume
-  with `~/spsa-far/run.sh`). Expect them back near 95-100, 200-220, 80-100
-  if the tuner works.
+  with `~/spsa-far/run.sh`). **Result (2,000 pairs):** 37 / 278 / 189,
+  all the right way but only ~10-15% of the distance. Then `LMR_BASE`
+  alone from 30 (`~/spsa-far1/`): stayed at about 28 for 2,000 pairs.
+  **Conclusion:** at 2,000 pairs with `--r-end 0.005 --c-scale 2` the
+  tuner only moves values a little from their start, and a weak value
+  alone gets almost no signal: our SPSAs confirm the neighbourhood of the
+  start rather than find distant optima. For a real search, larger steps
+  (`--r-end`) or far more pairs.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
