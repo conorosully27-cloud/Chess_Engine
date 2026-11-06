@@ -382,6 +382,14 @@ history behind the search and evaluation.
   C:\Users\conor\nnue-nets\run7 --epochs 20`: 52 files, **394,989,080
   training positions** (run 6: 216M), 512 units, from scratch, CUDA, about
   33 min an epoch (~11 h). Next: SPRT `net-16/18/20` vs 5.3 (8moves_v3).
+- **Training run 8 (Nov 6, owner's laptop, after run 7):** the same 395M
+  positions with **1024 hidden units**: `train.py
+  "C:\Users\conor\nnue-data\Training\*.bin" --out
+  C:\Users\conor\nnue-nets\run8 --hidden 1024 --epochs 20` (about 1 h an
+  epoch). Testing needs a matching build: `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=<net>`. Compare the best 512 net (run 7) and the best 1024
+  net (run 8) against 5.4 and each other. (Training runs and data runs are
+  numbered separately.)
 - **Data run 8 (Nov 5, owner's laptop, during training run 7):** from 5.3
   (`C:\Users\conor\engine-5.3-datagen.exe`), 5,000 nodes, 8moves_v3 book,
   keep 4, into `C:\Users\conor\nnue-data\v8\v8_part-N.bin`, 20M each,
