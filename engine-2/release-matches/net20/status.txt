@@ -1,4 +1,4 @@
-saved: new-4b7abe3 vs old-5e5ce81: 388 games, +92 -45 =251
-LLR: 3.00 (102.0%) (-2.94, 2.94) [0.00, 10.00]
-SPRT ([0.00, 10.00]) completed - H1 was accepted
+saved: new-4b7abe3 vs old-5e5ce81: 800 games, +181 -105 =514
+Elo: 34.95 +/- 14.55, nElo: 59.09 +/- 24.41
+Elo: 33.11 +/- 14.42, nElo: 55.64 +/- 24.08
 Finished match
