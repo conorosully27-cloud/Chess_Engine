@@ -28,7 +28,21 @@ squeezed, as in long games) it passed: H1 after 480 games, +93 -55 =332,
 cloud, 4 at a time): **H0 after 676 games**, +58 -66 =552, **-4 +/- 11**,
 pentanomial [3, 50, 238, 46, 1]. Even at 40+0.4 the 64 MB table doesn't
 fill enough for the better replacement to pay; buckets only win when the
-table is badly overloaded (2 MB). Rejected for good at these settings.
+table is badly overloaded (2 MB). Then both at Hash 16 MB, 8+0.08:
+stopped by the owner at 1,960 games, +316 -288 =1356, **+5 +/- 8**, LOS
+88%, LLR -0.02 (it peaked at +7, LLR 1.01, at 1,460 games).
+
+| Hash, TC | Result | Elo |
+|---|---|---|
+| 2 MB, 8+0.08 | H1, 480 games | +28 +/- 17 |
+| 16 MB, 8+0.08 | stopped, 1,960 games | +5 +/- 8 |
+| 64 MB, 8+0.08 | H0, 754 games | -6 +/- 12 |
+| 64 MB, 40+0.4 | H0, 676 games | -4 +/- 11 |
+
+Buckets pay in proportion to how full the table is; at our 64 MB default
+they cost a little, probably because keeping more stored moves means IIR
+fires less and the trees grow. Rejected at these settings; only a version
+that costs nothing on an empty table would be worth another try.
 
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 

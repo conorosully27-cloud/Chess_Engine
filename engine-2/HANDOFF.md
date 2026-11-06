@@ -353,7 +353,10 @@ history behind the search and evaluation.
   isn't. **Long time control at normal Hash (64 MB, 40+0.4, cloud): H0
   after 676 games**, +58 -66 =552, **-4 +/- 11**. Not adopted: at the
   time controls we test, 64 MB never fills enough. Worth keeping in mind
-  only for analysis or very long games.
+  only for analysis or very long games. **Both at Hash 16 MB, 8+0.08:**
+  stopped by the owner at 1,960 games, +316 -288 =1356, **+5 +/- 8**, LLR
+  -0.02. The gain follows how full the table is: +28 at 2 MB, +5 at 16 MB,
+  -4 to -6 at 64 MB. Kept as an understanding result, not a candidate.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
