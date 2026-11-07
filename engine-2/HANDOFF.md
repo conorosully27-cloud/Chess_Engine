@@ -376,6 +376,10 @@ history behind the search and evaluation.
   alone gets almost no signal: our SPSAs confirm the neighbourhood of the
   start rather than find distant optima. For a real search, larger steps
   (`--r-end`) or far more pairs.
+  **Check (owner):** `LMR_BASE` 30 vs 5.4's 98 (8+0.08, 8moves_v3): **H0
+  after 642 games, +79 -94 =469, -8 +/- 13**: 30 is a little worse (or
+  equal), not much: the value matters only weakly, which is why the tuner
+  got almost no signal from it.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
