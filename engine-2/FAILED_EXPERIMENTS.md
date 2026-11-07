@@ -5,6 +5,55 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Razoring, on 5.5 (Nov 2026)
+
+**Change** (not committed; from Tucano 12's search): in the non-PV block
+after reverse futility, at depth <= 3 (`RAZOR_DEPTH`) with no hash move,
+if the static evaluation is more than 250 cp per ply (`RAZOR_MARGIN`)
+below alpha, `quiesce(alpha - 1, alpha, ply)`; if that is below alpha,
+return it. Bench 2108710.
+
+**Result:** vs 5.5 (cloud, 8+0.08, 8moves_v3, 4 at a time): **H0 after
+202 games**, +13 -88 =101, **-135 +/- 29**. No crashes or time losses.
+
+**Prior:** 4/10 (Tucano uses it; Stockfish's version has much wider
+margins).
+
+**Commentary:** far too aggressive here: quiescence sees only captures,
+so quiet defences 250-750 cp down were thrown away, and futility and
+reverse futility already cover these nodes. The size of the loss is
+unusual; a retry should be depth 1 only with a margin of 400+ cp (or
+Stockfish-style, growing with depth squared), and check the code once more.
+
+## Futility pruning to depth 6, on 5.5 (Nov 2026)
+
+**Change** (not committed): `FUT_DEPTH` 3 -> 6 (same margin, -3 + 147 cp
+per ply). Bench 2437324.
+
+**Result:** vs 5.5 (as above): **stopped by the owner at about 1,590
+games, undecided**: +253 -219 =1106 at 1,578, **+7 +/- 9**, LLR 1.15
+(39%).
+
+**Prior:** 5/10 (Tucano prunes this way to depth 8).
+
+**Commentary:** small and positive, not proven. Worth finishing, or tuning
+with the other pruning values (one SPSA over `FUT_*`, `LMP_*`, `RFP_*`,
+`HIST_PRUNE_*`).
+
+## Late move pruning to depth 5, on 5.5 (Nov 2026)
+
+**Change** (not committed): `LMP_DEPTH` 3 -> 5 (same formula, 3 +
+depth^2: 19 and 28 quiet moves at depths 4 and 5). Bench 2400388.
+
+**Result:** vs 5.5 (as above): **stopped by the owner at 1,200 games**,
++179 -179 =842, **0 +/- 10**, LLR -1.85 (heading for H0).
+
+**Prior:** 5/10 (Tucano prunes by move count to depth 8).
+
+**Commentary:** flat. The formula was tuned for depths 1-3; a tune of
+depth, base and scale together might find something, best done with the
+other pruning values.
+
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 
 **Change** (commit `c9906eb`, invented for the owner): when the null move
