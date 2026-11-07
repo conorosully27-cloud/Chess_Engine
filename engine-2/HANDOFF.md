@@ -387,6 +387,17 @@ history behind the search and evaluation.
   **The new baseline**, bench **2808189**. `build_wasm.sh` embeds the 5.5
   network (app not rebuilt). Next: data run 8 (from 5.3) for training run
   8; the root move list (in `git stash`).
+- **5.5 vs real engines (Nov 6, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64, adjudication, no tablebases):** vs
+  **Smallbrain 7.0** (1 CPU, CCRL Blitz 3454 +/- 8 on the all-versions
+  list, `rating_list_all.html`; the main list shows only its 8CPU entry,
+  3574): **H1 after 156 games**, +47 -23 =86 (57.7%), **+54 +/- 40**. vs
+  **Tucano 12.00** (3489 +/- 10; `make avx2`, network `tucano_nn03.bin`
+  from github.com/alcides-schulz/TucanoNets): **H0 after 254 games**, +41
+  -58 =155 (46.7%), **-23 +/- 24**. Together: **5.5 is about 3475 (+/- 20)
+  on CCRL Blitz** (5.2: about 3420-3440). Engines built in `~/tools/`.
+  Next target: Tucano. Other 1-CPU engines near 3500: Carp 3.0.1 (3525,
+  Rust), Lambergar 1.5 (3506, Zig), Endspiel 2.0.0 (3504).
 - **1,024-unit run, net-9 vs 5.5 (Nov 7, benchmark only):** owner's
   mid-run network, engine built with `-DENGINE_NNUE_HIDDEN=1024
   -DENGINE_NET=<net>` (separate `build-1024/`), bench 2289437. Speed
