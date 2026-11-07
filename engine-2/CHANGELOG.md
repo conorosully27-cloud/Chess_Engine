@@ -5,6 +5,19 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.6: a 1,024-unit network (run 8, net-20)
+
+5.5's code with a network twice as wide: **1,024 hidden units per side**
+(was 512), `nets/engine-5.6.nnue` (the owner's laptop run 8 `net-20.nnue`).
+`NNUE_HIDDEN` now defaults to 1024 (`src/accumulator.h`); a 512-unit net
+needs `-DENGINE_NNUE_HIDDEN=512`. About 0.8x 5.5's nodes/s (best of 5
+bench runs: 2.76M vs 3.30M). **Against 5.5** (cloud, 8+0.08, 8moves_v3,
+SPRT 0/10, 4 games at a time, 64 MB): **H1 accepted after 804 games**,
++166 -119 =519 (52.9%), **+20 Elo (+/- 14)**, LOS 99.8%, no time losses.
+(Run 8's net-9 was -26 +/- 19 over 352 games.) Bench **2435717**.
+`build_wasm.sh` embeds the 5.6 network for the next app build (the app is
+not rebuilt).
+
 ## 5.5: a network trained on 395M positions (run 7)
 
 5.4's code with a new 512-unit network (`nets/engine-5.5.nnue`, the

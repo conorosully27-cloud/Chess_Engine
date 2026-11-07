@@ -399,7 +399,15 @@ history behind the search and evaluation.
   in `nets/candidate-1024-net20.nnue`; build with `-DENGINE_NNUE_HIDDEN=1024
   -DENGINE_NET=nets/candidate-1024-net20.nnue` (fresh build folder). Not
   yet the default (accumulator.h, CMakeLists.txt, build_wasm.sh, the
-  ENGINE_NAME are unchanged); the owner starts the release test.
+  ENGINE_NAME are unchanged). **Released as 5.6** (below).
+- **Engine 5.6 = ChessMcEngineFace 5.6:** 5.5's code with run 8's net-20,
+  **1,024 hidden units** (`nets/engine-5.6.nnue`; `NNUE_HIDDEN` now 1024 by
+  default). vs 5.5: **H1 after 804 games, +20 +/- 14**. **The new
+  baseline**, bench **2435717**. Train with `--hidden 1024` (train.py's
+  default is still 512). After pulling, delete `build/`: `ENGINE_NET` is a
+  CMake cache setting, so an old build folder keeps the old network (and a
+  512 net no longer loads in a 1024 build). Run 9 (the owner's laptop):
+  same as run 8 but a different `--wdl`, to compare against run 8's net-20.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
