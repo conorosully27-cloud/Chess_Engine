@@ -385,7 +385,9 @@ history behind the search and evaluation.
   tuned on 3.0, before the 3.2/3.3/5.0 networks). 4,000 pairs, 8+0.08,
   8moves_v3, **`--r-end 0.02`** (4x the usual, after the convergence check)
   `--c-scale 2`, 4 workers, `~/spsa-prune/` (resume with
-  `~/spsa-prune/run.sh`). Then SPRT vs 5.4.
+  `~/spsa-prune/run.sh`). **Done:** `RFP_MARGIN` 94 -> 52, `FUT_MARGIN`
+  147 -> 96, `LMP_SCALE` 102 -> 141: the first tune here that travelled
+  far (bigger steps). SPRT vs 5.4.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
