@@ -392,6 +392,14 @@ history behind the search and evaluation.
   -DENGINE_NET=<net>` (separate `build-1024/`), bench 2289437. Speed
   (best of 5 bench, twice): 0.79-0.84x 5.5's nodes/s. **H0 after 352
   games**, +52 -78 =222 (46.3%), **-26 +/- 19** (cloud, 8+0.08, 4 at a time).
+- **1,024-unit run, net-20 vs 5.5 (Nov 7): H1 after 804 games**, +166
+  -119 =519 (52.9%), **+20 +/- 14**, LOS 99.8%, pentanomial [8, 78, 188,
+  115, 13] (cloud, 8+0.08, 4 at a time, 64 MB, 8moves_v3). Bench 2435717,
+  about 0.8x 5.5's nodes/s. **Candidate for the next version**: network
+  in `nets/candidate-1024-net20.nnue`; build with `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=nets/candidate-1024-net20.nnue` (fresh build folder). Not
+  yet the default (accumulator.h, CMakeLists.txt, build_wasm.sh, the
+  ENGINE_NAME are unchanged); the owner starts the release test.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
