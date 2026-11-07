@@ -40,15 +40,15 @@ stronger quiescence search.
 **Change** (not committed): `FUT_DEPTH` 3 -> 6 (same margin, -3 + 147 cp
 per ply). Bench 2437324.
 
-**Result:** vs 5.5 (as above): **stopped by the owner at about 1,590
-games, undecided**: +253 -219 =1106 at 1,578, **+7 +/- 9**, LLR 1.15
-(39%).
+**Result:** vs 5.5 (as above): paused by the owner at about 1,590 games
+(+7 +/- 9), then resumed: **H0 after 2,490 games**, +374 -367 =1749
+(50.1%), **+1 +/- 7**, LOS 61%.
 
 **Prior:** 5/10 (Tucano prunes this way to depth 8).
 
-**Commentary:** small and positive, not proven. Worth finishing, or tuning
-with the other pruning values (one SPSA over `FUT_*`, `LMP_*`, `RFP_*`,
-`HIST_PRUNE_*`).
+**Commentary:** flat: the early +7 faded. Deeper futility at the same
+margin changes little; if tried again, then only as part of one SPSA over
+`FUT_*`, `LMP_*`, `RFP_*` and `HIST_PRUNE_*`.
 
 ## Late move pruning to depth 5, on 5.5 (Nov 2026)
 
