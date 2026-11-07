@@ -343,6 +343,20 @@ history behind the search and evaluation.
   **The new baseline**, bench **2822382**. Next: the root move list
   (written, in `git stash`: "root move list (not yet built)"), then SPRT
   on 8moves_v3.
+- **TT buckets on 5.4 (Nov 5, rejected):** 5-entry,
+  64-byte buckets with age-based replacement, commit `0ed486c` (reverted
+  in `668ee12`; bench 2666511). At the normal 64 MB, 8+0.08: **H0 after
+  754 games, -6 +/- 12** (the table never fills). With the table squeezed,
+  both engines at **Hash 2 MB**, 8+0.08: **H1 after 480 games**, +93 -55
+  =332 (54.0%), **+28 +/- 17**, LOS 99.9%. So buckets help once the table
+  is full (long games, analysis, small Hash) and cost a little when it
+  isn't. **Long time control at normal Hash (64 MB, 40+0.4, cloud): H0
+  after 676 games**, +58 -66 =552, **-4 +/- 11**. Not adopted: at the
+  time controls we test, 64 MB never fills enough. Worth keeping in mind
+  only for analysis or very long games. **Both at Hash 16 MB, 8+0.08:**
+  stopped by the owner at 1,960 games, +316 -288 =1356, **+5 +/- 8**, LLR
+  -0.02. The gain follows how full the table is: +28 at 2 MB, +5 at 16 MB,
+  -4 to -6 at 64 MB. Kept as an understanding result, not a candidate.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
@@ -354,11 +368,57 @@ history behind the search and evaluation.
   "C:\Users\conor\nnue-data\Training\*.bin" --out
   C:\Users\conor\nnue-nets\run7 --epochs 20`: 52 files, **394,989,080
   training positions** (run 6: 216M), 512 units, from scratch, CUDA, about
-  33 min an epoch (~11 h). Next: SPRT `net-16/18/20` vs 5.3 (8moves_v3).
+  33 min an epoch (~11 h). `net-20` became 5.5 (below).
 - **Data run 8 (Nov 5, owner's laptop, during training run 7):** from 5.3
   (`C:\Users\conor\engine-5.3-datagen.exe`), 5,000 nodes, 8moves_v3 book,
   keep 4, into `C:\Users\conor\nnue-data\v8\v8_part-N.bin`, 20M each,
   **seeds from 14001** (resume with a new block).
+- **Re-measurement (Nov 6, cloud, 800 games each, 8moves_v3):** 5.4 vs
+  5.0 **+23 +/- 13** (the recorded steps add up to +76); step by step
+  5.1 +10, 5.2 +4, 5.3 +3, 5.4 +7 (each +/- 13). The early-stopped SPRTs
+  (5.2, 5.3) overstated. Removing groups of three of 5.2-5.4's changes
+  from 5.4 cost -7, -16 and -7: no harmful change found, all kept
+  (`CHANGELOG.md`). **Rule from now on: extend an accepted SPRT to a fixed
+  800+ games (`release_match.sh extend`) before recording its Elo.**
+- **Engine 5.5 = ChessMcEngineFace 5.5:** 5.4's code with training run 7's
+  `net-20` (395M positions, 20 epochs, 512 units) as
+  `nets/engine-5.5.nnue`. vs 5.4: H1 after 388 games (+42 +/- 21), extended
+  to 800: +181 -105 =514, **+33 +/- 14** (`release-matches/net20/`).
+  **The new baseline**, bench **2808189**. `build_wasm.sh` embeds the 5.5
+  network (app not rebuilt). Next: data run 8 (from 5.3) for training run
+  8; the root move list (in `git stash`).
+- **5.5 vs real engines (Nov 6, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64, adjudication, no tablebases):** vs
+  **Smallbrain 7.0** (1 CPU, CCRL Blitz 3454 +/- 8 on the all-versions
+  list, `rating_list_all.html`; the main list shows only its 8CPU entry,
+  3574): **H1 after 156 games**, +47 -23 =86 (57.7%), **+54 +/- 40**. vs
+  **Tucano 12.00** (3489 +/- 10; `make avx2`, network `tucano_nn03.bin`
+  from github.com/alcides-schulz/TucanoNets): **H0 after 254 games**, +41
+  -58 =155 (46.7%), **-23 +/- 24**. Together: **5.5 is about 3475 (+/- 20)
+  on CCRL Blitz** (5.2: about 3420-3440). Engines built in `~/tools/`.
+  Next target: Tucano. Other 1-CPU engines near 3500: Carp 3.0.1 (3525,
+  Rust), Lambergar 1.5 (3506, Zig), Endspiel 2.0.0 (3504).
+- **1,024-unit run, net-9 vs 5.5 (Nov 7, benchmark only):** owner's
+  mid-run network, engine built with `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=<net>` (separate `build-1024/`), bench 2289437. Speed
+  (best of 5 bench, twice): 0.79-0.84x 5.5's nodes/s. **H0 after 352
+  games**, +52 -78 =222 (46.3%), **-26 +/- 19** (cloud, 8+0.08, 4 at a time).
+- **1,024-unit run, net-20 vs 5.5 (Nov 7): H1 after 804 games**, +166
+  -119 =519 (52.9%), **+20 +/- 14**, LOS 99.8%, pentanomial [8, 78, 188,
+  115, 13] (cloud, 8+0.08, 4 at a time, 64 MB, 8moves_v3). Bench 2435717,
+  about 0.8x 5.5's nodes/s. **Candidate for the next version**: network
+  in `nets/candidate-1024-net20.nnue`; build with `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=nets/candidate-1024-net20.nnue` (fresh build folder). Not
+  yet the default (accumulator.h, CMakeLists.txt, build_wasm.sh, the
+  ENGINE_NAME are unchanged). **Released as 5.6** (below).
+- **Engine 5.6 = ChessMcEngineFace 5.6:** 5.5's code with run 8's net-20,
+  **1,024 hidden units** (`nets/engine-5.6.nnue`; `NNUE_HIDDEN` now 1024 by
+  default). vs 5.5: **H1 after 804 games, +20 +/- 14**. **The new
+  baseline**, bench **2435717**. Train with `--hidden 1024` (train.py's
+  default is still 512). After pulling, delete `build/`: `ENGINE_NET` is a
+  CMake cache setting, so an old build folder keeps the old network (and a
+  512 net no longer loads in a 1024 build). Run 9 (the owner's laptop):
+  same as run 8 but a different `--wdl`, to compare against run 8's net-20.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
@@ -402,8 +462,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2822382** (`build/engine2 bench`, with the
-  built-in network; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2808189** (`build/engine2 bench`, with the
+  built-in network; 5.4 was 2822382; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess
