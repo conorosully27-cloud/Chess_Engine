@@ -25,6 +25,16 @@ reverse futility already cover these nodes. The size of the loss is
 unusual; a retry should be depth 1 only with a margin of 400+ cp (or
 Stockfish-style, growing with depth squared), and check the code once more.
 
+**Retry, Stockfish-style margins** (not committed): no hash-move
+condition; razor when the static evaluation is more than `RAZOR_BASE` 500
++ `RAZOR_SCALE` 300 x depth^2 below alpha (800, 1,700, 3,200 cp at depths
+1-3). Bench 2585522. vs 5.5: **H0 after 404 games**, +56 -79 =269, **-20
++/- 18**. Losing even at margins this wide suggests our quiescence search
+(captures only, no hash table, SEE and delta pruning) is too weak a
+stand-in, or that futility, reverse futility and history pruning already
+cut these nodes more cheaply. Dropped; not worth a third try without a
+stronger quiescence search.
+
 ## Futility pruning to depth 6, on 5.5 (Nov 2026)
 
 **Change** (not committed): `FUT_DEPTH` 3 -> 6 (same margin, -3 + 147 cp
