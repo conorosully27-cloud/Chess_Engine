@@ -387,6 +387,11 @@ history behind the search and evaluation.
   **The new baseline**, bench **2808189**. `build_wasm.sh` embeds the 5.5
   network (app not rebuilt). Next: data run 8 (from 5.3) for training run
   8; the root move list (in `git stash`).
+- **1,024-unit run, net-9 vs 5.5 (Nov 7, benchmark only):** owner's
+  mid-run network, engine built with `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=<net>` (separate `build-1024/`), bench 2289437. Speed
+  (best of 5 bench, twice): 0.79-0.84x 5.5's nodes/s. **H0 after 352
+  games**, +52 -78 =222 (46.3%), **-26 +/- 19** (cloud, 8+0.08, 4 at a time).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
