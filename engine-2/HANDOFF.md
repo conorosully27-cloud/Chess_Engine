@@ -434,6 +434,14 @@ history behind the search and evaluation.
   **2285231**, net `nets/engine-5.7.nnue`. App not rebuilt. Owner may
   confirm at a longer time control. Delete `build/` after pulling (the
   network path is a CMake cache setting).
+- **5.7 vs Tucano 12.00 (Nov 8, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64, adjudication, no tablebases; same
+  conditions as 5.5's test):** **H1 after 382 games**, +90 -68 =224
+  (52.9%), **+20 +/- 22**, LOS 96%. Tucano 12.00 is 3489 +/- 10 on CCRL
+  Blitz (5.5 was -23 +/- 24 against it), so **5.7 is about 3500-3510**.
+  Tucano built from its `12.00` tag (`make avx2`, `tucano_nn03.bin` from
+  TucanoNets) in `~/tools/tucano-run/`. Next targets near 3500-3525:
+  Endspiel 2.0.0 (3504), Lambergar 1.5 (3506), Carp 3.0.1 (3525).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
