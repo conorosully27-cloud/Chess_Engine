@@ -387,7 +387,11 @@ history behind the search and evaluation.
   `--c-scale 2`, 4 workers, `~/spsa-prune/` (resume with
   `~/spsa-prune/run.sh`). **Done:** `RFP_MARGIN` 94 -> 52, `FUT_MARGIN`
   147 -> 96, `LMP_SCALE` 102 -> 141: the first tune here that travelled
-  far (bigger steps). SPRT vs 5.4.
+  far (bigger steps). vs 5.4: **H0 after 2,996 games, +468 -456 =2072,
+  about +1, LOS 66%**. **Owner: keep the idea** (some promise): the tuned
+  values are in commit `c26be3d`; source back to 5.4's values for now.
+  Candidates to combine with a later change or retest at a longer time
+  control.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
