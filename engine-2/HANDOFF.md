@@ -419,6 +419,15 @@ history behind the search and evaluation.
   CMake cache setting, so an old build folder keeps the old network (and a
   512 net no longer loads in a 1024 build). Run 9 (the owner's laptop):
   same as run 8 but a different `--wdl`, to compare against run 8's net-20.
+- **5.7 candidate (Nov 8, owner):** 5.6 + late move pruning to depth 5
+  (`LMP_DEPTH` 3 -> 5: 0 +/- 10 over 1,200 games on 5.5) + futility
+  pruning to depth 6 (`FUT_DEPTH` 3 -> 6: +7 +/- 9 at 1,590 games, final
+  H0 +1 +/- 7 at 2,490, on 5.5), **with run 9's net-20** (`--wdl 0.4`,
+  +15 +/- 21 over run 8's at 40+0.4 after 398 games; -2 +/- 10 at
+  8+0.08). The net is on the owner's laptop only
+  (`C:\Users\conor\nnue-nets\run9\net-20.nnue`); the repo default is
+  still 5.6's. Bench with run 9's net **2285231** (with 5.6's net
+  2205221). Owner tests it against 5.6 at 40+0.4 on the laptop.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
