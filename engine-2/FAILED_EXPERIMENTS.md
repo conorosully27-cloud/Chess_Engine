@@ -5,6 +5,22 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Training run 9: game-result weight 0.4, vs 5.6 (Nov 2026)
+
+**Change:** run 8 repeated with one difference, `train.py --wdl 0.4`
+(the game result's share of the target; run 8 used the default 0.25).
+Same data, 1,024 units, 20 epochs; net-20 tested in 5.6's code. Bench
+2434762 (5.6: 2435717). Network not kept in the repo.
+
+**Result:** vs 5.6 (cloud, 8+0.08, 4 at a time, 8moves_v3): **H0 after
+1,670 games**, +316 -326 =1028, **-2 +/- 10**, LOS 34%, pentanomial
+[23, 198, 396, 202, 16].
+
+**Prior:** 4/10.
+
+**Commentary:** no difference either way: between 0.25 and 0.4 the
+result weight barely matters at this data size. 0.25 stays the default.
+
 ## Razoring, on 5.5 (Nov 2026)
 
 **Change** (not committed; from Tucano 12's search): in the non-PV block
