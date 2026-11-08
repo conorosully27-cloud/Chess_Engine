@@ -419,6 +419,18 @@ history behind the search and evaluation.
   CMake cache setting, so an old build folder keeps the old network (and a
   512 net no longer loads in a 1024 build). Run 9 (the owner's laptop):
   same as run 8 but a different `--wdl`, to compare against run 8's net-20.
+- **5.7 candidate (Nov 8, owner):** 5.6 + the two tunes that were flat at
+  8+0.08 on 5.4 and kept for a longer time control (`claude/cool-bardeen`):
+  tuned LMR values (`ace6077`: LMR_BASE 95, LMR_DIV 218, LMR_HISTORY 2623,
+  LMR_PV 95, LMR_KILLER 82, CUT_NODE_LMR 101; it needs the fractional
+  reductions rewrite `44be401`, brought over first, bench unchanged) and
+  tuned pruning margins (`c26be3d`: RFP_MARGIN 52, FUT_MARGIN 96,
+  LMP_SCALE 141), **with run 9's net-20** (`--wdl 0.4`, +15 +/- 21 over
+  run 8's at 40+0.4 after 398 games; -2 +/- 10 at 8+0.08). The net is on
+  the owner's laptop only (`C:\Users\conor\nnue-nets\run9\net-20.nnue`),
+  so the repo default is still 5.6's. Bench with run 9's net **1767462**
+  (with 5.6's net 1793747). Owner tests it against 5.6 at 40+0.4 on the
+  laptop.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

@@ -21,20 +21,20 @@ namespace {
 // Reverse futility: at depth <= RFP_DEPTH, return when the static
 // evaluation beats beta by RFP_MARGIN per ply.
 TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
-TUNE_PARAM(RFP_MARGIN, 94, 20, 250);
+TUNE_PARAM(RFP_MARGIN, 52, 20, 250);
 
 // Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
 TUNE_PARAM(FUT_DEPTH, 3, 1, 8);
 TUNE_PARAM(FUT_BASE, -3, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 147, 40, 300);
+TUNE_PARAM(FUT_MARGIN, 96, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
 // skipped (4, 7, 12 at depths 1-3).
 TUNE_PARAM(LMP_DEPTH, 3, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 102, 25, 300);
+TUNE_PARAM(LMP_SCALE, 141, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
@@ -45,19 +45,19 @@ TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
 
 // Late move reductions by depth and move number, in hundredths of a ply:
 // LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (before tuning: 1 + ... / 2).
-TUNE_PARAM(LMR_BASE, 98, -50, 250);
-TUNE_PARAM(LMR_DIV, 198, 100, 500);
+TUNE_PARAM(LMR_BASE, 95, -50, 250);
+TUNE_PARAM(LMR_DIV, 218, 100, 500);
 // A quiet move's history (its own plus both continuation histories) takes
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
-TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
+TUNE_PARAM(LMR_HISTORY, 2623, 500, 12000);
 // The other reduction terms, all in hundredths of a ply (the total is
 // rounded down to whole plies once, at the end): less on the main line
 // (LMR_PV) and for killers (LMR_KILLER), more at cut nodes (null-window
 // nodes expected to fail high: CUT_NODE_LMR).
-TUNE_PARAM(LMR_PV, 100, 0, 300);
-TUNE_PARAM(LMR_KILLER, 100, 0, 300);
-TUNE_PARAM(CUT_NODE_LMR, 100, 0, 300);
+TUNE_PARAM(LMR_PV, 95, 0, 300);
+TUNE_PARAM(LMR_KILLER, 82, 0, 300);
+TUNE_PARAM(CUT_NODE_LMR, 101, 0, 300);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
