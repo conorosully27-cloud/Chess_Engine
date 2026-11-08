@@ -5,6 +5,20 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 5.7: run 9's network (game result weight 0.4), deeper futility and late move pruning
+
+5.6 with three changes: **run 9's net-20** (`nets/engine-5.7.nnue`, 1,024
+units; run 8 repeated with `train.py --wdl 0.4` instead of 0.25),
+**futility pruning to depth 6** (`FUT_DEPTH` 3 -> 6) and **late move
+pruning to depth 5** (`LMP_DEPTH` 3 -> 5). Separately each was flat or
+unproven: the net -2 +/- 10 vs 5.6 at 8+0.08 but +15 +/- 21 vs run 8's net
+at 40+0.4 (398 games, owner's laptop); futility +1 +/- 7 and late move
+pruning 0 +/- 10 on 5.5. **Together, against 5.6** (owner's laptop, 8+0.08,
+8moves_v3, SPRT 0/10): **H1 accepted after 1,502 games**, +330 -271 =901
+(52.0%), **+14 Elo (+/- 11)**, LOS 99.4%. Bench **2285231**.
+`build_wasm.sh` embeds the 5.7 network for the next app build (the app is
+not rebuilt).
+
 ## 5.6: a 1,024-unit network (run 8, net-20)
 
 5.5's code with a network twice as wide: **1,024 hidden units per side**

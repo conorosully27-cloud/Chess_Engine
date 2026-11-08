@@ -428,6 +428,12 @@ history behind the search and evaluation.
   (`C:\Users\conor\nnue-nets\run9\net-20.nnue`); the repo default is
   still 5.6's. Bench with run 9's net **2285231** (with 5.6's net
   2205221). Owner tests it against 5.6 at 40+0.4 on the laptop.
+- **Engine 5.7 = ChessMcEngineFace 5.7:** the candidate above, released.
+  vs 5.6 (owner's laptop, 8+0.08, 8moves_v3): **H1 after 1,502 games**,
+  +330 -271 =901 (52.0%), **+14 +/- 11**. **The new baseline**, bench
+  **2285231**, net `nets/engine-5.7.nnue`. App not rebuilt. Owner may
+  confirm at a longer time control. Delete `build/` after pulling (the
+  network path is a CMake cache setting).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
