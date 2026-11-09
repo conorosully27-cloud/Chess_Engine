@@ -446,9 +446,52 @@ history behind the search and evaluation.
   since it is clearly above Tucano (+22 +/- 13 over 1,000 games, about
   **3510 on CCRL Blitz**). Same code and network (now
   `nets/engine-6.0.nnue`), bench **2285231**. **The new baseline.**
-  Delete `build/` after pulling. App not rebuilt. Next targets near
+  Delete `build/` after pulling. App not rebuilt.
+- **6.0 vs Berserk 8 (Nov 9, CCRL Blitz 3553 +/- 14; same conditions as
+  Tucano):** **H0 after 134 games**, +15 -42 =77 (39.9%), **-71 +/- 41**:
+  about 3480 by itself; with Tucano, 6.0 is about **3500** on CCRL Blitz.
+  Berserk built from its `8` tag in `~/tools/berserk-run/` with AVX2 flags
+  by hand (the default `-march=native` build segfaults on this machine's
+  AVX-512 CPU); its default MoveOverhead (300 ms) kept. Next targets near
   3500-3525: Endspiel 2.0.0 (3504), Lambergar 1.5 (3506), Carp 3.0.1
   (3525).
+- **Gentle "improving" on 6.0 (Nov 9, `25aa38b`):** improving = static
+  eval above the one two plies earlier; reverse futility margin 45 cp
+  smaller when improving (`IMPROVING_RFP`), late quiets (6th on) at
+  non-PV nodes one ply more reduction when not improving
+  (`IMPROVING_LMR`, `IMPROVING_LMR_MOVE`). Bench 1932053 (6.0: 2285231).
+  vs 6.0 (cloud, 8+0.08): **stopped by the owner at 3,078 games, +494
+  -445 =2139, +6 +/- 7, LOS 95%** (peaked at +18 at 700 games). Counted
+  as a small gain and **kept as the base** for the next changes.
+- **TT score refines the eval (Nov 9, on top of improving, candidate):**
+  where the table's bound says its score is more accurate than the
+  static eval (exact; lower bound above it; upper bound below it), that
+  score replaces the static eval in reverse futility, null move and
+  futility (`TT_EVAL_REFINE`); "improving" and correction history keep
+  the static eval. Bench 1994733 (7% fewer nodes than improving at depth
+  16). vs improving: **H0 after 202 games, -47 +/- 25**; switched off
+  (`TT_EVAL_REFINE` 0, bench 1932053; `FAILED_EXPERIMENTS.md`) Careful retry
+  (reverse futility and null move only, raising only from entries within
+  2 plies of the node's depth): **H0 after 484 games, -13 +/- 15**; off.
+- **Deeper null move for deep nodes (Nov 9, `fc13471`, on 6.0 +
+  improving):** one more ply of null-move reduction from depth 10
+  (`NULL_DEEP_START`), another every 4 plies after (`NULL_DEEP_DIV`);
+  depths 3-9 unchanged. Bench **1887286**; 17% fewer nodes at depth 16.
+  vs 6.0 + improving (cloud, 8+0.08): **H1 after 1,032 games**, +174 -131
+  =727 (52.1%), **+14 +/- 11**, LOS 99.5%. At 8+0.08 the root reaches a
+  median depth of 14, so the rule only touches the top few plies: it
+  should matter more at longer time controls.
+- **6.1 candidate:** 6.0 + gentle improving (+6 +/- 7) + deeper null move
+  (+14 +/- 11), commit `fc13471`, bench 1887286, `~/matches/engine2-6.1cand`.
+  ENGINE_NAME unchanged; the owner starts the test against 6.0.
+  **Confirmed vs 6.0** (cloud, 8+0.08): **H1 after 1,126 games**, +174
+  -132 =820 (51.9%), **+13 +/- 10**, LOS 99.4% (it stood at +1 after 560
+  games). Ready to release as 6.1 when the owner says.
+- **Engine 6.1 = ChessMcEngineFace 6.1** (Nov 9): the candidate above,
+  released. **The new baseline**, bench **1887286**, network unchanged
+  (`nets/engine-6.0.nnue`). App not rebuilt. Next from the Berserk list:
+  recapture extension, history extension of the TT move, check extension
+  only below depth 7; and a data run at 10,000-20,000 nodes per position.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

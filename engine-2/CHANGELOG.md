@@ -5,6 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.1: gentle "improving" and a deeper null move for deep nodes
+
+6.0's network with two search changes (from studying Berserk 8):
+- **Gentle "improving":** improving = the static eval is above the one
+  two plies earlier (no information counts as improving). Reverse
+  futility margin 45 cp smaller when improving (`IMPROVING_RFP`); late
+  quiet moves (6th on) at non-PV nodes one ply more reduction when not
+  improving (`IMPROVING_LMR`, `IMPROVING_LMR_MOVE`). Alone vs 6.0: +6 +/- 7
+  over 3,078 games (stopped, LOS 95%). Earlier "improving" versions (2.10)
+  pruned far more and lost.
+- **Deeper null move for deep nodes:** one more ply of null-move
+  reduction from depth 10 (`NULL_DEEP_START`), one more every 4 plies
+  after (`NULL_DEEP_DIV`); depths 3-9 unchanged. On top of improving:
+  H1 after 1,032 games, +14 +/- 11.
+
+**Together against 6.0** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at
+a time): **H1 accepted after 1,126 games**, +174 -132 =820 (51.9%), **+13
+Elo (+/- 10)**, LOS 99.4%, no time losses. Bench **1887286**. Network
+unchanged (`nets/engine-6.0.nnue`). Also tried and switched off: the
+table's score refining the static eval in pruning (`TT_EVAL_REFINE`, two
+versions, -47 and -13; `FAILED_EXPERIMENTS.md`).
+
 ## 6.0 (released as 5.7): run 9's network (game result weight 0.4), deeper futility and late move pruning
 
 Renamed 6.0 (Nov 9) after **1,000 games against Tucano 12.00** (CCRL
