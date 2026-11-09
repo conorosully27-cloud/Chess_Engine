@@ -487,6 +487,11 @@ history behind the search and evaluation.
   **Confirmed vs 6.0** (cloud, 8+0.08): **H1 after 1,126 games**, +174
   -132 =820 (51.9%), **+13 +/- 10**, LOS 99.4% (it stood at +1 after 560
   games). Ready to release as 6.1 when the owner says.
+- **Engine 6.1 = ChessMcEngineFace 6.1** (Nov 9): the candidate above,
+  released. **The new baseline**, bench **1887286**, network unchanged
+  (`nets/engine-6.0.nnue`). App not rebuilt. Next from the Berserk list:
+  recapture extension, history extension of the TT move, check extension
+  only below depth 7; and a data run at 10,000-20,000 nodes per position.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
