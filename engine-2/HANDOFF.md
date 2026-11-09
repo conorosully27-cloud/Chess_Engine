@@ -446,7 +446,8 @@ history behind the search and evaluation.
   since it is clearly above Tucano (+22 +/- 13 over 1,000 games, about
   **3510 on CCRL Blitz**). Same code and network (now
   `nets/engine-6.0.nnue`), bench **2285231**. **The new baseline.**
-  Delete `build/` after pulling. App not rebuilt.
+  Delete `build/` after pulling. **App rebuilt with 6.0** (see Phone
+  app below).
 - **6.0 vs Berserk 8 (Nov 9, CCRL Blitz 3553 +/- 14; same conditions as
   Tucano):** **H0 after 134 games**, +15 -42 =77 (39.9%), **-71 +/- 41**:
   about 3480 by itself; with Tucano, 6.0 is about **3500** on CCRL Blitz.
@@ -522,7 +523,13 @@ history behind the search and evaluation.
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: Engine 4.0** (WebAssembly rebuilt from 4.0, skipping 3.1
+- **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
+  6.0, Android `versionCode` 9 / `versionName` "6.0"). `node
+  scripts/wasm_bench.mjs`: 2285231, the native bench. APK built with
+  `npm run apk` (`--max-workers=1`), 5.6 MB, signed with the repo's
+  `keys/debug.keystore` (SHA-256 `45c53a1f...a36bb`). Before: 5.0,
+  `versionCode` 8.
+- Earlier: **Engine 4.0** in the app (WebAssembly rebuilt from 4.0, skipping 3.1
   to 3.4; Android `versionCode` 7 / `versionName` "4.0"). `node
   scripts/wasm_bench.mjs`: 3027103, the native bench. Checked in Chromium
   at phone size: labels "Engine 4.0", a game (the engine opened 1. e4),
