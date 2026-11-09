@@ -446,7 +446,13 @@ history behind the search and evaluation.
   since it is clearly above Tucano (+22 +/- 13 over 1,000 games, about
   **3510 on CCRL Blitz**). Same code and network (now
   `nets/engine-6.0.nnue`), bench **2285231**. **The new baseline.**
-  Delete `build/` after pulling. App not rebuilt. Next targets near
+  Delete `build/` after pulling. App not rebuilt.
+- **6.0 vs Berserk 8 (Nov 9, CCRL Blitz 3553 +/- 14; same conditions as
+  Tucano):** **H0 after 134 games**, +15 -42 =77 (39.9%), **-71 +/- 41**:
+  about 3480 by itself; with Tucano, 6.0 is about **3500** on CCRL Blitz.
+  Berserk built from its `8` tag in `~/tools/berserk-run/` with AVX2 flags
+  by hand (the default `-march=native` build segfaults on this machine's
+  AVX-512 CPU); its default MoveOverhead (300 ms) kept. Next targets near
   3500-3525: Endspiel 2.0.0 (3504), Lambergar 1.5 (3506), Carp 3.0.1
   (3525).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
