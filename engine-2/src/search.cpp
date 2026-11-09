@@ -116,6 +116,8 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Recapture extension (Berserk 8): 1 on, 0 off.
+TUNE_PARAM(RECAPTURE_EXT, 1, 0, 1);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
@@ -577,6 +579,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   int best_score = -INF;
   Move best_move;
   int legal = 0;
+  // The move that led here, for the recapture extension.
+  const Move prev_move = ply > 0 ? pos.last_move() : Move();
 
   while (const Move move = picker.next()) {
     if (move == excluded || !pos.legal(move)) continue;
@@ -637,6 +641,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         extension = -1;  // other moves come close and this one is expected to cut: less effort here
       }
     }
+    // Recapture extension: on the main line, taking back on the square
+    // where the opponent just captured gets a ply more, so the exchange is
+    // seen to its end.
+    if (RECAPTURE_EXT && extension == 0 && pv_node && prev_move && prev_move.is_capture() && move.is_capture() &&
+        move.to() == prev_move.to() && ply < 2 * root_depth_)
+      extension = 1;
     const int new_depth = depth - 1 + extension;
     double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
 
