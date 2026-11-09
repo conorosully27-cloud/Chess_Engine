@@ -6,6 +6,53 @@ its measured Elo), `FAILED_EXPERIMENTS.md` (every rejected one), and Engine 1's
 `../engine-1/HANDOFF.md` and `../engine-1/FAILED_EXPERIMENTS.md` for the
 history behind the search and evaluation.
 
+## Next session: start here (Nov 9, after 6.1)
+
+**Current best: ChessMcEngineFace 6.1** on `main`, bench **1887286**,
+network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
+`--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
+12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
+build `main`, copy to `~/matches/engine2-6.1`.
+
+**To do, in order** (each an SPRT vs 6.1 at 8+0.08 unless noted):
+1. **Recapture extension** (Berserk 8): one ply more at PV nodes for a
+   recapture on the square of the previous capture. Never tried.
+2. **History extension of the TT move** (Berserk 8): one ply more when
+   the TT move's quiet history is very high (depth >= 7). Never tried.
+3. **Check extension only below depth 7** (Berserk 8; we extend every
+   check). Saves nodes deep in the tree.
+4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in
+   `claude/cool-bardeen`'s pruning tune): RFP, futility, LMP plus the new
+   `IMPROVING_*` and `NULL_DEEP_*` values; they were set by hand.
+5. **Long time control check of 6.1 vs 6.0** (40+0.4, laptop): the deeper
+   null move should gain more there.
+6. **Data run at 10,000-20,000 nodes per position** from 6.1 (laptop),
+   then train with `--hidden 1024 --wdl 0.4`. Likely the biggest lever:
+   Berserk 8 has a 512-unit net yet is ~50 Elo stronger, mostly data.
+7. **Strength checks of 6.1:** vs Tucano 12.00 (3489) and Berserk 8
+   (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
+   (3506), Carp 3.0.1 (3525), Renegade 1.1.0 / Starzix 4.0 (3550).
+
+**Settled, don't repeat:** TT buckets (help only when the table is
+overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
+(-47 and -13, off); `--wdl 0.4` alone at 8+0.08 (-2), but it helped at
+40+0.4 and is in 6.0's net.
+
+**Practical notes:**
+- Opponents are not in the repo; rebuild in `~/tools/` per machine.
+  Tucano 12.00: tag `12.00`, `make avx2`, `tucano_nn03.bin` from
+  github.com/alcides-schulz/TucanoNets next to the binary. Berserk 8: tag
+  `8`, build by hand with AVX2 flags (its `-march=native` build
+  segfaults on AVX-512 CPUs). Engine-vs-engine tests: 10+0.1, SPRT
+  -10/+10, Hash 64, 1 thread, fastchess with `dir=` for the opponent.
+- SPRTs that stop early overstate the gain (improving peaked at +18,
+  ended +6); a combined build can measure less than its parts. Confirm
+  bundles directly against the baseline.
+- Watchers stop after 2 hours: restart until the SPRT decides. Don't
+  compile while a match runs.
+- After a network change, delete `build/` (the net path is a CMake cache
+  setting). On the laptop: `-G "MinGW Makefiles"`; fastchess there too.
+
 ## Where things stand
 
 - **Engine 2.0 is Engine 1.6 ported to C++**: same search, same
