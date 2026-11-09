@@ -5,9 +5,18 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## 5.7: run 9's network (game result weight 0.4), deeper futility and late move pruning
+## 6.0 (released as 5.7): run 9's network (game result weight 0.4), deeper futility and late move pruning
 
-5.6 with three changes: **run 9's net-20** (`nets/engine-5.7.nnue`, 1,024
+Renamed 6.0 (Nov 9) after **1,000 games against Tucano 12.00** (CCRL
+Blitz 3489; cloud, 10+0.1, 8moves_v3, 1 thread, Hash 64): **+242 -178
+=580 (53.2%), +22 Elo (+/- 13)**, pentanomial [11, 105, 220, 137, 27]
+(an SPRT -10/+10, H1 after 382 games, then 618 more), so **about 3510 on
+CCRL Blitz**. The first version clearly above Tucano (5.5: -23 +/- 24).
+Same code and network as 5.7; only the name and the network's file name
+(`nets/engine-6.0.nnue`) changed. Bench **2285231**.
+
+
+5.6 with three changes: **run 9's net-20** (`nets/engine-6.0.nnue`, 1,024
 units; run 8 repeated with `train.py --wdl 0.4` instead of 0.25),
 **futility pruning to depth 6** (`FUT_DEPTH` 3 -> 6) and **late move
 pruning to depth 5** (`LMP_DEPTH` 3 -> 5). Separately each was flat or
