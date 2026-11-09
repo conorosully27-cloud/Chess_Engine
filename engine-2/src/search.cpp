@@ -72,6 +72,12 @@ TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
+// Deeper null-move reduction only for deep nodes: one more ply from depth
+// NULL_DEEP_START, one more every NULL_DEEP_DIV plies after that. Shallow
+// nodes keep 2-3 plies (bigger reductions there failed three times: the
+// null search fell into quiescence or was clamped to 1 ply).
+TUNE_PARAM(NULL_DEEP_START, 10, 6, 30);
+TUNE_PARAM(NULL_DEEP_DIV, 4, 1, 12);
 TUNE_PARAM(NULL_EVAL_DIV, 200, 0, 1000);
 TUNE_PARAM(NULL_EVAL_MAX, 3, 0, 6);
 // Threat-aware reductions: when the null move fails, the reply that refuted
@@ -498,7 +504,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && eval >= beta && has_pieces(pos)) {
-        const int reduction = (depth >= 7 ? 3 : 2) +
+        const int reduction = (depth >= 7 ? 3 : 2) + (depth >= NULL_DEEP_START ? 1 + (depth - NULL_DEEP_START) / NULL_DEEP_DIV : 0) +
                               (NULL_EVAL_DIV > 0 ? std::min((eval - beta) / std::max(int(NULL_EVAL_DIV), 1), int(NULL_EVAL_MAX)) : 0);
         ply_move_[ply] = -1;
         pos.make_null_move();
