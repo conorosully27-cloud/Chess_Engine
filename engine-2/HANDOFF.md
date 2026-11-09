@@ -484,6 +484,9 @@ history behind the search and evaluation.
 - **6.1 candidate:** 6.0 + gentle improving (+6 +/- 7) + deeper null move
   (+14 +/- 11), commit `fc13471`, bench 1887286, `~/matches/engine2-6.1cand`.
   ENGINE_NAME unchanged; the owner starts the test against 6.0.
+  **Confirmed vs 6.0** (cloud, 8+0.08): **H1 after 1,126 games**, +174
+  -132 =820 (51.9%), **+13 +/- 10**, LOS 99.4% (it stood at +1 after 560
+  games). Ready to release as 6.1 when the owner says.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
