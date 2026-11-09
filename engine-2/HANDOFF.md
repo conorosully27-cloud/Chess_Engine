@@ -473,6 +473,17 @@ history behind the search and evaluation.
   (`TT_EVAL_REFINE` 0, bench 1932053; `FAILED_EXPERIMENTS.md`) Careful retry
   (reverse futility and null move only, raising only from entries within
   2 plies of the node's depth): **H0 after 484 games, -13 +/- 15**; off.
+- **Deeper null move for deep nodes (Nov 9, `fc13471`, on 6.0 +
+  improving):** one more ply of null-move reduction from depth 10
+  (`NULL_DEEP_START`), another every 4 plies after (`NULL_DEEP_DIV`);
+  depths 3-9 unchanged. Bench **1887286**; 17% fewer nodes at depth 16.
+  vs 6.0 + improving (cloud, 8+0.08): **H1 after 1,032 games**, +174 -131
+  =727 (52.1%), **+14 +/- 11**, LOS 99.5%. At 8+0.08 the root reaches a
+  median depth of 14, so the rule only touches the top few plies: it
+  should matter more at longer time controls.
+- **6.1 candidate:** 6.0 + gentle improving (+6 +/- 7) + deeper null move
+  (+14 +/- 11), commit `fc13471`, bench 1887286, `~/matches/engine2-6.1cand`.
+  ENGINE_NAME unchanged; the owner starts the test against 6.0.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
