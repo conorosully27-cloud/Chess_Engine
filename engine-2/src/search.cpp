@@ -49,8 +49,10 @@ TUNE_PARAM(IMPROVING_RFP, 45, 0, 150);
 TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
 TUNE_PARAM(IMPROVING_LMR_MOVE, 6, 3, 20);
 
-// The table's score refines the static evaluation for pruning (1 on, 0 off).
-TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
+// The table's score refines the static evaluation in reverse futility and
+// null move (1 on, 0 off); see negamax.
+TUNE_PARAM(TT_EVAL_REFINE, 1, 0, 1);
+TUNE_PARAM(TT_REFINE_SLACK, 2, 0, 6);
 
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
 TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
@@ -473,15 +475,21 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   }
   eval_stack_[ply] = in_check ? EVAL_NONE : static_eval;
   const bool improving = !in_check && (ply < 2 || eval_stack_[ply - 2] == EVAL_NONE || static_eval > eval_stack_[ply - 2]);
-  // The table's score for this position, where its bound says it is more
-  // accurate than the static evaluation, stands in for it in the pruning
-  // decisions below (reverse futility, null move, futility). The static
-  // evaluation itself still drives "improving" and correction history.
+  // The table's score refines the static evaluation for reverse futility
+  // and null move, in the direction its bound allows: an upper bound below
+  // the static eval lowers it (any depth: it only makes those two prunings
+  // more careful), a lower bound above it raises it only from an entry
+  // nearly as deep as this node (TT_REFINE_SLACK plies; a deeper one would
+  // already have cut off above). Futility, "improving" and correction
+  // history keep the static eval.
   int eval = static_eval;
-  if (TT_EVAL_REFINE && !in_check && !excluding && tt_bound != BOUND_NONE && !is_mate_score(tt_score) &&
-      (tt_bound == BOUND_EXACT || (tt_bound == BOUND_LOWER && tt_score > static_eval) ||
-       (tt_bound == BOUND_UPPER && tt_score < static_eval)))
-    eval = tt_score;
+  if (TT_EVAL_REFINE && !in_check && !excluding && tt_bound != BOUND_NONE && !is_mate_score(tt_score)) {
+    if (tt_score < static_eval && (tt_bound == BOUND_UPPER || tt_bound == BOUND_EXACT))
+      eval = tt_score;
+    else if (tt_score > static_eval && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) &&
+             tt_depth >= depth - TT_REFINE_SLACK)
+      eval = tt_score;
+  }
   if (!in_check) {
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it
@@ -545,7 +553,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
   const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
