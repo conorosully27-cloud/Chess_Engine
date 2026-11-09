@@ -469,7 +469,8 @@ history behind the search and evaluation.
   score replaces the static eval in reverse futility, null move and
   futility (`TT_EVAL_REFINE`); "improving" and correction history keep
   the static eval. Bench 1994733 (7% fewer nodes than improving at depth
-  16). SPRT against the improving build.
+  16). vs improving: **H0 after 202 games, -47 +/- 25**; switched off
+  (`TT_EVAL_REFINE` 0, bench 1932053; `FAILED_EXPERIMENTS.md`).
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

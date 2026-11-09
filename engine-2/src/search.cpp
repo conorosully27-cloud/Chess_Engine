@@ -50,7 +50,7 @@ TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
 TUNE_PARAM(IMPROVING_LMR_MOVE, 6, 3, 20);
 
 // The table's score refines the static evaluation for pruning (1 on, 0 off).
-TUNE_PARAM(TT_EVAL_REFINE, 1, 0, 1);
+TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
 
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
 TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
