@@ -455,6 +455,21 @@ history behind the search and evaluation.
   AVX-512 CPU); its default MoveOverhead (300 ms) kept. Next targets near
   3500-3525: Endspiel 2.0.0 (3504), Lambergar 1.5 (3506), Carp 3.0.1
   (3525).
+- **Gentle "improving" on 6.0 (Nov 9, `25aa38b`):** improving = static
+  eval above the one two plies earlier; reverse futility margin 45 cp
+  smaller when improving (`IMPROVING_RFP`), late quiets (6th on) at
+  non-PV nodes one ply more reduction when not improving
+  (`IMPROVING_LMR`, `IMPROVING_LMR_MOVE`). Bench 1932053 (6.0: 2285231).
+  vs 6.0 (cloud, 8+0.08): **stopped by the owner at 3,078 games, +494
+  -445 =2139, +6 +/- 7, LOS 95%** (peaked at +18 at 700 games). Counted
+  as a small gain and **kept as the base** for the next changes.
+- **TT score refines the eval (Nov 9, on top of improving, candidate):**
+  where the table's bound says its score is more accurate than the
+  static eval (exact; lower bound above it; upper bound below it), that
+  score replaces the static eval in reverse futility, null move and
+  futility (`TT_EVAL_REFINE`); "improving" and correction history keep
+  the static eval. Bench 1994733 (7% fewer nodes than improving at depth
+  16). SPRT against the improving build.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
