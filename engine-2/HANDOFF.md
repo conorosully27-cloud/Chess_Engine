@@ -470,7 +470,9 @@ history behind the search and evaluation.
   futility (`TT_EVAL_REFINE`); "improving" and correction history keep
   the static eval. Bench 1994733 (7% fewer nodes than improving at depth
   16). vs improving: **H0 after 202 games, -47 +/- 25**; switched off
-  (`TT_EVAL_REFINE` 0, bench 1932053; `FAILED_EXPERIMENTS.md`).
+  (`TT_EVAL_REFINE` 0, bench 1932053; `FAILED_EXPERIMENTS.md`) Careful retry
+  (reverse futility and null move only, raising only from entries within
+  2 plies of the node's depth): **H0 after 484 games, -13 +/- 15**; off.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,

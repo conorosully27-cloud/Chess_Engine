@@ -51,7 +51,7 @@ TUNE_PARAM(IMPROVING_LMR_MOVE, 6, 3, 20);
 
 // The table's score refines the static evaluation in reverse futility and
 // null move (1 on, 0 off); see negamax.
-TUNE_PARAM(TT_EVAL_REFINE, 1, 0, 1);
+TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
 TUNE_PARAM(TT_REFINE_SLACK, 2, 0, 6);
 
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);

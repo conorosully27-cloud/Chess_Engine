@@ -26,6 +26,15 @@ tuned for the static eval alone. Switched off (`TT_EVAL_REFINE` 0; bench
 back to 1932053). If retried: only entries at least as deep as the node,
 and only in reverse futility and null move.
 
+**Retry, careful version (commit `6451fe2`):** only reverse futility and
+null move; an upper bound below the static eval lowers it (any depth), a
+lower bound above it raises it only from an entry within 2 plies of the
+node's depth; futility keeps the static eval. Bench 1763936; depth-16
+nodes about equal to improving's (+0.6%). vs 6.0 + improving: **H0 after
+484 games**, +57 -75 =352, **-13 +/- 15**. Much less harmful, still no
+gain: our margins and correction history already account for what the
+table adds. Off again (`TT_EVAL_REFINE` 0, bench 1932053).
+
 ## Training run 9: game-result weight 0.4, vs 5.6 (Nov 2026)
 
 **Change:** run 8 repeated with one difference, `train.py --wdl 0.4`
