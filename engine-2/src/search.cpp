@@ -116,8 +116,14 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
-// Recapture extension (Berserk 8): 1 on, 0 off.
-TUNE_PARAM(RECAPTURE_EXT, 1, 0, 1);
+// Recapture extension (Berserk 8): 1 on, 0 off. Off: -10 +/- 13 vs 6.1
+// (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
+// History extension (Berserk 8): from HIST_EXT_DEPTH, a quiet hash move
+// whose history (main + both continuation rows, each at most 16384) is at
+// least HIST_EXT_MIN gets a ply more, when the singular test gave none.
+TUNE_PARAM(HIST_EXT_DEPTH, 7, 4, 14);
+TUNE_PARAM(HIST_EXT_MIN, 20000, 8000, 45000);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
@@ -647,6 +653,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (RECAPTURE_EXT && extension == 0 && pv_node && prev_move && prev_move.is_capture() && move.is_capture() &&
         move.to() == prev_move.to() && ply < 2 * root_depth_)
       extension = 1;
+    if (extension == 0 && move == tt_move && quiet && depth >= HIST_EXT_DEPTH && ply > 0 && ply < 2 * root_depth_) {
+      const int index = piece * 64 + move.to();
+      const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+      if (history >= HIST_EXT_MIN) extension = 1;
+    }
     const int new_depth = depth - 1 + extension;
     double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
 
