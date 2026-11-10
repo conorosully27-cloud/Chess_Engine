@@ -33,6 +33,14 @@ build `main`, copy to `~/matches/engine2-6.1`.
    (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
    (3506), Carp 3.0.1 (3525), Renegade 1.1.0 / Starzix 4.0 (3550).
 
+**Done since (Nov 10): early SPSA values on 6.1** (owner's tune at 2,380
+of 4,000 pairs, commit `cb3e924`): RFP_MARGIN 90, FUT_MARGIN 174,
+LMP_SCALE 85, IMPROVING_RFP 72, IMPROVING_LMR_MOVE 9, NULL_DEEP_START 7,
+NULL_DEEP_DIV 3. Bench **1531486**. vs 6.1 (cloud, 8+0.08): **H1 after 960
+games**, +154 -115 =691 (52.0%), **+14 +/- 11**, LOS 99.5% (it read +37
+at 180 games and +9 at 340). **6.2 candidate**; the finished tune's
+values are worth testing against it.
+
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
 (-47 and -13, off); `--wdl 0.4` alone at 8+0.08 (-2), but it helped at
