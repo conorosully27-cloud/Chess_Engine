@@ -8,13 +8,14 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.1** on `main`, bench **1887286**,
+**Current best: ChessMcEngineFace 6.2** on `main`, bench **1531486** (6.1: 1887286),
 network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 `--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
 12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
-build `main`, copy to `~/matches/engine2-6.1`.
+build `main`, copy to `~/matches/engine2-6.2`.
 
-**To do, in order** (each an SPRT vs 6.1 at 8+0.08 unless noted):
+**To do, in order** (each an SPRT vs 6.2 at 8+0.08 unless noted; items 1-4
+were run against 6.1):
 1. ~~**Recapture extension**~~: **rejected** (Nov 10), -10 +/- 13 vs 6.1
    after 612 games (H0); off by default, see `FAILED_EXPERIMENTS.md`.
 2. ~~**History extension of the TT move**~~: **rejected** (Nov 10), -15
@@ -53,6 +54,20 @@ build `main`, copy to `~/matches/engine2-6.1`.
 7. **Strength checks of 6.1:** vs Tucano 12.00 (3489) and Berserk 8
    (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
    (3506), Carp 3.0.1 (3525), Renegade 1.1.0 / Starzix 4.0 (3550).
+
+**Done since (Nov 10): early SPSA values on 6.1** (owner's tune at 2,380
+of 4,000 pairs, commit `cb3e924`): RFP_MARGIN 90, FUT_MARGIN 174,
+LMP_SCALE 85, IMPROVING_RFP 72, IMPROVING_LMR_MOVE 9, NULL_DEEP_START 7,
+NULL_DEEP_DIV 3. Bench **1531486**. vs 6.1 (cloud, 8+0.08): **H1 after 960
+games**, +154 -115 =691 (52.0%), **+14 +/- 11**, LOS 99.5% (it read +37
+at 180 games and +9 at 340). **Released as ChessMcEngineFace 6.2**
+(the new baseline, bench 1531486, network unchanged). Version convention
+(owner): 6.x for new features, 6.x.y for retunes; the finished tune
+(4,000 pairs) gets an SPRT against 6.2 and becomes **6.2.1** if it wins.
+**Owner (Nov 10): "any bit better with confidence"**, so that SPRT uses
+bounds 0 / 5 (`ELO1=5`, new in `match.sh`) instead of 0 / 10. The
+candidate is 6.2 with the final tuned values **and** the held check
+extension (the tune ran with it on), baseline `~/matches/engine2-6.2`.
 
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
