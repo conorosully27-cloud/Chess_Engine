@@ -25,7 +25,14 @@ build `main`, copy to `~/matches/engine2-6.1`.
    8+0.08, **H0 after 2,616 games**, +378 -369 =1869 (50.2%), **+1 +/- 7**
    (a first run, cut at 220 games by a container restart, stood at +38
    -25). Flat, so retried at **40+0.4** (cloud, 4 at a time,
-   `~/matches/checkext7-40.log`): running.
+   `~/matches/checkext7-40.log`): **stopped by the owner at 1,500
+   games**, +163 -133 =1204 (51.0%), **+7 +/- 7**, LOS 96.6%, LLR 1.35
+   (46%). It held +7 to +9 from game 320 on. **Held, not released**
+   (owner, Nov 10): likely a small real gain, under the 10 Elo the SPRT
+   asks for; pair it with another change and confirm the bundle directly
+   against 6.1. It stays on in the code (`CHECK_EXT_DEPTH` 7, bench
+   1521738), so the next tests run on top of it; binary
+   `~/matches/engine2-checkext7`. To drop it: `CHECK_EXT_DEPTH` 128.
 4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in
    `claude/cool-bardeen`'s pruning tune): RFP, futility, LMP plus the new
    `IMPROVING_*` and `NULL_DEEP_*` values; they were set by hand.
