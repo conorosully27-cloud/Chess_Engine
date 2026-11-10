@@ -17,8 +17,8 @@ build `main`, copy to `~/matches/engine2-6.1`.
 **To do, in order** (each an SPRT vs 6.1 at 8+0.08 unless noted):
 1. ~~**Recapture extension**~~: **rejected** (Nov 10), -10 +/- 13 vs 6.1
    after 612 games (H0); off by default, see `FAILED_EXPERIMENTS.md`.
-2. **History extension of the TT move** (Berserk 8): one ply more when
-   the TT move's quiet history is very high (depth >= 7). Never tried.
+2. ~~**History extension of the TT move**~~: **rejected** (Nov 10), -15
+   +/- 16 vs 6.1 after 374 games (H0); off, see `FAILED_EXPERIMENTS.md`.
 3. **Check extension only below depth 7** (Berserk 8; we extend every
    check). Saves nodes deep in the tree.
 4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in

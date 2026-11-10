@@ -122,6 +122,8 @@ TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
 // History extension (Berserk 8): from HIST_EXT_DEPTH, a quiet hash move
 // whose history (main + both continuation rows, each at most 16384) is at
 // least HIST_EXT_MIN gets a ply more, when the singular test gave none.
+// Off (HIST_EXT 0): -15 +/- 16 vs 6.1 (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(HIST_EXT, 0, 0, 1);
 TUNE_PARAM(HIST_EXT_DEPTH, 7, 4, 14);
 TUNE_PARAM(HIST_EXT_MIN, 20000, 8000, 45000);
 // Late move reductions for captures: the table's value less
@@ -653,7 +655,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (RECAPTURE_EXT && extension == 0 && pv_node && prev_move && prev_move.is_capture() && move.is_capture() &&
         move.to() == prev_move.to() && ply < 2 * root_depth_)
       extension = 1;
-    if (extension == 0 && move == tt_move && quiet && depth >= HIST_EXT_DEPTH && ply > 0 && ply < 2 * root_depth_) {
+    if (HIST_EXT && extension == 0 && move == tt_move && quiet && depth >= HIST_EXT_DEPTH && ply > 0 && ply < 2 * root_depth_) {
       const int index = piece * 64 + move.to();
       const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
       if (history >= HIST_EXT_MIN) extension = 1;
