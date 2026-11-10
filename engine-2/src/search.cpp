@@ -126,6 +126,9 @@ TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
 TUNE_PARAM(HIST_EXT, 0, 0, 1);
 TUNE_PARAM(HIST_EXT_DEPTH, 7, 4, 14);
 TUNE_PARAM(HIST_EXT_MIN, 20000, 8000, 45000);
+// Check extension: a ply more in check, while the remaining depth is below
+// CHECK_EXT_DEPTH (6.1: always, i.e. MAX_PLY).
+TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
@@ -431,7 +434,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
 
   double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
-  if (in_check) depth++;  // look further when in check
+  if (in_check && depth < CHECK_EXT_DEPTH) depth++;  // look further when in check, near the leaves (Berserk 8)
   if (depth <= 0) return quiesce(alpha, beta, ply);
 
   // Transposition table: reuse an earlier result for this position if it
