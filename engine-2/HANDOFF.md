@@ -21,6 +21,11 @@ build `main`, copy to `~/matches/engine2-6.1`.
    +/- 16 vs 6.1 after 374 games (H0); off, see `FAILED_EXPERIMENTS.md`.
 3. **Check extension only below depth 7** (Berserk 8; we extend every
    check). Saves nodes deep in the tree.
+   **Tried (Nov 10, commit `3925d44`, bench 1521738):** vs 6.1 at
+   8+0.08, **H0 after 2,616 games**, +378 -369 =1869 (50.2%), **+1 +/- 7**
+   (a first run, cut at 220 games by a container restart, stood at +38
+   -25). Flat, so retried at **40+0.4** (cloud, 4 at a time,
+   `~/matches/checkext7-40.log`): running.
 4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in
    `claude/cool-bardeen`'s pruning tune): RFP, futility, LMP plus the new
    `IMPROVING_*` and `NULL_DEEP_*` values; they were set by hand.
