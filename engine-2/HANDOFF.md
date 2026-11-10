@@ -36,6 +36,15 @@ build `main`, copy to `~/matches/engine2-6.1`.
 4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in
    `claude/cool-bardeen`'s pruning tune): RFP, futility, LMP plus the new
    `IMPROVING_*` and `NULL_DEEP_*` values; they were set by hand.
+   **Running (Nov 10):** SPSA of 7 values on 6.1 + the held check
+   extension (bench 1521738): `RFP_MARGIN` 94, `FUT_MARGIN` 147,
+   `LMP_SCALE` 102 (last tuned on 3.0; the Nov 7 retune on 5.4 to 52 / 96
+   / 141 was flat, +1, H0), `IMPROVING_RFP` 45, `IMPROVING_LMR_MOVE` 6,
+   `NULL_DEEP_START` 10, `NULL_DEEP_DIV` 4 (the last four set by hand in
+   6.1, never tuned; their step sizes added to `spsa.py`). 4,000 pairs,
+   8+0.08, `--r-end 0.02 --c-scale 2`, 4 workers, `~/spsa-61/` (resume
+   with `~/spsa-61/run.sh`), about 14 h. Then an SPRT of the tuned build
+   (with the check extension) vs 6.1.
 5. **Long time control check of 6.1 vs 6.0** (40+0.4, laptop): the deeper
    null move should gain more there.
 6. **Data run at 10,000-20,000 nodes per position** from 6.1 (laptop),
