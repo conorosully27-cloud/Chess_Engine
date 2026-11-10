@@ -15,8 +15,8 @@ network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 build `main`, copy to `~/matches/engine2-6.1`.
 
 **To do, in order** (each an SPRT vs 6.1 at 8+0.08 unless noted):
-1. **Recapture extension** (Berserk 8): one ply more at PV nodes for a
-   recapture on the square of the previous capture. Never tried.
+1. ~~**Recapture extension**~~: **rejected** (Nov 10), -10 +/- 13 vs 6.1
+   after 612 games (H0); off by default, see `FAILED_EXPERIMENTS.md`.
 2. **History extension of the TT move** (Berserk 8): one ply more when
    the TT move's quiet history is very high (depth >= 7). Never tried.
 3. **Check extension only below depth 7** (Berserk 8; we extend every
