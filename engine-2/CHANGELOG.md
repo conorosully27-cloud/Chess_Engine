@@ -5,6 +5,18 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.2: tuned pruning, "improving" and null-move values
+
+6.1's code and network with seven values from the owner's SPSA run on 6.1
+(taken at 2,380 of 4,000 pairs, rounded): `RFP_MARGIN` 94 -> 90,
+`FUT_MARGIN` 147 -> 174, `LMP_SCALE` 102 -> 85, `IMPROVING_RFP` 45 -> 72,
+`IMPROVING_LMR_MOVE` 6 -> 9, `NULL_DEEP_START` 10 -> 7, `NULL_DEEP_DIV`
+4 -> 3. **Against 6.1** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at
+a time): **H1 accepted after 960 games**, +154 -115 =691 (52.0%), **+14
+Elo (+/- 11)**, LOS 99.5%, no time losses. Bench **1531486**. Network
+unchanged. Version convention from here: 6.x for new features, 6.x.y for
+retunes (the finished tune, if it beats 6.2, becomes 6.2.1).
+
 ## 6.1: gentle "improving" and a deeper null move for deep nodes
 
 6.0's network with two search changes (from studying Berserk 8):

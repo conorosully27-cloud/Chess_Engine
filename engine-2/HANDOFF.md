@@ -8,13 +8,13 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.1** on `main`, bench **1887286**,
+**Current best: ChessMcEngineFace 6.2** on `main`, bench **1531486** (6.1: 1887286),
 network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 `--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
 12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
-build `main`, copy to `~/matches/engine2-6.1`.
+build `main`, copy to `~/matches/engine2-6.2`.
 
-**To do, in order** (each an SPRT vs 6.1 at 8+0.08 unless noted):
+**To do, in order** (each an SPRT vs 6.2 at 8+0.08 unless noted):
 1. **Recapture extension** (Berserk 8): one ply more at PV nodes for a
    recapture on the square of the previous capture. Never tried.
 2. **History extension of the TT move** (Berserk 8): one ply more when
@@ -38,8 +38,10 @@ of 4,000 pairs, commit `cb3e924`): RFP_MARGIN 90, FUT_MARGIN 174,
 LMP_SCALE 85, IMPROVING_RFP 72, IMPROVING_LMR_MOVE 9, NULL_DEEP_START 7,
 NULL_DEEP_DIV 3. Bench **1531486**. vs 6.1 (cloud, 8+0.08): **H1 after 960
 games**, +154 -115 =691 (52.0%), **+14 +/- 11**, LOS 99.5% (it read +37
-at 180 games and +9 at 340). **6.2 candidate**; the finished tune's
-values are worth testing against it.
+at 180 games and +9 at 340). **Released as ChessMcEngineFace 6.2**
+(the new baseline, bench 1531486, network unchanged). Version convention
+(owner): 6.x for new features, 6.x.y for retunes; the finished tune
+(4,000 pairs) gets an SPRT against 6.2 and becomes **6.2.1** if it wins.
 
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
