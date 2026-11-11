@@ -43,6 +43,19 @@ at 180 games and +9 at 340). **Released as ChessMcEngineFace 6.2**
 (owner): 6.x for new features, 6.x.y for retunes; the finished tune
 (4,000 pairs) gets an SPRT against 6.2 and becomes **6.2.1** if it wins.
 
+**6.2 strength checks (Nov 10-11, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
+1 thread, Hash 64):** vs **Berserk 8** (3553): H0 after 126 games, +15 -41
+=70, **-73 +/- 40** (6.0 was -71 +/- 41). vs **Renegade 1.1.0** (3550 +/-
+11; tag `v1.1.0`, `make` in `Renegade/`, net in the repo, in
+`~/tools/renegade-run/`): H0 after 104 games, +9 -35 =60, **-89 +/- 42**.
+Together: 6.2 about **3465-3475**, below Tucano's reading (Tucano seems a
+good matchup for us). **6.2 vs 6.0** directly (8+0.08, fixed 1,000
+games): +193 -97 =710 (54.8%), **+33 +/- 11**: the self-play gains are
+real but don't show yet against these 3550 engines. Next opponent near
+3500: Endspiel 2.0.0 (3504, Rust, github.com/thilo11/endspiel, tag
+`v2.0.0`, net in `crates/chess-nnue/nets/`; `cargo build --release`
+needs the owner's approval: it fetches and runs outside code).
+
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
 (-47 and -13, off); `--wdl 0.4` alone at 8+0.08 (-2), but it helped at
