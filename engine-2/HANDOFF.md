@@ -8,22 +8,45 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.2** on `main`, bench **1531486** (6.1: 1887286),
+**Current best: ChessMcEngineFace 6.2.1** (this branch, for `main`), bench
+**1088726** (6.2: 1531486; 6.1: 1887286),
 network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 `--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
 12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
-build `main`, copy to `~/matches/engine2-6.2`.
+build 6.2.1, copy to `~/matches/engine2-6.2.1`.
 
-**To do, in order** (each an SPRT vs 6.2 at 8+0.08 unless noted):
-1. **Recapture extension** (Berserk 8): one ply more at PV nodes for a
-   recapture on the square of the previous capture. Never tried.
-2. **History extension of the TT move** (Berserk 8): one ply more when
-   the TT move's quiet history is very high (depth >= 7). Never tried.
+**To do, in order** (each an SPRT vs 6.2 at 8+0.08 unless noted; items 1-4
+were run against 6.1):
+1. ~~**Recapture extension**~~: **rejected** (Nov 10), -10 +/- 13 vs 6.1
+   after 612 games (H0); off by default, see `FAILED_EXPERIMENTS.md`.
+2. ~~**History extension of the TT move**~~: **rejected** (Nov 10), -15
+   +/- 16 vs 6.1 after 374 games (H0); off, see `FAILED_EXPERIMENTS.md`.
 3. **Check extension only below depth 7** (Berserk 8; we extend every
    check). Saves nodes deep in the tree.
+   **Tried (Nov 10, commit `3925d44`, bench 1521738):** vs 6.1 at
+   8+0.08, **H0 after 2,616 games**, +378 -369 =1869 (50.2%), **+1 +/- 7**
+   (a first run, cut at 220 games by a container restart, stood at +38
+   -25). Flat, so retried at **40+0.4** (cloud, 4 at a time,
+   `~/matches/checkext7-40.log`): **stopped by the owner at 1,500
+   games**, +163 -133 =1204 (51.0%), **+7 +/- 7**, LOS 96.6%, LLR 1.35
+   (46%). It held +7 to +9 from game 320 on. **Held, not released**
+   (owner, Nov 10): likely a small real gain, under the 10 Elo the SPRT
+   asks for; pair it with another change and confirm the bundle directly
+   against 6.1. It stays on in the code (`CHECK_EXT_DEPTH` 7, bench
+   1521738), so the next tests run on top of it; binary
+   `~/matches/engine2-checkext7`. To drop it: `CHECK_EXT_DEPTH` 128.
 4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in
    `claude/cool-bardeen`'s pruning tune): RFP, futility, LMP plus the new
    `IMPROVING_*` and `NULL_DEEP_*` values; they were set by hand.
+   **Running (Nov 10):** SPSA of 7 values on 6.1 + the held check
+   extension (bench 1521738): `RFP_MARGIN` 94, `FUT_MARGIN` 147,
+   `LMP_SCALE` 102 (last tuned on 3.0; the Nov 7 retune on 5.4 to 52 / 96
+   / 141 was flat, +1, H0), `IMPROVING_RFP` 45, `IMPROVING_LMR_MOVE` 6,
+   `NULL_DEEP_START` 10, `NULL_DEEP_DIV` 4 (the last four set by hand in
+   6.1, never tuned; their step sizes added to `spsa.py`). 4,000 pairs,
+   8+0.08, `--r-end 0.02 --c-scale 2`, 4 workers, `~/spsa-61/` (resume
+   with `~/spsa-61/run.sh`), about 14 h. Then an SPRT of the tuned build
+   (with the check extension) vs 6.1.
 5. **Long time control check of 6.1 vs 6.0** (40+0.4, laptop): the deeper
    null move should gain more there.
 6. **Data run at 10,000-20,000 nodes per position** from 6.1 (laptop),
@@ -42,6 +65,20 @@ at 180 games and +9 at 340). **Released as ChessMcEngineFace 6.2**
 (the new baseline, bench 1531486, network unchanged). Version convention
 (owner): 6.x for new features, 6.x.y for retunes; the finished tune
 (4,000 pairs) gets an SPRT against 6.2 and becomes **6.2.1** if it wins.
+**Owner (Nov 10): "any bit better with confidence"**, so that SPRT uses
+bounds 0 / 5 (`ELO1=5`, new in `match.sh`) instead of 0 / 10. The
+candidate is 6.2 with the final tuned values **and** the held check
+extension (the tune ran with it on), baseline `~/matches/engine2-6.2`.
+**Started Nov 11** (commit `81711e2`, bench 1088726; final values
+FUT_MARGIN 115, LMP_SCALE 80, IMPROVING_RFP 79, IMPROVING_LMR_MOVE 10,
+the rest as 6.2). A first run, cut at 1,380 games by a container restart,
+stood at +209 -163 =1008 (51.7%), **+12 +/- 9**, LOS 99.5%, LLR 2.28
+(77%) (`~/matches/621-part1.log`); restarted from game 1
+(`~/matches/621.log`): **stopped undecided by the owner after 5,658
+games**, +832 -789 =4037 (50.4%), **+3 +/- 5**, LOS 86.9%, LLR 0.13 (4%).
+**Released as ChessMcEngineFace 6.2.1** on the LOS (owner, Nov 11: "87%
+likelihood the values are better and it's just a tuning"). The check
+extension is in it, so item 3 is done.
 
 **6.2 strength checks (Nov 10-11, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
 1 thread, Hash 64):** vs **Berserk 8** (3553): H0 after 126 games, +15 -41
@@ -523,7 +560,8 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   since it is clearly above Tucano (+22 +/- 13 over 1,000 games, about
   **3510 on CCRL Blitz**). Same code and network (now
   `nets/engine-6.0.nnue`), bench **2285231**. **The new baseline.**
-  Delete `build/` after pulling. App not rebuilt.
+  Delete `build/` after pulling. **App rebuilt with 6.0** (see Phone
+  app below).
 - **6.0 vs Berserk 8 (Nov 9, CCRL Blitz 3553 +/- 14; same conditions as
   Tucano):** **H0 after 134 games**, +15 -42 =77 (39.9%), **-71 +/- 41**:
   about 3480 by itself; with Tucano, 6.0 is about **3500** on CCRL Blitz.
@@ -599,7 +637,13 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: Engine 4.0** (WebAssembly rebuilt from 4.0, skipping 3.1
+- **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
+  6.0, Android `versionCode` 9 / `versionName` "6.0"). `node
+  scripts/wasm_bench.mjs`: 2285231, the native bench. APK built with
+  `npm run apk` (`--max-workers=1`), 5.6 MB, signed with the repo's
+  `keys/debug.keystore` (SHA-256 `45c53a1f...a36bb`). Before: 5.0,
+  `versionCode` 8.
+- Earlier: **Engine 4.0** in the app (WebAssembly rebuilt from 4.0, skipping 3.1
   to 3.4; Android `versionCode` 7 / `versionName` "4.0"). `node
   scripts/wasm_bench.mjs`: 3027103, the native bench. Checked in Chromium
   at phone size: labels "Engine 4.0", a game (the engine opened 1. e4),

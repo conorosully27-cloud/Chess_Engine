@@ -16,6 +16,8 @@
 # which stops as soon as the result is clear: H0 "no better" (0 Elo) against
 # H1 "at least 10 Elo better", logistic Elo, 5% error each way, the same
 # bounds Engine 1's tests used. Accept a change only on "H1 accepted".
+# ELO0 / ELO1 change the bounds, e.g. ELO1=5 for "any gain, with
+# confidence" (longer).
 #
 # Games that are clearly decided are adjudicated, as most testing setups do
 # (fastchess's own example values): a loss once both engines agree one side
@@ -61,7 +63,7 @@ fi
 stamp="$(date +%Y%m%d-%H%M%S)"
 
 sprt=()
-[ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 model=logistic)
+[ "${SPRT:-0}" = "1" ] && sprt=(-sprt elo0="${ELO0:-0}" elo1="${ELO1:-10}" alpha=0.05 beta=0.05 model=logistic)
 
 adjudicate=()
 [ "${ADJUDICATE:-1}" = "1" ] && adjudicate=(-resign movecount=3 score=600 twosided=true -draw movenumber=34 movecount=8 score=20)

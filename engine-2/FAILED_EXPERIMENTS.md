@@ -5,6 +5,48 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## History extension of the hash move, on 6.1 (Nov 2026)
+
+**Change** (commit `8d2099a`, from Berserk 8): from depth 7, a quiet hash
+move whose history (main + both continuation rows) is at least 20000 gets
+a ply more, when the singular test gave no extension; below twice the
+root depth. Bench 1887286 -> 1872546.
+
+**Result:** vs 6.1 (cloud, 8+0.08, 4 at a time): **H0 after 374 games**,
++37 -53 =284 (47.9%), **-15 +/- 16**. Not retried at 40+0.4 (clearly
+worse, not flat).
+
+**Prior:** 4/10 (Berserk has it; few others do).
+
+**Commentary:** the moves it extends are the ones the search already
+trusts most: high history means they are rarely reduced and often cut
+off, so the extra ply buys little and costs depth everywhere else on
+those lines. Singular extension already covers the hash move from depth
+8 with a real test instead of a history guess. Switched off
+(`HIST_EXT` 0; bench back to 1887286).
+
+## Recapture extension, on 6.1 (Nov 2026)
+
+**Change** (commit `af59bc2`, from Berserk 8): at PV nodes, a capture on
+the square where the previous move captured gets a ply more, when the
+singular test gave no extension and below twice the root depth. Bench
+1887286 -> 2353388 (25% more nodes at fixed depth).
+
+**Result:** vs 6.1 (cloud, 8+0.08, 4 at a time): **H0 after 612 games**,
++75 -92 =445 (48.6%), **-10 +/- 13**. Level for the first ~350 games
+(+3), then fell away. Not retried at 40+0.4: the owner's rule was to
+retry only if it failed while roughly flat, and -10 is clearly worse.
+
+**Prior:** 5/10 (Berserk has it; Stockfish dropped its version years ago).
+
+**Commentary:** the main line already sees exchanges through: quiescence
+resolves captures, and recaptures are rarely reduced (captures get mild
+LMR, the first move none). The extra ply mostly made the PV more
+expensive: 25% more nodes for the same depth, so less depth per second.
+Switched off (`RECAPTURE_EXT` 0; bench back to 1887286). If retried:
+only for an equal-value recapture (SEE == 0), or at non-PV nodes too with
+a depth limit, as Stockfish once did.
+
 ## TT score refines the static eval in pruning, on 6.0 + improving (Nov 2026)
 
 **Change** (commit `d5a9cd5`, from Berserk 8): where the table's bound
