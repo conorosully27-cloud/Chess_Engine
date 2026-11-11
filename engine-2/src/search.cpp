@@ -190,14 +190,24 @@ TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
 TUNE_PARAM(TM_MOVES, 25, 10, 80);
 // PARTIAL_ITER: when the clock stops a depth part-way, a root move that
-// already beat the previous depth's best move in it is played. Off: flat
-// on 6.2.1 (FAILED_EXPERIMENTS.md).
-TUNE_PARAM(PARTIAL_ITER, 0, 0, 1);
-// Candidates (Nov 11), each off by default until measured.
+// already beat the previous depth's best move in it is played. On since
+// 6.4 (flat alone on 6.2.1; +11 +/- 7 together with QS_TT and ASP_DELTA).
+TUNE_PARAM(PARTIAL_ITER, 1, 0, 1);
+// HIST_DECAY_SHIFT: every search starts by shifting all history tables
+// right by this (2 = keep a quarter, as Engine 1.6 did before history
+// gravity; 0 = keep everything). Candidate values: 1 and 0.
+TUNE_PARAM(HIST_DECAY_SHIFT, 2, 0, 4);
+// TM_FAIL_LOW_PCT: when the previous depth's best move fails low at the
+// root, the hard time limit grows to this percentage of itself (still
+// within half the clock), so the re-search can find a replacement
+// (played even from an unfinished depth with PARTIAL_ITER). 100 = off.
+TUNE_PARAM(TM_FAIL_LOW_PCT, 100, 100, 300);
 // QS_TT: quiescence probes the table and stores its results at depth 0.
-TUNE_PARAM(QS_TT, 0, 0, 1);
-// ASP_DELTA: the first aspiration window's half-width.
-TUNE_PARAM(ASP_DELTA, 35, 5, 100);
+// On since 6.4 (+3 +/- 9 alone on 6.3).
+TUNE_PARAM(QS_TT, 1, 0, 1);
+// ASP_DELTA: the first aspiration window's half-width (6.4: 15; 35 before,
+// 15 alone was 0 +/- 12 on 6.3).
+TUNE_PARAM(ASP_DELTA, 15, 5, 100);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
@@ -287,6 +297,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   const std::int64_t hard_cap = moves_to_go == 1 ? remaining * 3 / 4 : remaining / 2;
   b.soft_ms = std::max<std::int64_t>(1, std::min(soft_cap, remaining / moves_to_go + inc * 3 / 4));
   b.hard_ms = std::max<std::int64_t>(b.soft_ms, std::min(hard_cap, b.soft_ms * 3));
+  b.hard_cap_ms = std::max(b.hard_ms, hard_cap);
   b.adaptive = true;
   return b;
 }
@@ -325,15 +336,16 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   can_stop_ = false;
   stop_flag_ = stop;
   hard_ms_ = budget.hard_ms;
+  hard_fail_low_ms_ = budget.adaptive ? std::min(budget.hard_cap_ms, budget.hard_ms * TM_FAIL_LOW_PCT / 100) : budget.hard_ms;
   max_nodes_ = limits.nodes;
   start_ = budget.start;
   for (auto& k : killers_) k[0] = k[1] = Move();
   for (auto& row : history_)
-    for (int& h : row) h >>= 2;  // as Engine 1.6: an arithmetic shift, rounding down
-  for (std::int16_t& h : cont_history_) h = std::int16_t(h >> 2);
+    for (int& h : row) h >>= HIST_DECAY_SHIFT;  // as Engine 1.6: an arithmetic shift, rounding down
+  for (std::int16_t& h : cont_history_) h = std::int16_t(h >> HIST_DECAY_SHIFT);
   for (auto& by_piece : capt_history_)
     for (auto& by_to : by_piece)
-      for (std::int16_t& h : by_to) h = std::int16_t(h >> 2);
+      for (std::int16_t& h : by_to) h = std::int16_t(h >> HIST_DECAY_SHIFT);
 
   SearchResult result;
   MoveList legal;
@@ -694,7 +706,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     ply_move_[ply] = piece * 64 + move.to();
     const std::uint64_t nodes_before = nodes_;
     pos.make_move(move);
-    if (new_depth > 0 || QS_TT) tt_.prefetch(pos.key());  // the child probes the table (quiescence doesn't)
+    if (new_depth > 0 || QS_TT) tt_.prefetch(pos.key());  // the child probes the table (quiescence only with QS_TT)
 
     int score;
     if (legal == 1) {
@@ -735,7 +747,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     pos.unmake_move();
     if (ply == 0) root_move_nodes_[move.from() * 64 + move.to()] += nodes_ - nodes_before;
     if (stopped_) return 0;
-    if (ply == 0 && move == root_prev_best_) root_prev_searched_ = true;
+    if (ply == 0 && move == root_prev_best_) {
+      root_prev_searched_ = true;
+      // It fell below the window: allow more time to find something better.
+      if (score <= alpha_at_start && hard_ms_ >= 0) hard_ms_ = std::max(hard_ms_, hard_fail_low_ms_);
+    }
 
     if (score > best_score) {
       best_score = score;

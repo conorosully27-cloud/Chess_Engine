@@ -5,6 +5,44 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Aspiration window of 15 instead of 35, on 6.3 (Nov 2026)
+
+**Change** (`ASP_DELTA` 15; in the code, default 35): the first
+aspiration window is +/-15 cp around the last depth's score instead of
++/-35 (it still doubles on each miss). Bench 1088726 -> 1129130.
+
+**Result:** vs 6.3 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **stopped by the owner at 700 games**, +103 -103 =494 (50.0%),
+**0 +/- 12**, LLR -1.23.
+
+**Prior:** 4/10 (engines at this level mostly use 10-20).
+
+**Commentary:** flat. A narrower window saves nodes when the score holds
+and costs re-searches when it doesn't; here the two cancel. **On since
+6.4 all the same:** with `PARTIAL_ITER` and `QS_TT` it measured +11 +/- 7
+over 2,600 games (`CHANGELOG.md`).
+
+## Quiescence uses the table, retried on 6.3 (Nov 2026)
+
+**Change** (`QS_TT` 1; in the code, off): quiescence probes the table
+(a cutoff at null-window nodes on any entry whose bound allows it) and
+stores its result at depth 0, only over an empty slot or another
+quiescence entry, so main-search entries are never displaced. Bench
+1088726 -> 1110600. The first retry since NNUE (flat three times on the
+hand-written evaluation, see below).
+
+**Result:** vs 6.3 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **stopped undecided at the 2-hour task limit after 1,380
+games**, +209 -197 =974 (50.4%), **+3 +/- 9**, LLR -0.90.
+
+**Prior:** 4/10.
+
+**Commentary:** flat a fourth time. The evaluation cache already saves
+the network's cost on repeat visits, which is most of what a quiescence
+probe would save. **On since 6.4 all the same:** with `PARTIAL_ITER`
+and `ASP_DELTA` 15 it measured +11 +/- 7 over 2,600 games
+(`CHANGELOG.md`).
+
 ## Best move from a depth the clock cut short, on 6.2.1 (Nov 2026)
 
 **Change** (commit `8db170b`, `PARTIAL_ITER` 1): when the hard time limit
@@ -24,6 +62,9 @@ search stops after any depth that ends past the (scaled) plan, so few
 searches are cut mid-depth, and of those only the ones where a new move
 had already overtaken the old one change anything. Left in the code,
 off. With 6.3's larger plan (1/25) the hard stop is hit no more often.
+**On since 6.4 all the same:** with `QS_TT` and `ASP_DELTA` 15 it
+measured +11 +/- 7 over 2,600 games (`CHANGELOG.md`); there it changed
+the move played about once in 12 games.
 
 ## History extension of the hash move, on 6.1 (Nov 2026)
 
