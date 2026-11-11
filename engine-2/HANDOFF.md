@@ -68,6 +68,12 @@ at 180 games and +9 at 340). **Released as ChessMcEngineFace 6.2**
 bounds 0 / 5 (`ELO1=5`, new in `match.sh`) instead of 0 / 10. The
 candidate is 6.2 with the final tuned values **and** the held check
 extension (the tune ran with it on), baseline `~/matches/engine2-6.2`.
+**Started Nov 11** (commit `81711e2`, bench 1088726; final values
+FUT_MARGIN 115, LMP_SCALE 80, IMPROVING_RFP 79, IMPROVING_LMR_MOVE 10,
+the rest as 6.2). A first run, cut at 1,380 games by a container restart,
+stood at +209 -163 =1008 (51.7%), **+12 +/- 9**, LOS 99.5%, LLR 2.28
+(77%) (`~/matches/621-part1.log`); restarted from game 1
+(`~/matches/621.log`).
 
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
