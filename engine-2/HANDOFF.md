@@ -6,7 +6,113 @@ its measured Elo), `FAILED_EXPERIMENTS.md` (every rejected one), and Engine 1's
 `../engine-1/HANDOFF.md` and `../engine-1/FAILED_EXPERIMENTS.md` for the
 history behind the search and evaluation.
 
+## Next session: start here (Nov 9, after 6.1)
+
+**Current best: ChessMcEngineFace 6.2.1** (this branch, for `main`), bench
+**1088726** (6.2: 1531486; 6.1: 1887286),
+network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
+`--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
+12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
+build 6.2.1, copy to `~/matches/engine2-6.2.1`.
+
+**To do, in order** (each an SPRT vs 6.2 at 8+0.08 unless noted; items 1-4
+were run against 6.1):
+1. ~~**Recapture extension**~~: **rejected** (Nov 10), -10 +/- 13 vs 6.1
+   after 612 games (H0); off by default, see `FAILED_EXPERIMENTS.md`.
+2. ~~**History extension of the TT move**~~: **rejected** (Nov 10), -15
+   +/- 16 vs 6.1 after 374 games (H0); off, see `FAILED_EXPERIMENTS.md`.
+3. **Check extension only below depth 7** (Berserk 8; we extend every
+   check). Saves nodes deep in the tree.
+   **Tried (Nov 10, commit `3925d44`, bench 1521738):** vs 6.1 at
+   8+0.08, **H0 after 2,616 games**, +378 -369 =1869 (50.2%), **+1 +/- 7**
+   (a first run, cut at 220 games by a container restart, stood at +38
+   -25). Flat, so retried at **40+0.4** (cloud, 4 at a time,
+   `~/matches/checkext7-40.log`): **stopped by the owner at 1,500
+   games**, +163 -133 =1204 (51.0%), **+7 +/- 7**, LOS 96.6%, LLR 1.35
+   (46%). It held +7 to +9 from game 320 on. **Held, not released**
+   (owner, Nov 10): likely a small real gain, under the 10 Elo the SPRT
+   asks for; pair it with another change and confirm the bundle directly
+   against 6.1. It stays on in the code (`CHECK_EXT_DEPTH` 7, bench
+   1521738), so the next tests run on top of it; binary
+   `~/matches/engine2-checkext7`. To drop it: `CHECK_EXT_DEPTH` 128.
+4. **Retune the pruning values on 6.1** (SPSA, 4x steps as in
+   `claude/cool-bardeen`'s pruning tune): RFP, futility, LMP plus the new
+   `IMPROVING_*` and `NULL_DEEP_*` values; they were set by hand.
+   **Running (Nov 10):** SPSA of 7 values on 6.1 + the held check
+   extension (bench 1521738): `RFP_MARGIN` 94, `FUT_MARGIN` 147,
+   `LMP_SCALE` 102 (last tuned on 3.0; the Nov 7 retune on 5.4 to 52 / 96
+   / 141 was flat, +1, H0), `IMPROVING_RFP` 45, `IMPROVING_LMR_MOVE` 6,
+   `NULL_DEEP_START` 10, `NULL_DEEP_DIV` 4 (the last four set by hand in
+   6.1, never tuned; their step sizes added to `spsa.py`). 4,000 pairs,
+   8+0.08, `--r-end 0.02 --c-scale 2`, 4 workers, `~/spsa-61/` (resume
+   with `~/spsa-61/run.sh`), about 14 h. Then an SPRT of the tuned build
+   (with the check extension) vs 6.1.
+5. **Long time control check of 6.1 vs 6.0** (40+0.4, laptop): the deeper
+   null move should gain more there.
+6. **Data run at 10,000-20,000 nodes per position** from 6.1 (laptop),
+   then train with `--hidden 1024 --wdl 0.4`. Likely the biggest lever:
+   Berserk 8 has a 512-unit net yet is ~50 Elo stronger, mostly data.
+7. **Strength checks of 6.1:** vs Tucano 12.00 (3489) and Berserk 8
+   (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
+   (3506), Carp 3.0.1 (3525), Renegade 1.1.0 / Starzix 4.0 (3550).
+
+**Done since (Nov 10): early SPSA values on 6.1** (owner's tune at 2,380
+of 4,000 pairs, commit `cb3e924`): RFP_MARGIN 90, FUT_MARGIN 174,
+LMP_SCALE 85, IMPROVING_RFP 72, IMPROVING_LMR_MOVE 9, NULL_DEEP_START 7,
+NULL_DEEP_DIV 3. Bench **1531486**. vs 6.1 (cloud, 8+0.08): **H1 after 960
+games**, +154 -115 =691 (52.0%), **+14 +/- 11**, LOS 99.5% (it read +37
+at 180 games and +9 at 340). **Released as ChessMcEngineFace 6.2**
+(the new baseline, bench 1531486, network unchanged). Version convention
+(owner): 6.x for new features, 6.x.y for retunes; the finished tune
+(4,000 pairs) gets an SPRT against 6.2 and becomes **6.2.1** if it wins.
+**Owner (Nov 10): "any bit better with confidence"**, so that SPRT uses
+bounds 0 / 5 (`ELO1=5`, new in `match.sh`) instead of 0 / 10. The
+candidate is 6.2 with the final tuned values **and** the held check
+extension (the tune ran with it on), baseline `~/matches/engine2-6.2`.
+**Started Nov 11** (commit `81711e2`, bench 1088726; final values
+FUT_MARGIN 115, LMP_SCALE 80, IMPROVING_RFP 79, IMPROVING_LMR_MOVE 10,
+the rest as 6.2). A first run, cut at 1,380 games by a container restart,
+stood at +209 -163 =1008 (51.7%), **+12 +/- 9**, LOS 99.5%, LLR 2.28
+(77%) (`~/matches/621-part1.log`); restarted from game 1
+(`~/matches/621.log`): **stopped undecided by the owner after 5,658
+games**, +832 -789 =4037 (50.4%), **+3 +/- 5**, LOS 86.9%, LLR 0.13 (4%).
+**Released as ChessMcEngineFace 6.2.1** on the LOS (owner, Nov 11: "87%
+likelihood the values are better and it's just a tuning"). The check
+extension is in it, so item 3 is done.
+
+**Settled, don't repeat:** TT buckets (help only when the table is
+overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
+(-47 and -13, off); `--wdl 0.4` alone at 8+0.08 (-2), but it helped at
+40+0.4 and is in 6.0's net.
+
+**Practical notes:**
+- Opponents are not in the repo; rebuild in `~/tools/` per machine.
+  Tucano 12.00: tag `12.00`, `make avx2`, `tucano_nn03.bin` from
+  github.com/alcides-schulz/TucanoNets next to the binary. Berserk 8: tag
+  `8`, build by hand with AVX2 flags (its `-march=native` build
+  segfaults on AVX-512 CPUs). Engine-vs-engine tests: 10+0.1, SPRT
+  -10/+10, Hash 64, 1 thread, fastchess with `dir=` for the opponent.
+- SPRTs that stop early overstate the gain (improving peaked at +18,
+  ended +6); a combined build can measure less than its parts. Confirm
+  bundles directly against the baseline.
+- Watchers stop after 2 hours: restart until the SPRT decides. Don't
+  compile while a match runs.
+- After a network change, delete `build/` (the net path is a CMake cache
+  setting). On the laptop: `-G "MinGW Makefiles"`; fastchess there too.
+
 ## Where things stand
+
+- **From session cool-bardeen (Nov 5-8, on 5.4; merged in after 6.2.1):**
+  root move list sorted by score H0 (-5); TT buckets H0 (-6); SPSA of the
+  LMR values H0 (+1); `LMR_BASE` 30 vs 98 H0 (-8). **SPSA convergence
+  check:** from far-away starts, values moved only ~10-15% of the way in
+  2,000 pairs at `--r-end 0.005`, and `LMR_BASE` alone not at all: use
+  bigger steps (`--r-end 0.02` moved values far) or rough SPRT scans first.
+  **Pruning margins tuned with 4x steps** (`RFP_MARGIN` 94 -> 52,
+  `FUT_MARGIN` 147 -> 96, `LMP_SCALE` 102 -> 141, commit `c26be3d`) vs 5.4:
+  H0 after 2,996 games, about +1, LOS 66%; **owner: keep the idea**
+  (check against 6.2.1's tuned values first). Fractional-reduction
+  restructure (`44be401`, bench-neutral on 5.4) not carried into 6.2.1.
 
 - **Engine 2.0 is Engine 1.6 ported to C++**: same search, same
   evaluation (identical scores on 30,000 positions), about 6x the speed.
@@ -340,58 +446,23 @@ history behind the search and evaluation.
   200, max 3). Released early by the owner at 1,258 games; **final: vs 5.3
   H1 after 2,658 games, +669 -595 =1394 (51.4%), +10 +/- 8**, LOS 99.3%
   (cloud, 8+0.08, 4 at a time, old 1,000-opening file).
-  **The new baseline**, bench **2822382**.
-- **Root move list sorted by score (Nov 5, `79ad246`): H0 vs 5.4 after
-  1,036 games, -5 +/- 11** (the first test on 8moves_v3); reverted
-  (`FAILED_EXPERIMENTS.md`). A list kept in the picker's order could still
-  serve MultiPV / `searchmoves` without the loss.
-- **Parallel tester (Nov 5):** a second cloud session, "Chess engine: TT
-  buckets SPRT vs 5.4", branch `claude/tt-buckets`: TT buckets with ageing
-  on 5.4, SPRT vs 5.4 (it needed the owner's approval to build fastchess).
-- **Fractional reductions (Nov 5, done, no strength change):** every LMR
-  term is in hundredths of a ply and the total is rounded down once
-  (`LMR_PV` 100, `LMR_KILLER` 100, `CUT_NODE_LMR` now 100 = 1 ply,
-  `THREAT_LMR` now 100); bench unchanged (2822382). Quiet moves still use
-  the whole-ply table times 100 (switching them to the finer `LMR100`
-  table would change the bench).
-- **SPSA of the LMR values (Nov 5, owner's 4.6 retune request):**
-  `LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`, `CUT_NODE_LMR`, `LMR_PV`,
-  `LMR_KILLER`; 2,000 pairs, 8+0.08, 8moves_v3, `--r-end 0.005 --c-scale
-  2`, 4 workers, state in `~/spsa-lmr/` (resume with `~/spsa-lmr/run.sh`).
-  **Done (2,000 pairs):** `LMR_BASE` 98 -> 95, `LMR_DIV` 198 -> 218,
-  `LMR_HISTORY` 2600 -> 2623, `LMR_PV` 100 -> 95, `LMR_KILLER` 100 -> 82,
-  `CUT_NODE_LMR` 100 -> 101 (in place in `src/search.cpp`; bench 2900089).
-  vs 5.4 (8moves_v3): **H0 after 2,518 games, +1 +/- 7**; back to 5.4's
-  values (`FAILED_EXPERIMENTS.md`). **5.4 stays the best build** (bench
-  2822382). Next big lever: training run 7's network (owner's laptop).
-- **SPSA convergence check (Nov 6, owner):** does the tuner find the right
-  values or stay near its start? `LMR_BASE`, `LMR_DIV`, `LMR_KILLER` started
-  far away (30, 290, 200; 5.4: 98, 198, 100; last tune: 95, 218, 82), all
-  else at 5.4's values; 2,000 pairs, same settings, `~/spsa-far/` (resume
-  with `~/spsa-far/run.sh`). **Result (2,000 pairs):** 37 / 278 / 189,
-  all the right way but only ~10-15% of the distance. Then `LMR_BASE`
-  alone from 30 (`~/spsa-far1/`): stayed at about 28 for 2,000 pairs.
-  **Conclusion:** at 2,000 pairs with `--r-end 0.005 --c-scale 2` the
-  tuner only moves values a little from their start, and a weak value
-  alone gets almost no signal: our SPSAs confirm the neighbourhood of the
-  start rather than find distant optima. For a real search, larger steps
-  (`--r-end`) or far more pairs.
-  **Check (owner):** `LMR_BASE` 30 vs 5.4's 98 (8+0.08, 8moves_v3): **H0
-  after 642 games, +79 -94 =469, -8 +/- 13**: 30 is a little worse (or
-  equal), not much: the value matters only weakly, which is why the tuner
-  got almost no signal from it.
-- **SPSA of the pruning margins (Nov 7, owner: the 3 most likely to
-  gain, long):** `RFP_MARGIN` 94, `FUT_MARGIN` 147, `LMP_SCALE` 102 (last
-  tuned on 3.0, before the 3.2/3.3/5.0 networks). 4,000 pairs, 8+0.08,
-  8moves_v3, **`--r-end 0.02`** (4x the usual, after the convergence check)
-  `--c-scale 2`, 4 workers, `~/spsa-prune/` (resume with
-  `~/spsa-prune/run.sh`). **Done:** `RFP_MARGIN` 94 -> 52, `FUT_MARGIN`
-  147 -> 96, `LMP_SCALE` 102 -> 141: the first tune here that travelled
-  far (bigger steps). vs 5.4: **H0 after 2,996 games, +468 -456 =2072,
-  about +1, LOS 66%**. **Owner: keep the idea** (some promise): the tuned
-  values are in commit `c26be3d`; source back to 5.4's values for now.
-  Candidates to combine with a later change or retest at a longer time
-  control.
+  **The new baseline**, bench **2822382**. Next: the root move list
+  (written, in `git stash`: "root move list (not yet built)"), then SPRT
+  on 8moves_v3.
+- **TT buckets on 5.4 (Nov 5, rejected):** 5-entry,
+  64-byte buckets with age-based replacement, commit `0ed486c` (reverted
+  in `668ee12`; bench 2666511). At the normal 64 MB, 8+0.08: **H0 after
+  754 games, -6 +/- 12** (the table never fills). With the table squeezed,
+  both engines at **Hash 2 MB**, 8+0.08: **H1 after 480 games**, +93 -55
+  =332 (54.0%), **+28 +/- 17**, LOS 99.9%. So buckets help once the table
+  is full (long games, analysis, small Hash) and cost a little when it
+  isn't. **Long time control at normal Hash (64 MB, 40+0.4, cloud): H0
+  after 676 games**, +58 -66 =552, **-4 +/- 11**. Not adopted: at the
+  time controls we test, 64 MB never fills enough. Worth keeping in mind
+  only for analysis or very long games. **Both at Hash 16 MB, 8+0.08:**
+  stopped by the owner at 1,960 games, +316 -288 =1356, **+5 +/- 8**, LLR
+  -0.02. The gain follows how full the table is: +28 at 2 MB, +5 at 16 MB,
+  -4 to -6 at 64 MB. Kept as an understanding result, not a candidate.
 - **Openings for SPRTs (Nov 5, owner): Stockfish's 8moves_v3** from now
   on (`scripts/8moves_v3.epd`, 34,700 lines, made from
   `scripts/nnue/8moves_v3.uci`), in `match.sh`, `release_match.sh` and
@@ -403,19 +474,131 @@ history behind the search and evaluation.
   "C:\Users\conor\nnue-data\Training\*.bin" --out
   C:\Users\conor\nnue-nets\run7 --epochs 20`: 52 files, **394,989,080
   training positions** (run 6: 216M), 512 units, from scratch, CUDA, about
-  33 min an epoch (~11 h). Next: SPRT `net-16/18/20` vs 5.3 (8moves_v3).
-- **Training run 8 (Nov 6, owner's laptop, after run 7):** the same 395M
-  positions with **1024 hidden units**: `train.py
-  "C:\Users\conor\nnue-data\Training\*.bin" --out
-  C:\Users\conor\nnue-nets\run8 --hidden 1024 --epochs 20` (about 1 h an
-  epoch). Testing needs a matching build: `-DENGINE_NNUE_HIDDEN=1024
-  -DENGINE_NET=<net>`. Compare the best 512 net (run 7) and the best 1024
-  net (run 8) against 5.4 and each other. (Training runs and data runs are
-  numbered separately.)
+  33 min an epoch (~11 h). `net-20` became 5.5 (below).
 - **Data run 8 (Nov 5, owner's laptop, during training run 7):** from 5.3
   (`C:\Users\conor\engine-5.3-datagen.exe`), 5,000 nodes, 8moves_v3 book,
   keep 4, into `C:\Users\conor\nnue-data\v8\v8_part-N.bin`, 20M each,
   **seeds from 14001** (resume with a new block).
+- **Re-measurement (Nov 6, cloud, 800 games each, 8moves_v3):** 5.4 vs
+  5.0 **+23 +/- 13** (the recorded steps add up to +76); step by step
+  5.1 +10, 5.2 +4, 5.3 +3, 5.4 +7 (each +/- 13). The early-stopped SPRTs
+  (5.2, 5.3) overstated. Removing groups of three of 5.2-5.4's changes
+  from 5.4 cost -7, -16 and -7: no harmful change found, all kept
+  (`CHANGELOG.md`). **Rule from now on: extend an accepted SPRT to a fixed
+  800+ games (`release_match.sh extend`) before recording its Elo.**
+- **Engine 5.5 = ChessMcEngineFace 5.5:** 5.4's code with training run 7's
+  `net-20` (395M positions, 20 epochs, 512 units) as
+  `nets/engine-5.5.nnue`. vs 5.4: H1 after 388 games (+42 +/- 21), extended
+  to 800: +181 -105 =514, **+33 +/- 14** (`release-matches/net20/`).
+  **The new baseline**, bench **2808189**. `build_wasm.sh` embeds the 5.5
+  network (app not rebuilt). Next: data run 8 (from 5.3) for training run
+  8; the root move list (in `git stash`).
+- **5.5 vs real engines (Nov 6, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64, adjudication, no tablebases):** vs
+  **Smallbrain 7.0** (1 CPU, CCRL Blitz 3454 +/- 8 on the all-versions
+  list, `rating_list_all.html`; the main list shows only its 8CPU entry,
+  3574): **H1 after 156 games**, +47 -23 =86 (57.7%), **+54 +/- 40**. vs
+  **Tucano 12.00** (3489 +/- 10; `make avx2`, network `tucano_nn03.bin`
+  from github.com/alcides-schulz/TucanoNets): **H0 after 254 games**, +41
+  -58 =155 (46.7%), **-23 +/- 24**. Together: **5.5 is about 3475 (+/- 20)
+  on CCRL Blitz** (5.2: about 3420-3440). Engines built in `~/tools/`.
+  Next target: Tucano. Other 1-CPU engines near 3500: Carp 3.0.1 (3525,
+  Rust), Lambergar 1.5 (3506, Zig), Endspiel 2.0.0 (3504).
+- **1,024-unit run, net-9 vs 5.5 (Nov 7, benchmark only):** owner's
+  mid-run network, engine built with `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=<net>` (separate `build-1024/`), bench 2289437. Speed
+  (best of 5 bench, twice): 0.79-0.84x 5.5's nodes/s. **H0 after 352
+  games**, +52 -78 =222 (46.3%), **-26 +/- 19** (cloud, 8+0.08, 4 at a time).
+- **1,024-unit run, net-20 vs 5.5 (Nov 7): H1 after 804 games**, +166
+  -119 =519 (52.9%), **+20 +/- 14**, LOS 99.8%, pentanomial [8, 78, 188,
+  115, 13] (cloud, 8+0.08, 4 at a time, 64 MB, 8moves_v3). Bench 2435717,
+  about 0.8x 5.5's nodes/s. **Candidate for the next version**: network
+  in `nets/candidate-1024-net20.nnue`; build with `-DENGINE_NNUE_HIDDEN=1024
+  -DENGINE_NET=nets/candidate-1024-net20.nnue` (fresh build folder). Not
+  yet the default (accumulator.h, CMakeLists.txt, build_wasm.sh, the
+  ENGINE_NAME are unchanged). **Released as 5.6** (below).
+- **Engine 5.6 = ChessMcEngineFace 5.6:** 5.5's code with run 8's net-20,
+  **1,024 hidden units** (`nets/engine-5.6.nnue`; `NNUE_HIDDEN` now 1024 by
+  default). vs 5.5: **H1 after 804 games, +20 +/- 14**. **The new
+  baseline**, bench **2435717**. Train with `--hidden 1024` (train.py's
+  default is still 512). After pulling, delete `build/`: `ENGINE_NET` is a
+  CMake cache setting, so an old build folder keeps the old network (and a
+  512 net no longer loads in a 1024 build). Run 9 (the owner's laptop):
+  same as run 8 but a different `--wdl`, to compare against run 8's net-20.
+- **5.7 candidate (Nov 8, owner):** 5.6 + late move pruning to depth 5
+  (`LMP_DEPTH` 3 -> 5: 0 +/- 10 over 1,200 games on 5.5) + futility
+  pruning to depth 6 (`FUT_DEPTH` 3 -> 6: +7 +/- 9 at 1,590 games, final
+  H0 +1 +/- 7 at 2,490, on 5.5), **with run 9's net-20** (`--wdl 0.4`,
+  +15 +/- 21 over run 8's at 40+0.4 after 398 games; -2 +/- 10 at
+  8+0.08). The net is on the owner's laptop only
+  (`C:\Users\conor\nnue-nets\run9\net-20.nnue`); the repo default is
+  still 5.6's. Bench with run 9's net **2285231** (with 5.6's net
+  2205221). Owner tests it against 5.6 at 40+0.4 on the laptop.
+- **Engine 5.7 = ChessMcEngineFace 5.7:** the candidate above, released.
+  vs 5.6 (owner's laptop, 8+0.08, 8moves_v3): **H1 after 1,502 games**,
+  +330 -271 =901 (52.0%), **+14 +/- 11**. **The new baseline**, bench
+  **2285231**, net `nets/engine-5.7.nnue`. App not rebuilt. Owner may
+  confirm at a longer time control. Delete `build/` after pulling (the
+  network path is a CMake cache setting).
+- **5.7 vs Tucano 12.00 (Nov 8, cloud, 10+0.1, 8moves_v3, SPRT -10/+10,
+  4 at a time, 1 thread, Hash 64, adjudication, no tablebases; same
+  conditions as 5.5's test):** **H1 after 382 games**, +90 -68 =224
+  (52.9%), **+20 +/- 22**, LOS 96%. Tucano 12.00 is 3489 +/- 10 on CCRL
+  Blitz (5.5 was -23 +/- 24 against it), so **5.7 is about 3500-3510**.
+  Tucano built from its `12.00` tag (`make avx2`, `tucano_nn03.bin` from
+  TucanoNets) in `~/tools/tucano-run/`. Extended to 1,000 games (618
+  more, fixed length): **+242 -178 =580 (53.2%), +22 +/- 13** in total.
+- **Engine 6.0 = ChessMcEngineFace 6.0** (Nov 9, owner): 5.7 renamed,
+  since it is clearly above Tucano (+22 +/- 13 over 1,000 games, about
+  **3510 on CCRL Blitz**). Same code and network (now
+  `nets/engine-6.0.nnue`), bench **2285231**. **The new baseline.**
+  Delete `build/` after pulling. **App rebuilt with 6.0** (see Phone
+  app below).
+- **6.0 vs Berserk 8 (Nov 9, CCRL Blitz 3553 +/- 14; same conditions as
+  Tucano):** **H0 after 134 games**, +15 -42 =77 (39.9%), **-71 +/- 41**:
+  about 3480 by itself; with Tucano, 6.0 is about **3500** on CCRL Blitz.
+  Berserk built from its `8` tag in `~/tools/berserk-run/` with AVX2 flags
+  by hand (the default `-march=native` build segfaults on this machine's
+  AVX-512 CPU); its default MoveOverhead (300 ms) kept. Next targets near
+  3500-3525: Endspiel 2.0.0 (3504), Lambergar 1.5 (3506), Carp 3.0.1
+  (3525).
+- **Gentle "improving" on 6.0 (Nov 9, `25aa38b`):** improving = static
+  eval above the one two plies earlier; reverse futility margin 45 cp
+  smaller when improving (`IMPROVING_RFP`), late quiets (6th on) at
+  non-PV nodes one ply more reduction when not improving
+  (`IMPROVING_LMR`, `IMPROVING_LMR_MOVE`). Bench 1932053 (6.0: 2285231).
+  vs 6.0 (cloud, 8+0.08): **stopped by the owner at 3,078 games, +494
+  -445 =2139, +6 +/- 7, LOS 95%** (peaked at +18 at 700 games). Counted
+  as a small gain and **kept as the base** for the next changes.
+- **TT score refines the eval (Nov 9, on top of improving, candidate):**
+  where the table's bound says its score is more accurate than the
+  static eval (exact; lower bound above it; upper bound below it), that
+  score replaces the static eval in reverse futility, null move and
+  futility (`TT_EVAL_REFINE`); "improving" and correction history keep
+  the static eval. Bench 1994733 (7% fewer nodes than improving at depth
+  16). vs improving: **H0 after 202 games, -47 +/- 25**; switched off
+  (`TT_EVAL_REFINE` 0, bench 1932053; `FAILED_EXPERIMENTS.md`) Careful retry
+  (reverse futility and null move only, raising only from entries within
+  2 plies of the node's depth): **H0 after 484 games, -13 +/- 15**; off.
+- **Deeper null move for deep nodes (Nov 9, `fc13471`, on 6.0 +
+  improving):** one more ply of null-move reduction from depth 10
+  (`NULL_DEEP_START`), another every 4 plies after (`NULL_DEEP_DIV`);
+  depths 3-9 unchanged. Bench **1887286**; 17% fewer nodes at depth 16.
+  vs 6.0 + improving (cloud, 8+0.08): **H1 after 1,032 games**, +174 -131
+  =727 (52.1%), **+14 +/- 11**, LOS 99.5%. At 8+0.08 the root reaches a
+  median depth of 14, so the rule only touches the top few plies: it
+  should matter more at longer time controls.
+- **6.1 candidate:** 6.0 + gentle improving (+6 +/- 7) + deeper null move
+  (+14 +/- 11), commit `fc13471`, bench 1887286, `~/matches/engine2-6.1cand`.
+  ENGINE_NAME unchanged; the owner starts the test against 6.0.
+  **Confirmed vs 6.0** (cloud, 8+0.08): **H1 after 1,126 games**, +174
+  -132 =820 (51.9%), **+13 +/- 10**, LOS 99.4% (it stood at +1 after 560
+  games). Ready to release as 6.1 when the owner says.
+- **Engine 6.1 = ChessMcEngineFace 6.1** (Nov 9): the candidate above,
+  released. **The new baseline**, bench **1887286**, network unchanged
+  (`nets/engine-6.0.nnue`). App not rebuilt. Next from the Berserk list:
+  recapture extension, history extension of the TT move, check extension
+  only below depth 7; and a data run at 10,000-20,000 nodes per position.
 - **Later (owner, Nov 3): submit to CCRL.** No upload: publish a release
   (GitHub release with a Windows `.exe` and source) and ask on the CCRL /
   TalkChess forums for testing. Their Blitz conditions (UCI, Hash 128/256,
@@ -446,7 +629,13 @@ history behind the search and evaluation.
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: Engine 4.0** (WebAssembly rebuilt from 4.0, skipping 3.1
+- **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
+  6.0, Android `versionCode` 9 / `versionName` "6.0"). `node
+  scripts/wasm_bench.mjs`: 2285231, the native bench. APK built with
+  `npm run apk` (`--max-workers=1`), 5.6 MB, signed with the repo's
+  `keys/debug.keystore` (SHA-256 `45c53a1f...a36bb`). Before: 5.0,
+  `versionCode` 8.
+- Earlier: **Engine 4.0** in the app (WebAssembly rebuilt from 4.0, skipping 3.1
   to 3.4; Android `versionCode` 7 / `versionName` "4.0"). `node
   scripts/wasm_bench.mjs`: 3027103, the native bench. Checked in Chromium
   at phone size: labels "Engine 4.0", a game (the engine opened 1. e4),
@@ -459,8 +648,8 @@ history behind the search and evaluation.
 - For fun, 2.5 vs Engine 1.6 (cloud, 8+0.08, 200 games, adjudication):
   +192 -3 =5 (97.3%), about **+620 Elo (+/- 157)** (2.0 had +372 over 1.6).
 - **Tests:** `ctest --test-dir build`, 7 suites (perft, position, SEE,
-  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2822382** (`build/engine2 bench`, with the
-  built-in network; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
+  move picker, NNUE, search, UCI), a few seconds. **Bench signature: 2808189** (`build/engine2 bench`, with the
+  built-in network; 5.4 was 2822382; 5.3 was 2656864; 5.2 was 2626846; 5.1 was 2607254; 5.0 was 2795181; 4.6 was 3078714; 3.2 was 2608402; 3.1 was 2851725; 3.0 was 3044298; 2.10 was 1962997; 2.9 was 3300701; 2.8 was 2933981; 2.7 was 2870078; 2.6 and 2.5 were 3183003; 2.4 was 3116434, 2.3 3601124, 2.2 6533990, 2.1 9557353, 2.0 9559579).
   The tests use the hand-written evaluation (no network loaded), except the NNUE test, which loads the built-in one; the same on Linux/gcc and Windows/MinGW.
 - **Owner's laptop:** Windows, gcc (WinLibs), CMake, Ninja, AVX2 CPU; builds
   and passes the tests; about 3.1M nodes/s on bench. Has fastchess

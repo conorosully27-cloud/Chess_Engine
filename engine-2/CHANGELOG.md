@@ -5,6 +5,127 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.2.1: final SPSA values and a check extension near the leaves
+
+6.2 with the finished SPSA run (4,000 pairs on 6.1 + the check extension,
+rounded): `FUT_MARGIN` 174 -> 115, `LMP_SCALE` 85 -> 80, `IMPROVING_RFP`
+72 -> 79, `IMPROVING_LMR_MOVE` 9 -> 10 (`RFP_MARGIN` 90, `NULL_DEEP_START`
+7, `NULL_DEEP_DIV` 3 unchanged). Also the check extension only while the
+remaining depth is below 7 (`CHECK_EXT_DEPTH`; was every check), held
+from Nov 10 (+7 +/- 7 vs 6.1 at 40+0.4, LOS 96.6%) and tuned with.
+**Against 6.2** (cloud, 8+0.08, 8moves_v3, SPRT 0/5, 4 games at a time):
+**stopped undecided by the owner after 5,658 games**, +832 -789 =4037
+(50.4%), **+3 Elo (+/- 5)**, LOS 86.9%, LLR 0.13 (4%). A first run, cut at
+1,380 games by a container restart, read +12 +/- 9. Released on the LOS
+(a retune, no new search code apart from the held extension). Bench
+**1088726**. Network unchanged.
+
+## 6.2: tuned pruning, "improving" and null-move values
+
+6.1's code and network with seven values from the owner's SPSA run on 6.1
+(taken at 2,380 of 4,000 pairs, rounded): `RFP_MARGIN` 94 -> 90,
+`FUT_MARGIN` 147 -> 174, `LMP_SCALE` 102 -> 85, `IMPROVING_RFP` 45 -> 72,
+`IMPROVING_LMR_MOVE` 6 -> 9, `NULL_DEEP_START` 10 -> 7, `NULL_DEEP_DIV`
+4 -> 3. **Against 6.1** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at
+a time): **H1 accepted after 960 games**, +154 -115 =691 (52.0%), **+14
+Elo (+/- 11)**, LOS 99.5%, no time losses. Bench **1531486**. Network
+unchanged. Version convention from here: 6.x for new features, 6.x.y for
+retunes (the finished tune, if it beats 6.2, becomes 6.2.1).
+
+## 6.1: gentle "improving" and a deeper null move for deep nodes
+
+6.0's network with two search changes (from studying Berserk 8):
+- **Gentle "improving":** improving = the static eval is above the one
+  two plies earlier (no information counts as improving). Reverse
+  futility margin 45 cp smaller when improving (`IMPROVING_RFP`); late
+  quiet moves (6th on) at non-PV nodes one ply more reduction when not
+  improving (`IMPROVING_LMR`, `IMPROVING_LMR_MOVE`). Alone vs 6.0: +6 +/- 7
+  over 3,078 games (stopped, LOS 95%). Earlier "improving" versions (2.10)
+  pruned far more and lost.
+- **Deeper null move for deep nodes:** one more ply of null-move
+  reduction from depth 10 (`NULL_DEEP_START`), one more every 4 plies
+  after (`NULL_DEEP_DIV`); depths 3-9 unchanged. On top of improving:
+  H1 after 1,032 games, +14 +/- 11.
+
+**Together against 6.0** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at
+a time): **H1 accepted after 1,126 games**, +174 -132 =820 (51.9%), **+13
+Elo (+/- 10)**, LOS 99.4%, no time losses. Bench **1887286**. Network
+unchanged (`nets/engine-6.0.nnue`). Also tried and switched off: the
+table's score refining the static eval in pruning (`TT_EVAL_REFINE`, two
+versions, -47 and -13; `FAILED_EXPERIMENTS.md`).
+
+## 6.0 (released as 5.7): run 9's network (game result weight 0.4), deeper futility and late move pruning
+
+Renamed 6.0 (Nov 9) after **1,000 games against Tucano 12.00** (CCRL
+Blitz 3489; cloud, 10+0.1, 8moves_v3, 1 thread, Hash 64): **+242 -178
+=580 (53.2%), +22 Elo (+/- 13)**, pentanomial [11, 105, 220, 137, 27]
+(an SPRT -10/+10, H1 after 382 games, then 618 more), so **about 3510 on
+CCRL Blitz**. The first version clearly above Tucano (5.5: -23 +/- 24).
+Same code and network as 5.7; only the name and the network's file name
+(`nets/engine-6.0.nnue`) changed. Bench **2285231**.
+
+
+5.6 with three changes: **run 9's net-20** (`nets/engine-6.0.nnue`, 1,024
+units; run 8 repeated with `train.py --wdl 0.4` instead of 0.25),
+**futility pruning to depth 6** (`FUT_DEPTH` 3 -> 6) and **late move
+pruning to depth 5** (`LMP_DEPTH` 3 -> 5). Separately each was flat or
+unproven: the net -2 +/- 10 vs 5.6 at 8+0.08 but +15 +/- 21 vs run 8's net
+at 40+0.4 (398 games, owner's laptop); futility +1 +/- 7 and late move
+pruning 0 +/- 10 on 5.5. **Together, against 5.6** (owner's laptop, 8+0.08,
+8moves_v3, SPRT 0/10): **H1 accepted after 1,502 games**, +330 -271 =901
+(52.0%), **+14 Elo (+/- 11)**, LOS 99.4%. Bench **2285231**.
+`build_wasm.sh` embeds the 5.7 network for the next app build (the app is
+not rebuilt).
+
+## 5.6: a 1,024-unit network (run 8, net-20)
+
+5.5's code with a network twice as wide: **1,024 hidden units per side**
+(was 512), `nets/engine-5.6.nnue` (the owner's laptop run 8 `net-20.nnue`).
+`NNUE_HIDDEN` now defaults to 1024 (`src/accumulator.h`); a 512-unit net
+needs `-DENGINE_NNUE_HIDDEN=512`. About 0.8x 5.5's nodes/s (best of 5
+bench runs: 2.76M vs 3.30M). **Against 5.5** (cloud, 8+0.08, 8moves_v3,
+SPRT 0/10, 4 games at a time, 64 MB): **H1 accepted after 804 games**,
++166 -119 =519 (52.9%), **+20 Elo (+/- 14)**, LOS 99.8%, no time losses.
+(Run 8's net-9 was -26 +/- 19 over 352 games.) Bench **2435717**.
+`build_wasm.sh` embeds the 5.6 network for the next app build (the app is
+not rebuilt).
+
+## 5.5: a network trained on 395M positions (run 7)
+
+5.4's code with a new 512-unit network (`nets/engine-5.5.nnue`, the
+owner's laptop run 7 `net-20.nnue`, replacing `engine-5.0.nnue`), trained
+from scratch for 20 epochs on **394,989,080 positions** (52 files; run 6
+had 216M). **Against 5.4** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games
+at a time; `release-matches/net20/`): **H1 accepted after 388 games**,
++92 -45 =251 (56.1%), +42 +/- 21, then extended to a fixed 800 games:
+**+181 -105 =514 (54.75%), +33 Elo (+/- 14)**, LOS 100%, no time losses.
+Bench **2808189**. `build_wasm.sh` now embeds the 5.5 network for the next
+app build (the app is not rebuilt).
+
+## Re-measurement of 5.1 to 5.4 (Nov 6, 2026)
+
+Each release against the one before, rebuilt from its release commit, over
+a fixed 800 games (cloud, 8+0.08, 8moves_v3, 4 games at a time,
+`scripts/match.sh` with adjudication), against the figures recorded
+above:
+
+| Step | Recorded | Re-measured |
+|---|---|---|
+| 5.0 -> 5.1 | +12 +/- 11 | +10 +/- 13 |
+| 5.1 -> 5.2 | +33 +/- 19 | +4 +/- 13 |
+| 5.2 -> 5.3 | +20 +/- 14 | +3 +/- 13 |
+| 5.3 -> 5.4 | +11 +/- 11 | +7 +/- 13 |
+
+5.4 against 5.0 directly (800 games, 3 at a time): **+23 +/- 13**, not the
++76 the recorded steps add up to. Most of the gap is in 5.2 and 5.3, whose
+SPRTs stopped early (482 and 868 games). Taking changes back out of 5.4 in
+groups of three (800 games each, against 5.4) found nothing harmful:
+reductions for captures, time by search effort and continuation
+correction history together -7 +/- 12; negative extension, endgame scaling
+and the stronger null move -16 +/- 13; double extension, threat-aware
+reductions and history pruning -7 +/- 13. All nine stay. From 5.5 on, an
+accepted SPRT is extended to a fixed length before its Elo is recorded.
+
 ## 5.4: history pruning, continuation correction history, stronger null move
 
 5.3 plus the "second bumper build" (commit `f4a0fea`; same network):

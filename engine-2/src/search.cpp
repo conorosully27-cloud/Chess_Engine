@@ -21,24 +21,39 @@ namespace {
 // Reverse futility: at depth <= RFP_DEPTH, return when the static
 // evaluation beats beta by RFP_MARGIN per ply.
 TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
-TUNE_PARAM(RFP_MARGIN, 94, 20, 250);
+TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
 
 // Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
-TUNE_PARAM(FUT_DEPTH, 3, 1, 8);
+TUNE_PARAM(FUT_DEPTH, 6, 1, 8);
 TUNE_PARAM(FUT_BASE, -3, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 147, 40, 300);
+TUNE_PARAM(FUT_MARGIN, 115, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
 // skipped (4, 7, 12 at depths 1-3).
-TUNE_PARAM(LMP_DEPTH, 3, 1, 10);
+TUNE_PARAM(LMP_DEPTH, 5, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 102, 25, 300);
+TUNE_PARAM(LMP_SCALE, 80, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
 // get a margin growing with depth squared, captures one growing with depth.
+// "Improving" (gentle version): the static evaluation is above the one two
+// plies earlier (no information counts as improving). Improving nodes get a
+// smaller reverse-futility margin (IMPROVING_RFP cp); late quiet moves
+// (from the IMPROVING_LMR_MOVE-th) at non-PV nodes that are not improving
+// get IMPROVING_LMR plies more reduction. Earlier versions (2.10) halved
+// late move pruning and cut nodes by 35%: too much.
+TUNE_PARAM(IMPROVING_RFP, 79, 0, 150);
+TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
+TUNE_PARAM(IMPROVING_LMR_MOVE, 10, 3, 20);
+
+// The table's score refines the static evaluation in reverse futility and
+// null move (1 on, 0 off); see negamax.
+TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
+TUNE_PARAM(TT_REFINE_SLACK, 2, 0, 6);
+
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
 TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
 TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
@@ -51,23 +66,25 @@ TUNE_PARAM(LMR_DIV, 198, 100, 500);
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
 TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
-// The other reduction terms, all in hundredths of a ply (the total is
-// rounded down to whole plies once, at the end): less on the main line
-// (LMR_PV) and for killers (LMR_KILLER), more at cut nodes (null-window
-// nodes expected to fail high: CUT_NODE_LMR).
-TUNE_PARAM(LMR_PV, 100, 0, 300);
-TUNE_PARAM(LMR_KILLER, 100, 0, 300);
-TUNE_PARAM(CUT_NODE_LMR, 100, 0, 300);
+// Extra late move reduction at cut nodes (null-window nodes expected to
+// fail high).
+TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
+// Deeper null-move reduction only for deep nodes: one more ply from depth
+// NULL_DEEP_START, one more every NULL_DEEP_DIV plies after that. Shallow
+// nodes keep 2-3 plies (bigger reductions there failed three times: the
+// null search fell into quiescence or was clamped to 1 ply).
+TUNE_PARAM(NULL_DEEP_START, 7, 6, 30);
+TUNE_PARAM(NULL_DEEP_DIV, 3, 1, 12);
 TUNE_PARAM(NULL_EVAL_DIV, 200, 0, 1000);
 TUNE_PARAM(NULL_EVAL_MAX, 3, 0, 6);
 // Threat-aware reductions: when the null move fails, the reply that refuted
 // it is the opponent's threat. If it captures one of our pieces, moves of
-// that piece (getting it out of the way) are reduced THREAT_LMR hundredths
-// of a ply less (0 = off; flat alone on 5.2, in 5.3).
-TUNE_PARAM(THREAT_LMR, 100, 0, 300);
+// that piece (getting it out of the way) are reduced THREAT_LMR plies less.
+// 0 = off (flat on 5.2).
+TUNE_PARAM(THREAT_LMR, 1, 0, 3);
 // History pruning: at depth <= HIST_PRUNE_DEPTH off the main line, a quiet
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).
@@ -99,6 +116,19 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Recapture extension (Berserk 8): 1 on, 0 off. Off: -10 +/- 13 vs 6.1
+// (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
+// History extension (Berserk 8): from HIST_EXT_DEPTH, a quiet hash move
+// whose history (main + both continuation rows, each at most 16384) is at
+// least HIST_EXT_MIN gets a ply more, when the singular test gave none.
+// Off (HIST_EXT 0): -15 +/- 16 vs 6.1 (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(HIST_EXT, 0, 0, 1);
+TUNE_PARAM(HIST_EXT_DEPTH, 7, 4, 14);
+TUNE_PARAM(HIST_EXT_MIN, 20000, 8000, 45000);
+// Check extension: a ply more in check, while the remaining depth is below
+// CHECK_EXT_DEPTH (6.1: always, i.e. MAX_PLY).
+TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
@@ -404,7 +434,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
 
   double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
-  if (in_check) depth++;  // look further when in check
+  if (in_check && depth < CHECK_EXT_DEPTH) depth++;  // look further when in check, near the leaves (Berserk 8)
   if (depth <= 0) return quiesce(alpha, beta, ply);
 
   // Transposition table: reuse an earlier result for this position if it
@@ -461,14 +491,34 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
     // Corrected by what searches of this pawn structure have found.
     static_eval = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
+  }
+  eval_stack_[ply] = in_check ? EVAL_NONE : static_eval;
+  const bool improving = !in_check && (ply < 2 || eval_stack_[ply - 2] == EVAL_NONE || static_eval > eval_stack_[ply - 2]);
+  // The table's score refines the static evaluation for reverse futility
+  // and null move, in the direction its bound allows: an upper bound below
+  // the static eval lowers it (any depth: it only makes those two prunings
+  // more careful), a lower bound above it raises it only from an entry
+  // nearly as deep as this node (TT_REFINE_SLACK plies; a deeper one would
+  // already have cut off above). Futility, "improving" and correction
+  // history keep the static eval.
+  int eval = static_eval;
+  if (TT_EVAL_REFINE && !in_check && !excluding && tt_bound != BOUND_NONE && !is_mate_score(tt_score)) {
+    if (tt_score < static_eval && (tt_bound == BOUND_UPPER || tt_bound == BOUND_EXACT))
+      eval = tt_score;
+    else if (tt_score > static_eval && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) &&
+             tt_depth >= depth - TT_REFINE_SLACK)
+      eval = tt_score;
+  }
+  if (!in_check) {
     if (!pv_node && !excluding && !is_mate_score(beta)) {
-      // Reverse futility: so far ahead that a shallow search won't change it.
-      if (depth <= RFP_DEPTH && static_eval - RFP_MARGIN * depth >= beta) return static_eval;
+      // Reverse futility: so far ahead that a shallow search won't change it
+      // (a little sooner when the position is getting better).
+      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
-      if (!after_null && depth >= 3 && static_eval >= beta && has_pieces(pos)) {
-        const int reduction = (depth >= 7 ? 3 : 2) +
-                              (NULL_EVAL_DIV > 0 ? std::min((static_eval - beta) / std::max(int(NULL_EVAL_DIV), 1), int(NULL_EVAL_MAX)) : 0);
+      if (!after_null && depth >= 3 && eval >= beta && has_pieces(pos)) {
+        const int reduction = (depth >= 7 ? 3 : 2) + (depth >= NULL_DEEP_START ? 1 + (depth - NULL_DEEP_START) / NULL_DEEP_DIV : 0) +
+                              (NULL_EVAL_DIV > 0 ? std::min((eval - beta) / std::max(int(NULL_EVAL_DIV), 1), int(NULL_EVAL_MAX)) : 0);
         ply_move_[ply] = -1;
         pos.make_null_move();
         const int score = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, !cut_node, true);
@@ -540,6 +590,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   int best_score = -INF;
   Move best_move;
   int legal = 0;
+  // The move that led here, for the recapture extension.
+  const Move prev_move = ply > 0 ? pos.last_move() : Move();
 
   while (const Move move = picker.next()) {
     if (move == excluded || !pos.legal(move)) continue;
@@ -600,6 +652,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         extension = -1;  // other moves come close and this one is expected to cut: less effort here
       }
     }
+    // Recapture extension: on the main line, taking back on the square
+    // where the opponent just captured gets a ply more, so the exchange is
+    // seen to its end.
+    if (RECAPTURE_EXT && extension == 0 && pv_node && prev_move && prev_move.is_capture() && move.is_capture() &&
+        move.to() == prev_move.to() && ply < 2 * root_depth_)
+      extension = 1;
+    if (HIST_EXT && extension == 0 && move == tt_move && quiet && depth >= HIST_EXT_DEPTH && ply > 0 && ply < 2 * root_depth_) {
+      const int index = piece * 64 + move.to();
+      const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+      if (history >= HIST_EXT_MIN) extension = 1;
+    }
     const int new_depth = depth - 1 + extension;
     double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
 
@@ -617,26 +680,26 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // Not at the root: reducing there can miss a quicker mate.
       int reduction = 0;
       if (depth >= 3 && legal > 2 && quiet && !in_check && !pos.in_check() && ply > 0) {  // pos: after the move
-        // In hundredths of a ply, rounded down once at the end.
-        int r = 100 * LMR[std::min(depth, 63)][std::min(legal, 63)];
-        if (pv_node) r -= LMR_PV;  // less on the main line
-        if (cut_node) r += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
-        if (move == killer1 || move == killer2) r -= LMR_KILLER;  // less for moves that refuted others
-        if (move.from() == threat_sq) r -= THREAT_LMR;  // the piece the opponent threatens
+        reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
+        if (pv_node) reduction--;  // less on the main line
+        if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
+        if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
+        if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
+        if (!improving && !pv_node && legal >= IMPROVING_LMR_MOVE) reduction += IMPROVING_LMR;  // getting worse: late quiets matter less
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
-        r -= 100 * std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
-        reduction = std::clamp((r + 10000) / 100 - 100, 0, depth - 2);  // + 10000: a floor for negatives
+        reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
+        reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
         // get a milder reduction, steered by capture history.
-        // In hundredths too, from the finer table; rounded down at the end.
-        int r = LMR100[std::min(depth, 63)][std::min(legal, 63)] - CAPT_LMR_BASE;
-        if (pv_node) r -= LMR_PV;
-        if (cut_node) r += CUT_NODE_LMR;
-        r -= 100 * std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
-        if (move.from() == threat_sq) r -= THREAT_LMR;
-        reduction = std::clamp((r + 10000) / 100 - 100, 0, depth - 2);
+        // Rounded down after the offset (adding 10000 keeps the division a floor).
+        reduction = (LMR100[std::min(depth, 63)][std::min(legal, 63)] - CAPT_LMR_BASE + 10000) / 100 - 100;
+        if (pv_node) reduction--;
+        if (cut_node) reduction += CUT_NODE_LMR;
+        reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
+        if (move.from() == threat_sq) reduction -= THREAT_LMR;
+        reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.

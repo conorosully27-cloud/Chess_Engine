@@ -23,25 +23,6 @@ retune request from 4.6.)
 Back to 5.4's values; the fractional-reduction restructure stays (same
 moves as 5.4, bench 2822382).
 
-## TT buckets, on 5.4 (Nov 2026)
-
-**Change** (commit `0ed486c`): 5-entry, 64-byte buckets (bound and a 6-bit
-search age share a byte, so entries stay 12 bytes with the eval); a probe
-checks the whole bucket, a store reuses the matching entry, else an empty
-one, else the lowest depth minus 8 per search of age. Same rules for a
-matching entry, no quiescence probes. 64 MB: 5.2M entries (5.4: 4.2M).
-Bench 2666511 (5.4: 2822382), same speed.
-
-**Result:** vs 5.4 (cloud, 8+0.08, 4 at a time, 8moves_v3): **H0 after
-754 games**, +94 -108 =552, **-6 +/- 12**, LOS 15%, pentanomial
-[4, 81, 219, 71, 2].
-
-**Prior:** 4/10 (flat three times on 2.x).
-
-**Commentary:** a fourth flat-or-worse result. At 8+0.08 the 64 MB table
-rarely fills, so better replacement has little to keep; the extra entries
-don't pay. Reverted. Only a long time control (or a small Hash) would give
-it a real chance.
 
 ## Root move list sorted by score, on 5.4 (Nov 2026)
 
@@ -63,6 +44,193 @@ first (hash move) and orders the rest by history, killers and captures,
 renewed every depth; a frozen score order loses that. A version that keeps
 the list (for MultiPV etc.) but orders it like the picker each depth, or
 by node counts, could keep the features without the loss.
+
+
+## History extension of the hash move, on 6.1 (Nov 2026)
+
+**Change** (commit `8d2099a`, from Berserk 8): from depth 7, a quiet hash
+move whose history (main + both continuation rows) is at least 20000 gets
+a ply more, when the singular test gave no extension; below twice the
+root depth. Bench 1887286 -> 1872546.
+
+**Result:** vs 6.1 (cloud, 8+0.08, 4 at a time): **H0 after 374 games**,
++37 -53 =284 (47.9%), **-15 +/- 16**. Not retried at 40+0.4 (clearly
+worse, not flat).
+
+**Prior:** 4/10 (Berserk has it; few others do).
+
+**Commentary:** the moves it extends are the ones the search already
+trusts most: high history means they are rarely reduced and often cut
+off, so the extra ply buys little and costs depth everywhere else on
+those lines. Singular extension already covers the hash move from depth
+8 with a real test instead of a history guess. Switched off
+(`HIST_EXT` 0; bench back to 1887286).
+
+## Recapture extension, on 6.1 (Nov 2026)
+
+**Change** (commit `af59bc2`, from Berserk 8): at PV nodes, a capture on
+the square where the previous move captured gets a ply more, when the
+singular test gave no extension and below twice the root depth. Bench
+1887286 -> 2353388 (25% more nodes at fixed depth).
+
+**Result:** vs 6.1 (cloud, 8+0.08, 4 at a time): **H0 after 612 games**,
++75 -92 =445 (48.6%), **-10 +/- 13**. Level for the first ~350 games
+(+3), then fell away. Not retried at 40+0.4: the owner's rule was to
+retry only if it failed while roughly flat, and -10 is clearly worse.
+
+**Prior:** 5/10 (Berserk has it; Stockfish dropped its version years ago).
+
+**Commentary:** the main line already sees exchanges through: quiescence
+resolves captures, and recaptures are rarely reduced (captures get mild
+LMR, the first move none). The extra ply mostly made the PV more
+expensive: 25% more nodes for the same depth, so less depth per second.
+Switched off (`RECAPTURE_EXT` 0; bench back to 1887286). If retried:
+only for an equal-value recapture (SEE == 0), or at non-PV nodes too with
+a depth limit, as Stockfish once did.
+
+## TT score refines the static eval in pruning, on 6.0 + improving (Nov 2026)
+
+**Change** (commit `d5a9cd5`, from Berserk 8): where the table's bound
+says its score is more accurate than the static evaluation (exact; lower
+bound above it; upper bound below it), that score replaces the static
+eval in reverse futility, null move and futility. Any table depth
+(Berserk requires the entry's depth >= the node's). Bench 1994733
+(improving: 1932053; 7% fewer nodes at depth 16).
+
+**Result:** vs 6.0 + improving (cloud, 8+0.08, 4 at a time): **H0 after
+202 games**, +22 -49 =131 (43.3%), **-47 +/- 25**, LOS 0.01%.
+
+**Prior:** 6/10 (standard in Stockfish and Berserk).
+
+**Commentary:** clearly harmful as written: it prunes too much. Likely
+culprits: shallow entries (any depth) and upper bounds feeding futility,
+which then skips quiet moves on stale information; our margins were
+tuned for the static eval alone. Switched off (`TT_EVAL_REFINE` 0; bench
+back to 1932053). If retried: only entries at least as deep as the node,
+and only in reverse futility and null move.
+
+**Retry, careful version (commit `6451fe2`):** only reverse futility and
+null move; an upper bound below the static eval lowers it (any depth), a
+lower bound above it raises it only from an entry within 2 plies of the
+node's depth; futility keeps the static eval. Bench 1763936; depth-16
+nodes about equal to improving's (+0.6%). vs 6.0 + improving: **H0 after
+484 games**, +57 -75 =352, **-13 +/- 15**. Much less harmful, still no
+gain: our margins and correction history already account for what the
+table adds. Off again (`TT_EVAL_REFINE` 0, bench 1932053).
+
+## Training run 9: game-result weight 0.4, vs 5.6 (Nov 2026)
+
+**Change:** run 8 repeated with one difference, `train.py --wdl 0.4`
+(the game result's share of the target; run 8 used the default 0.25).
+Same data, 1,024 units, 20 epochs; net-20 tested in 5.6's code. Bench
+2434762 (5.6: 2435717). Network not kept in the repo.
+
+**Result:** vs 5.6 (cloud, 8+0.08, 4 at a time, 8moves_v3): **H0 after
+1,670 games**, +316 -326 =1028, **-2 +/- 10**, LOS 34%, pentanomial
+[23, 198, 396, 202, 16].
+
+**Prior:** 4/10.
+
+**Commentary:** no difference either way: between 0.25 and 0.4 the
+result weight barely matters at this data size. 0.25 stays the default.
+
+## Razoring, on 5.5 (Nov 2026)
+
+**Change** (not committed; from Tucano 12's search): in the non-PV block
+after reverse futility, at depth <= 3 (`RAZOR_DEPTH`) with no hash move,
+if the static evaluation is more than 250 cp per ply (`RAZOR_MARGIN`)
+below alpha, `quiesce(alpha - 1, alpha, ply)`; if that is below alpha,
+return it. Bench 2108710.
+
+**Result:** vs 5.5 (cloud, 8+0.08, 8moves_v3, 4 at a time): **H0 after
+202 games**, +13 -88 =101, **-135 +/- 29**. No crashes or time losses.
+
+**Prior:** 4/10 (Tucano uses it; Stockfish's version has much wider
+margins).
+
+**Commentary:** far too aggressive here: quiescence sees only captures,
+so quiet defences 250-750 cp down were thrown away, and futility and
+reverse futility already cover these nodes. The size of the loss is
+unusual; a retry should be depth 1 only with a margin of 400+ cp (or
+Stockfish-style, growing with depth squared), and check the code once more.
+
+**Retry, Stockfish-style margins** (not committed): no hash-move
+condition; razor when the static evaluation is more than `RAZOR_BASE` 500
++ `RAZOR_SCALE` 300 x depth^2 below alpha (800, 1,700, 3,200 cp at depths
+1-3). Bench 2585522. vs 5.5: **H0 after 404 games**, +56 -79 =269, **-20
++/- 18**. Losing even at margins this wide suggests our quiescence search
+(captures only, no hash table, SEE and delta pruning) is too weak a
+stand-in, or that futility, reverse futility and history pruning already
+cut these nodes more cheaply. Dropped; not worth a third try without a
+stronger quiescence search.
+
+## Futility pruning to depth 6, on 5.5 (Nov 2026)
+
+**Change** (not committed): `FUT_DEPTH` 3 -> 6 (same margin, -3 + 147 cp
+per ply). Bench 2437324.
+
+**Result:** vs 5.5 (as above): paused by the owner at about 1,590 games
+(+7 +/- 9), then resumed: **H0 after 2,490 games**, +374 -367 =1749
+(50.1%), **+1 +/- 7**, LOS 61%.
+
+**Prior:** 5/10 (Tucano prunes this way to depth 8).
+
+**Commentary:** flat: the early +7 faded. Deeper futility at the same
+margin changes little; if tried again, then only as part of one SPSA over
+`FUT_*`, `LMP_*`, `RFP_*` and `HIST_PRUNE_*`.
+
+## Late move pruning to depth 5, on 5.5 (Nov 2026)
+
+**Change** (not committed): `LMP_DEPTH` 3 -> 5 (same formula, 3 +
+depth^2: 19 and 28 quiet moves at depths 4 and 5). Bench 2400388.
+
+**Result:** vs 5.5 (as above): **stopped by the owner at 1,200 games**,
++179 -179 =842, **0 +/- 10**, LLR -1.85 (heading for H0).
+
+**Prior:** 5/10 (Tucano prunes by move count to depth 8).
+
+**Commentary:** flat. The formula was tuned for depths 1-3; a tune of
+depth, base and scale together might find something, best done with the
+other pruning values.
+
+## TT buckets, on 5.4 (Nov 2026)
+
+**Change** (commit `0ed486c`): 5-entry, 64-byte buckets (bound and a 6-bit
+search age share a byte, so entries stay 12 bytes with the eval); a probe
+checks the whole bucket, a store reuses the matching entry, else an empty
+one, else the lowest depth minus 8 per search of age. Same rules for a
+matching entry, no quiescence probes. 64 MB: 5.2M entries (5.4: 4.2M).
+Bench 2666511 (5.4: 2822382), same speed.
+
+**Result:** vs 5.4 (cloud, 8+0.08, 4 at a time, 8moves_v3): **H0 after
+754 games**, +94 -108 =552, **-6 +/- 12**, LOS 15%, pentanomial
+[4, 81, 219, 71, 2].
+
+**Prior:** 4/10 (flat three times on 2.x).
+
+**Commentary:** a fourth flat-or-worse result. At 8+0.08 the 64 MB table
+rarely fills, so better replacement has little to keep; the extra entries
+don't pay. Reverted. **Follow-up:** with both engines at Hash 2 MB (table
+squeezed, as in long games) it passed: H1 after 480 games, +93 -55 =332,
++28 +/- 17. But at normal Hash and a long time control (64 MB, 40+0.4,
+cloud, 4 at a time): **H0 after 676 games**, +58 -66 =552, **-4 +/- 11**,
+pentanomial [3, 50, 238, 46, 1]. Even at 40+0.4 the 64 MB table doesn't
+fill enough for the better replacement to pay; buckets only win when the
+table is badly overloaded (2 MB). Then both at Hash 16 MB, 8+0.08:
+stopped by the owner at 1,960 games, +316 -288 =1356, **+5 +/- 8**, LOS
+88%, LLR -0.02 (it peaked at +7, LLR 1.01, at 1,460 games).
+
+| Hash, TC | Result | Elo |
+|---|---|---|
+| 2 MB, 8+0.08 | H1, 480 games | +28 +/- 17 |
+| 16 MB, 8+0.08 | stopped, 1,960 games | +5 +/- 8 |
+| 64 MB, 8+0.08 | H0, 754 games | -6 +/- 12 |
+| 64 MB, 40+0.4 | H0, 676 games | -4 +/- 11 |
+
+Buckets pay in proportion to how full the table is; at our 64 MB default
+they cost a little, probably because keeping more stored moves means IIR
+fires less and the trees grow. Rejected at these settings; only a version
+that costs nothing on an empty table would be worth another try.
 
 ## Threat-aware reductions, on 5.2 (Nov 2026)
 
