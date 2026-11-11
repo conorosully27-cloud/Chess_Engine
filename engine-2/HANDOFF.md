@@ -55,6 +55,13 @@ real but don't show yet against these 3550 engines. Next opponent near
 3500: Endspiel 2.0.0 (3504, Rust, github.com/thilo11/endspiel, tag
 `v2.0.0`, net in `crates/chess-nnue/nets/`; `cargo build --release`
 needs the owner's approval: it fetches and runs outside code).
+**6.2 vs Endspiel 2.0.0** (3504; built with Rust 1.99, installed alongside
+via rustup, `cargo +1.99 build --release` with `target-cpu=native`, in
+`~/tools/endspiel-run/`): **H1 after 104 games**, +34 -11 =59 (61.1%),
+**+78 +/- 40**. The four opponents disagree a lot (6.2-equivalent: Tucano
+~3545 using 6.0's +22 plus 6.2's +33 over 6.0, Berserk ~3480, Renegade
+~3460, Endspiel ~3580): single-opponent tests are matchup-heavy. Average
+**about 3515 on CCRL Blitz**; test against several engines, not one.
 
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
