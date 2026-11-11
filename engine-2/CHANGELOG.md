@@ -5,6 +5,21 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.2.1: final SPSA values and a check extension near the leaves
+
+6.2 with the finished SPSA run (4,000 pairs on 6.1 + the check extension,
+rounded): `FUT_MARGIN` 174 -> 115, `LMP_SCALE` 85 -> 80, `IMPROVING_RFP`
+72 -> 79, `IMPROVING_LMR_MOVE` 9 -> 10 (`RFP_MARGIN` 90, `NULL_DEEP_START`
+7, `NULL_DEEP_DIV` 3 unchanged). Also the check extension only while the
+remaining depth is below 7 (`CHECK_EXT_DEPTH`; was every check), held
+from Nov 10 (+7 +/- 7 vs 6.1 at 40+0.4, LOS 96.6%) and tuned with.
+**Against 6.2** (cloud, 8+0.08, 8moves_v3, SPRT 0/5, 4 games at a time):
+**stopped undecided by the owner after 5,658 games**, +832 -789 =4037
+(50.4%), **+3 Elo (+/- 5)**, LOS 86.9%, LLR 0.13 (4%). A first run, cut at
+1,380 games by a container restart, read +12 +/- 9. Released on the LOS
+(a retune, no new search code apart from the held extension). Bench
+**1088726**. Network unchanged.
+
 ## 6.2: tuned pruning, "improving" and null-move values
 
 6.1's code and network with seven values from the owner's SPSA run on 6.1

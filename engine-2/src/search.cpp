@@ -27,14 +27,14 @@ TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
 TUNE_PARAM(FUT_DEPTH, 6, 1, 8);
 TUNE_PARAM(FUT_BASE, -3, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 174, 40, 300);
+TUNE_PARAM(FUT_MARGIN, 115, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
 // skipped (4, 7, 12 at depths 1-3).
 TUNE_PARAM(LMP_DEPTH, 5, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 85, 25, 300);
+TUNE_PARAM(LMP_SCALE, 80, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
@@ -45,9 +45,9 @@ TUNE_PARAM(LMP_SCALE, 85, 25, 300);
 // (from the IMPROVING_LMR_MOVE-th) at non-PV nodes that are not improving
 // get IMPROVING_LMR plies more reduction. Earlier versions (2.10) halved
 // late move pruning and cut nodes by 35%: too much.
-TUNE_PARAM(IMPROVING_RFP, 72, 0, 150);
+TUNE_PARAM(IMPROVING_RFP, 79, 0, 150);
 TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
-TUNE_PARAM(IMPROVING_LMR_MOVE, 9, 3, 20);
+TUNE_PARAM(IMPROVING_LMR_MOVE, 10, 3, 20);
 
 // The table's score refines the static evaluation in reverse futility and
 // null move (1 on, 0 off); see negamax.
@@ -116,6 +116,19 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Recapture extension (Berserk 8): 1 on, 0 off. Off: -10 +/- 13 vs 6.1
+// (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
+// History extension (Berserk 8): from HIST_EXT_DEPTH, a quiet hash move
+// whose history (main + both continuation rows, each at most 16384) is at
+// least HIST_EXT_MIN gets a ply more, when the singular test gave none.
+// Off (HIST_EXT 0): -15 +/- 16 vs 6.1 (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(HIST_EXT, 0, 0, 1);
+TUNE_PARAM(HIST_EXT_DEPTH, 7, 4, 14);
+TUNE_PARAM(HIST_EXT_MIN, 20000, 8000, 45000);
+// Check extension: a ply more in check, while the remaining depth is below
+// CHECK_EXT_DEPTH (6.1: always, i.e. MAX_PLY).
+TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
@@ -421,7 +434,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
 
   double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
-  if (in_check) depth++;  // look further when in check
+  if (in_check && depth < CHECK_EXT_DEPTH) depth++;  // look further when in check, near the leaves (Berserk 8)
   if (depth <= 0) return quiesce(alpha, beta, ply);
 
   // Transposition table: reuse an earlier result for this position if it
@@ -577,6 +590,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   int best_score = -INF;
   Move best_move;
   int legal = 0;
+  // The move that led here, for the recapture extension.
+  const Move prev_move = ply > 0 ? pos.last_move() : Move();
 
   while (const Move move = picker.next()) {
     if (move == excluded || !pos.legal(move)) continue;
@@ -636,6 +651,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       } else if (tt_score >= beta) {
         extension = -1;  // other moves come close and this one is expected to cut: less effort here
       }
+    }
+    // Recapture extension: on the main line, taking back on the square
+    // where the opponent just captured gets a ply more, so the exchange is
+    // seen to its end.
+    if (RECAPTURE_EXT && extension == 0 && pv_node && prev_move && prev_move.is_capture() && move.is_capture() &&
+        move.to() == prev_move.to() && ply < 2 * root_depth_)
+      extension = 1;
+    if (HIST_EXT && extension == 0 && move == tt_move && quiet && depth >= HIST_EXT_DEPTH && ply > 0 && ply < 2 * root_depth_) {
+      const int index = piece * 64 + move.to();
+      const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+      if (history >= HIST_EXT_MIN) extension = 1;
     }
     const int new_depth = depth - 1 + extension;
     double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
