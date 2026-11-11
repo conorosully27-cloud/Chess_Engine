@@ -50,7 +50,15 @@ were run against 6.1):
 5. **Long time control check of 6.1 vs 6.0** (40+0.4, laptop): the deeper
    null move should gain more there.
 6. **Data run at 10,000-20,000 nodes per position** from 6.1 (laptop),
-   then train with `--hidden 1024 --wdl 0.4`. Likely the biggest lever:
+   then train with `--hidden 1024 --wdl 0.4`.
+   **Running (Nov 11, owner's request, this session's cloud machine):
+   data run 10** from **6.2.1** (bench 1088726, binary
+   `~/engines/engine2-6.2.1-datagen`), **10,000 nodes** a move,
+   `8moves_v3` book + 2-5 random plies, keep 4. 4 processes x 25M into
+   `~/nnue-data/v10/part-1..4.bin`, seeds 20101-20104. About **0.8M
+   positions an hour** in all (~19M a day, ~5 days for 100M). **Resume
+   with `~/nnue-data/v10/run.sh`** (detached, appends; takes the next seed
+   block itself: 20201-20204, ...; `starts.txt` lists them). Likely the biggest lever:
    Berserk 8 has a 512-unit net yet is ~50 Elo stronger, mostly data.
 7. **Strength checks of 6.1:** vs Tucano 12.00 (3489) and Berserk 8
    (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
