@@ -27,14 +27,14 @@ TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
 TUNE_PARAM(FUT_DEPTH, 6, 1, 8);
 TUNE_PARAM(FUT_BASE, -3, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 174, 40, 300);
+TUNE_PARAM(FUT_MARGIN, 115, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
 // skipped (4, 7, 12 at depths 1-3).
 TUNE_PARAM(LMP_DEPTH, 5, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 85, 25, 300);
+TUNE_PARAM(LMP_SCALE, 80, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
@@ -45,9 +45,9 @@ TUNE_PARAM(LMP_SCALE, 85, 25, 300);
 // (from the IMPROVING_LMR_MOVE-th) at non-PV nodes that are not improving
 // get IMPROVING_LMR plies more reduction. Earlier versions (2.10) halved
 // late move pruning and cut nodes by 35%: too much.
-TUNE_PARAM(IMPROVING_RFP, 72, 0, 150);
+TUNE_PARAM(IMPROVING_RFP, 79, 0, 150);
 TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
-TUNE_PARAM(IMPROVING_LMR_MOVE, 9, 3, 20);
+TUNE_PARAM(IMPROVING_LMR_MOVE, 10, 3, 20);
 
 // The table's score refines the static evaluation in reverse futility and
 // null move (1 on, 0 off); see negamax.
