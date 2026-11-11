@@ -8,11 +8,12 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.2** on `main`, bench **1531486** (6.1: 1887286),
+**Current best: ChessMcEngineFace 6.2.1** (this branch, for `main`), bench
+**1088726** (6.2: 1531486; 6.1: 1887286),
 network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 `--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
 12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
-build `main`, copy to `~/matches/engine2-6.2`.
+build 6.2.1, copy to `~/matches/engine2-6.2.1`.
 
 **To do, in order** (each an SPRT vs 6.2 at 8+0.08 unless noted; items 1-4
 were run against 6.1):
@@ -73,7 +74,11 @@ FUT_MARGIN 115, LMP_SCALE 80, IMPROVING_RFP 79, IMPROVING_LMR_MOVE 10,
 the rest as 6.2). A first run, cut at 1,380 games by a container restart,
 stood at +209 -163 =1008 (51.7%), **+12 +/- 9**, LOS 99.5%, LLR 2.28
 (77%) (`~/matches/621-part1.log`); restarted from game 1
-(`~/matches/621.log`).
+(`~/matches/621.log`): **stopped undecided by the owner after 5,658
+games**, +832 -789 =4037 (50.4%), **+3 +/- 5**, LOS 86.9%, LLR 0.13 (4%).
+**Released as ChessMcEngineFace 6.2.1** on the LOS (owner, Nov 11: "87%
+likelihood the values are better and it's just a tuning"). The check
+extension is in it, so item 3 is done.
 
 **Settled, don't repeat:** TT buckets (help only when the table is
 overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
