@@ -190,9 +190,9 @@ TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
 TUNE_PARAM(TM_MOVES, 25, 10, 80);
 // PARTIAL_ITER: when the clock stops a depth part-way, a root move that
-// already beat the previous depth's best move in it is played. Off: flat
-// on 6.2.1 (FAILED_EXPERIMENTS.md).
-TUNE_PARAM(PARTIAL_ITER, 0, 0, 1);
+// already beat the previous depth's best move in it is played. On since
+// 6.4 (flat alone on 6.2.1; +11 +/- 7 together with QS_TT and ASP_DELTA).
+TUNE_PARAM(PARTIAL_ITER, 1, 0, 1);
 // HIST_DECAY_SHIFT: every search starts by shifting all history tables
 // right by this (2 = keep a quarter, as Engine 1.6 did before history
 // gravity; 0 = keep everything). Candidate values: 1 and 0.
@@ -202,11 +202,12 @@ TUNE_PARAM(HIST_DECAY_SHIFT, 2, 0, 4);
 // within half the clock), so the re-search can find a replacement
 // (played even from an unfinished depth with PARTIAL_ITER). 100 = off.
 TUNE_PARAM(TM_FAIL_LOW_PCT, 100, 100, 300);
-// Candidates (Nov 11), each off by default until measured.
 // QS_TT: quiescence probes the table and stores its results at depth 0.
-TUNE_PARAM(QS_TT, 0, 0, 1);
-// ASP_DELTA: the first aspiration window's half-width.
-TUNE_PARAM(ASP_DELTA, 35, 5, 100);
+// On since 6.4 (+3 +/- 9 alone on 6.3).
+TUNE_PARAM(QS_TT, 1, 0, 1);
+// ASP_DELTA: the first aspiration window's half-width (6.4: 15; 35 before,
+// 15 alone was 0 +/- 12 on 6.3).
+TUNE_PARAM(ASP_DELTA, 15, 5, 100);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
@@ -705,7 +706,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     ply_move_[ply] = piece * 64 + move.to();
     const std::uint64_t nodes_before = nodes_;
     pos.make_move(move);
-    if (new_depth > 0 || QS_TT) tt_.prefetch(pos.key());  // the child probes the table (quiescence doesn't)
+    if (new_depth > 0 || QS_TT) tt_.prefetch(pos.key());  // the child probes the table (quiescence only with QS_TT)
 
     int score;
     if (legal == 1) {

@@ -8,24 +8,31 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.3** (on `main`, Nov 11) = 6.2.1
-planning 1/25 of the clock per move instead of 1/40 (`TM_MOVES`): **+27
-+/- 17 over 6.2.1** (H1 after 448 games; 1/20 vs 1/25 was -3 +/- 11 over
-1,098). Baseline for SPRTs: build `main`, copy to `~/matches/engine2-6.3`.
-**Tested on 6.3 (Nov 11)**, all in the code, off; test with a tuning
-build and `OPTS_A="option.NAME=value"`, both sides the same binary
-(`~/matches/tune63-base`): `PARTIAL_ITER` 1 (+2 +/- 9, 1,480 games, on
-6.2.1), `QS_TT` 1 (+3 +/- 9, 1,380 games), `ASP_DELTA` 15 (0 +/- 12, 700
-games): each flat alone. **The three together (bumper build): +10 +/- 10
-after 1,340 games, LLR 2.20 of 2.94, undecided at the 2-hour limit: the
-open item.** Run a second leg; if it turns flat, the owner wants it at
-40+0.4.
-**Next candidates, in the code, off, untested:**
+**Current best: ChessMcEngineFace 6.4** (Nov 11; on branch
+`claude/affectionate-sagan-wacmlh`, `main` has 6.3 until the owner merges
+it) = 6.3 with three changes on that were each flat alone: `PARTIAL_ITER`
+1 (a move from a depth the clock cut short; +2 +/- 9 alone), `QS_TT` 1
+(quiescence uses the table; +3 +/- 9 alone) and `ASP_DELTA` 15
+(aspiration window, was 35; 0 +/- 12 alone). **Together +11 +/- 7 over
+6.3** (2,600 games in two legs, +411 -332 =1857; `CHANGELOG.md`). Bench
+**1169368**. Baseline for SPRTs: build it, copy to
+`~/matches/engine2-6.4`. To test a switch, use one tuning build
+(`-DENGINE_TUNE=ON`, `build-tune/`) for both sides, copied under two
+names, with `OPTS_A="option.NAME=value"`. A background match is cut at 2
+hours (about 1,300 games at 8+0.08, 4 at a time): plan for legs and add
+the pentanomial counts.
+**Before 6.4: 6.3** (on `main`) = 6.2.1 planning 1/25 of the clock per
+move instead of 1/40 (`TM_MOVES`): +27 +/- 17 over 6.2.1 (H1 after 448
+games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
+**Open item (Nov 11): `HIST_DECAY_SHIFT` 0 against 6.4** at 8+0.08 (the
+owner asked for it after the bumper build); 1 is the follow-up if 0 is
+flat or worse.
+**Candidates, in the code, off, untested:**
 - `HIST_DECAY_SHIFT` 1 or 0: every search starts by dividing all history
   tables by 4 (from Engine 1.6, before history gravity); most engines
   keep them for the whole game. Bench can't show it (one search per
   position); only games can.
-- `TM_FAIL_LOW_PCT` 150 with `PARTIAL_ITER` 1 ("fail-low rescue"): when
+- `TM_FAIL_LOW_PCT` 150 ("fail-low rescue"; `PARTIAL_ITER` is on now): when
   the previous best move fails low at the root, the hard limit grows (within
   half the clock) so the re-search can find a replacement.
 **Ideas, not written yet:**
@@ -40,13 +47,15 @@ open item.** Run a second leg; if it turns flat, the owner wants it at
 - **Remember the singular test** in the table entry's spare bits and skip
   it next depth when it was lopsided (the test search uses no table).
 - **Correction history keyed by the network's most active hidden units.**
-Also check 6.3 vs 6.2.1 at 40+0.4. **Network
+Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
+at 8+0.08). **Network
 ideas, need a retrain:** squared clipped activations (SCReLU) and output
 buckets by piece count; the net is still plain clipped ReLU with one
 output.
 
 **Before 6.3: ChessMcEngineFace 6.2.1**, bench
-**1088726** (6.2: 1531486; 6.1: 1887286; 6.3's is the same),
+**1088726** (6.2: 1531486; 6.1: 1887286; 6.3's is the same; 6.4:
+1169368),
 network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 `--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
 12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:

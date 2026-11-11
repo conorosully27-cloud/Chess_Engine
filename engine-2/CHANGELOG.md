@@ -5,6 +5,43 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.4: three changes that were flat alone, on together
+
+6.3 with three search changes switched on (all in `src/search.cpp`), each
+flat when tested alone:
+- **A move from a depth the clock cut short** (`PARTIAL_ITER` 1): when
+  the hard time limit stops a depth part-way, a root move that already
+  beat the previous depth's best move in it is played (6.3 discarded the
+  unfinished depth). Alone, on 6.2.1: +2 +/- 9 over 1,480 games.
+- **Quiescence uses the table** (`QS_TT` 1): it probes the table (a
+  cutoff at null-window nodes when the bound allows) and stores its
+  result at depth 0, only over an empty slot or another quiescence entry.
+  Alone, on 6.3: +3 +/- 9 over 1,380 games.
+- **Aspiration window of 15 cp instead of 35** (`ASP_DELTA` 15). Alone,
+  on 6.3: 0 +/- 12 over 700 games.
+
+**Against 6.3** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a time,
+both sides the tuning build), in two legs because a background match is
+cut at 2 hours:
+
+| leg | games | result | Elo | pentanomial | LLR (bound 2.94) |
+|---|---|---|---|---|---|
+| 1 (cut at the 2-hour limit) | 1,340 | +229 -189 =922 (51.5%) | +10.4 +/- 9.7 | [8, 122, 379, 144, 17] | 2.20 |
+| 2 (stopped by the owner) | 1,260 | +182 -143 =935 (51.6%) | +10.8 +/- 9.1 | [10, 87, 393, 134, 6] | 2.63 |
+| **both** | **2,600** | **+411 -332 =1857 (51.5%)** | **+11 +/- 7** | [18, 209, 772, 278, 23] | 4.82 |
+
+Neither leg reached the bound on its own; the owner released on the two
+together (the combined LLR is computed from the summed pentanomial
+counts, not a single uninterrupted SPRT). No time losses. The single
+results add up to +5, within the error of the +11 measured together, so
+this reads as three small gains adding up rather than the changes
+needing each other. Bench **1169368** (6.3: 1088726); the release build,
+the tuning build and the tested binary with the three options set all
+give it. Network unchanged. Only measured at 8+0.08. Fastchess warns
+"Bestmove does not match beginning of last PV" for moves taken from an
+unfinished depth (208 times in 2,600 games): expected, that depth
+printed no line.
+
 ## 6.3: a larger share of the clock per move
 
 6.2.1 planning **1/25 of the remaining clock per move** instead of 1/40
@@ -21,8 +58,7 @@ likely high. **1/20 against 1/25**: stopped by the owner at 1,098 games,
 +162 -170 =766 (49.6%), -3 +/- 11, LLR -2.40 (it read +15 at 280 games):
 no better, 25 stays. Bench **1088726**, unchanged (only clock-based
 searches differ). Network unchanged. Only measured at 8+0.08; check at
-40+0.4. Also in the code, off: `PARTIAL_ITER` (flat,
-`FAILED_EXPERIMENTS.md`) and two untested candidates, `QS_TT`
+40+0.4. Also in the code, off until 6.4: `PARTIAL_ITER`, `QS_TT`
 (quiescence uses the table) and `ASP_DELTA` (aspiration window width).
 
 ## 6.2.1: final SPSA values and a check extension near the leaves

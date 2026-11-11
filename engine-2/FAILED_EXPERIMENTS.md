@@ -18,8 +18,9 @@ build): **stopped by the owner at 700 games**, +103 -103 =494 (50.0%),
 **Prior:** 4/10 (engines at this level mostly use 10-20).
 
 **Commentary:** flat. A narrower window saves nodes when the score holds
-and costs re-searches when it doesn't; here the two cancel. In the bumper
-build below.
+and costs re-searches when it doesn't; here the two cancel. **On since
+6.4 all the same:** with `PARTIAL_ITER` and `QS_TT` it measured +11 +/- 7
+over 2,600 games (`CHANGELOG.md`).
 
 ## Quiescence uses the table, retried on 6.3 (Nov 2026)
 
@@ -38,22 +39,9 @@ games**, +209 -197 =974 (50.4%), **+3 +/- 9**, LLR -0.90.
 
 **Commentary:** flat a fourth time. The evaluation cache already saves
 the network's cost on repeat visits, which is most of what a quiescence
-probe would save. In the bumper build below.
-
-## Bumper build of three flat changes, on 6.3 (Nov 2026) — undecided, ahead
-
-**Change:** `PARTIAL_ITER` 1 + `QS_TT` 1 + `ASP_DELTA` 15 together (the
-owner: "maybe they work better together").
-
-**Result:** vs 6.3 (cloud, 8+0.08, 4 at a time, both sides the tuning
-build, `~/matches/bumper.log`): **stopped at the 2-hour task limit after
-1,340 games, undecided**, +229 -189 =922 (51.5%), **+10 +/- 10**,
-pentanomial [8, 122, 379, 144, 17], LLR 2.20 (75%). It read +17 at 220
-games, +1 at 480, then rose steadily. No time losses. Alone the three
-were +2, +3 and 0. Not a failure yet: needs a second leg (or 40+0.4, the
-owner's plan if it turns flat). Fastchess warns "Bestmove does not match
-beginning of last PV" for `PARTIAL_ITER` moves (89 times): expected, the
-move comes from a depth that printed no line.
+probe would save. **On since 6.4 all the same:** with `PARTIAL_ITER`
+and `ASP_DELTA` 15 it measured +11 +/- 7 over 2,600 games
+(`CHANGELOG.md`).
 
 ## Best move from a depth the clock cut short, on 6.2.1 (Nov 2026)
 
@@ -74,6 +62,9 @@ search stops after any depth that ends past the (scaled) plan, so few
 searches are cut mid-depth, and of those only the ones where a new move
 had already overtaken the old one change anything. Left in the code,
 off. With 6.3's larger plan (1/25) the hard stop is hit no more often.
+**On since 6.4 all the same:** with `QS_TT` and `ASP_DELTA` 15 it
+measured +11 +/- 7 over 2,600 games (`CHANGELOG.md`); there it changed
+the move played about once in 12 games.
 
 ## History extension of the hash move, on 6.1 (Nov 2026)
 
