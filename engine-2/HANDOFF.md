@@ -58,7 +58,10 @@ were run against 6.1):
    `~/nnue-data/v10/part-1..4.bin`, seeds 20101-20104. About **0.8M
    positions an hour** in all (~19M a day, ~5 days for 100M). **Resume
    with `~/nnue-data/v10/run.sh`** (detached, appends; takes the next seed
-   block itself: 20201-20204, ...; `starts.txt` lists them). Likely the biggest lever:
+   block itself: 20201-20204, ...; `starts.txt` lists them). A second cloud
+   session runs the same settings with seeds **20105-20108** (resumes
+   20205-20208, ...) into its own `~/nnue-data/v10/part-5..8.bin`: seeds
+   ending 01-04 belong to this machine, 05-08 to the other. Likely the biggest lever:
    Berserk 8 has a 512-unit net yet is ~50 Elo stronger, mostly data.
 7. **Strength checks of 6.1:** vs Tucano 12.00 (3489) and Berserk 8
    (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
