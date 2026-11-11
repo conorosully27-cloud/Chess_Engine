@@ -5,6 +5,26 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Best move from a depth the clock cut short, on 6.2.1 (Nov 2026)
+
+**Change** (commit `8db170b`, `PARTIAL_ITER` 1): when the hard time limit
+stops a depth part-way, play a root move that beat the previous depth's
+best move in it, provided that move had already been re-searched at the
+new depth (6.2.1 discards the unfinished depth). Bench unchanged
+(1088726; only clock-based searches differ).
+
+**Result:** vs 6.2.1 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **stopped undecided at the 2-hour task limit after 1,480
+games**, +232 -225 =1023 (50.2%), **+2 +/- 9**, LLR -1.54.
+
+**Prior:** 5/10 (most engines do it).
+
+**Commentary:** flat. The hard limit is three times the plan and the
+search stops after any depth that ends past the (scaled) plan, so few
+searches are cut mid-depth, and of those only the ones where a new move
+had already overtaken the old one change anything. Left in the code,
+off. With 6.3's larger plan (1/25) the hard stop is hit no more often.
+
 ## History extension of the hash move, on 6.1 (Nov 2026)
 
 **Change** (commit `8d2099a`, from Berserk 8): from depth 7, a quiet hash

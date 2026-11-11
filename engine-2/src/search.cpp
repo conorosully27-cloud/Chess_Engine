@@ -186,6 +186,19 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 
+// TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
+// (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
+TUNE_PARAM(TM_MOVES, 25, 10, 80);
+// PARTIAL_ITER: when the clock stops a depth part-way, a root move that
+// already beat the previous depth's best move in it is played. Off: flat
+// on 6.2.1 (FAILED_EXPERIMENTS.md).
+TUNE_PARAM(PARTIAL_ITER, 0, 0, 1);
+// Candidates (Nov 11), each off by default until measured.
+// QS_TT: quiescence probes the table and stores its results at depth 0.
+TUNE_PARAM(QS_TT, 0, 0, 1);
+// ASP_DELTA: the first aspiration window's half-width.
+TUNE_PARAM(ASP_DELTA, 35, 5, 100);
+
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
   LmrTable t{};
@@ -263,7 +276,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   if (time < 0) return b;  // no clock given: depth or node limited, or unlimited
   const int inc = us == WHITE ? limits.winc : limits.binc;
   const std::int64_t remaining = std::max<std::int64_t>(1, time - move_overhead_ms);
-  const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, 40) : 40;
+  const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, int(TM_MOVES)) : int(TM_MOVES);
   // Plan a share of the clock plus most of the increment, but never more
   // than a fifth of what is left (half before the last move of a time
   // control), and abort at three times the plan or half the clock. Searches
@@ -352,23 +365,35 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   int stable_depths = 0;  // depths the best move has stayed the same
   for (int depth = 1; depth <= max_depth; depth++) {
     root_depth_ = depth;
+    root_prev_best_ = result.best;
+    root_prev_searched_ = false;
     int score;
     if (depth >= 5 && !is_mate_score(previous)) {
       // Aspiration window: expect a score near the last one, widen if wrong.
-      int delta = 35;
+      int delta = ASP_DELTA;
       int alpha = previous - delta, beta = previous + delta;
       for (;;) {
         score = negamax(depth, alpha, beta, 0, false, false);
         if (stopped_) break;
-        if (score <= alpha) alpha = std::max(-INF, alpha - delta);
-        else if (score >= beta) beta = std::min(INF, beta + delta);
+        if (score <= alpha) {
+          alpha = std::max(-INF, alpha - delta);
+          root_prev_searched_ = false;  // the re-search must reach the old best move again
+        } else if (score >= beta) beta = std::min(INF, beta + delta);
         else break;
         delta *= 2;
       }
     } else {
       score = negamax(depth, -INF, INF, 0, false, false);
     }
-    if (stopped_) break;  // an unfinished depth can't be trusted
+    if (stopped_) {
+      // An unfinished depth can't be trusted, except for a move that beat
+      // the previous depth's best move after that one was searched.
+      if (PARTIAL_ITER && depth > 1 && root_prev_searched_ && pv_length_[0] > 0 && pv_table_[0][0] != result.best) {
+        result.pv.assign(pv_table_[0], pv_table_[0] + pv_length_[0]);
+        result.best = result.pv[0];
+      }
+      break;
+    }
     can_stop_ = true;
 
     const int drop = depth > 1 ? previous - score : 0;
@@ -669,7 +694,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     ply_move_[ply] = piece * 64 + move.to();
     const std::uint64_t nodes_before = nodes_;
     pos.make_move(move);
-    if (new_depth > 0) tt_.prefetch(pos.key());  // the child probes the table (quiescence doesn't)
+    if (new_depth > 0 || QS_TT) tt_.prefetch(pos.key());  // the child probes the table (quiescence doesn't)
 
     int score;
     if (legal == 1) {
@@ -710,6 +735,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     pos.unmake_move();
     if (ply == 0) root_move_nodes_[move.from() * 64 + move.to()] += nodes_ - nodes_before;
     if (stopped_) return 0;
+    if (ply == 0 && move == root_prev_best_) root_prev_searched_ = true;
 
     if (score > best_score) {
       best_score = score;
@@ -804,11 +830,28 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (ply >= MAX_PLY - 1) return evaluate(pos);
 
   const bool in_check = pos.in_check();
+  // The table: any entry for this position is at least as deep as a
+  // quiescence search, so its score cuts off where its bound allows.
+  TTEntry* tte = nullptr;
+  std::uint32_t check = 0;
+  const int alpha_at_start = alpha;
+  if (QS_TT) {
+    tte = &tt_.entry(pos.key());
+    check = TranspositionTable::check(pos.key());
+    if (beta - alpha == 1 && tte->bound != BOUND_NONE && tte->key == check) {
+      const int score = from_tt(tte->score, ply);
+      if (tte->bound == BOUND_EXACT || (tte->bound == BOUND_LOWER && score >= beta) ||
+          (tte->bound == BOUND_UPPER && score <= alpha))
+        return score;
+    }
+  }
   int best_score;
+  int raw_eval = EVAL_NONE;
   if (in_check) {
     best_score = -MATE + ply;
   } else {
-    best_score = evaluate_lazy(pos, alpha, beta) + corr_entries(pos, ply).total() / CORR_GRAIN;
+    raw_eval = evaluate_lazy(pos, alpha, beta);
+    best_score = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
     if (best_score >= beta) return best_score;
     if (best_score > alpha) alpha = best_score;
   }
@@ -834,6 +877,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
     if (!pos.legal(move)) continue;
     ply_move_[ply] = pos.piece_on(move.from()) * 64 + move.to();  // for the child's correction history
     pos.make_move(move);
+    if (QS_TT) tt_.prefetch(pos.key());
     legal++;
     const int score = -quiesce(-beta, -alpha, ply + 1);
     pos.unmake_move();
@@ -848,6 +892,16 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
     }
   }
   if (in_check && legal == 0) return -MATE + ply;
+  // Stored only over an empty slot or another quiescence result: a main
+  // search entry is worth more than this one.
+  if (tte && (tte->bound == BOUND_NONE || tte->depth <= 0)) {
+    if (tte->key != check) tte->move = 0;
+    tte->key = check;
+    tte->score = std::int16_t(to_tt(best_score, ply));
+    tte->depth = 0;
+    tte->bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
+    tte->eval = std::int16_t(raw_eval);
+  }
   return best_score;
 }
 

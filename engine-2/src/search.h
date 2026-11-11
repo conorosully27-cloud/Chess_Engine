@@ -142,6 +142,8 @@ class SearchWorker {
   std::uint64_t max_nodes_ = 0;
   std::int64_t hard_ms_ = -1;
   int root_depth_ = 0;  // the iteration in progress
+  Move root_prev_best_;  // the best move of the last finished depth
+  bool root_prev_searched_ = false;  // ... and whether this depth has searched it yet
   bool stopped_ = false;
   bool can_stop_ = false;  // depth 1 always finishes, so there is always a move
   const std::atomic<bool>* stop_flag_ = nullptr;

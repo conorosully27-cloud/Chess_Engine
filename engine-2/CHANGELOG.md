@@ -5,6 +5,26 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.3: a larger share of the clock per move
+
+6.2.1 planning **1/25 of the remaining clock per move** instead of 1/40
+(`TM_MOVES`, new in `src/search.cpp`; plus 3/4 of the increment, as
+before). The plan had been 1/40 since Engine 1, and 4.3's and 5.3's
+scaling (stable best move, search effort) cut it further on quiet moves,
+so games ended with much of the clock unspent. The caps are unchanged (a
+fifth of the clock for the plan, half for the hard stop). **Against
+6.2.1** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a time, both
+sides the tuning build): **H1 accepted after 448 games**, +93 -58 =297
+(53.9%), **+27 Elo (+/- 17)**, pentanomial [2, 33, 124, 58, 7], no time
+losses. Not extended to a fixed length (owner's call), so the figure is
+likely high. **1/20 against 1/25**: stopped by the owner at 1,098 games,
++162 -170 =766 (49.6%), -3 +/- 11, LLR -2.40 (it read +15 at 280 games):
+no better, 25 stays. Bench **1088726**, unchanged (only clock-based
+searches differ). Network unchanged. Only measured at 8+0.08; check at
+40+0.4. Also in the code, off: `PARTIAL_ITER` (flat,
+`FAILED_EXPERIMENTS.md`) and two untested candidates, `QS_TT`
+(quiescence uses the table) and `ASP_DELTA` (aspiration window width).
+
 ## 6.2.1: final SPSA values and a check extension near the leaves
 
 6.2 with the finished SPSA run (4,000 pairs on 6.1 + the check extension,
