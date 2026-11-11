@@ -18,7 +18,7 @@ namespace chess {
 
 namespace {
 
-constexpr const char* ENGINE_NAME = "ChessMcEngineFace 6.2.1";
+constexpr const char* ENGINE_NAME = "ChessMcEngineFace 6.3";
 constexpr const char* ENGINE_AUTHOR = "Conor O'Sullivan";
 
 std::mutex output_mutex;

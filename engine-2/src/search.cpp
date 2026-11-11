@@ -186,12 +186,14 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 
-// Candidates (Nov 11, on 6.2.1), each off by default until measured.
+// TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
+// (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
+TUNE_PARAM(TM_MOVES, 25, 10, 80);
 // PARTIAL_ITER: when the clock stops a depth part-way, a root move that
-// already beat the previous depth's best move in it is played.
+// already beat the previous depth's best move in it is played. Off: flat
+// on 6.2.1 (FAILED_EXPERIMENTS.md).
 TUNE_PARAM(PARTIAL_ITER, 0, 0, 1);
-// TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES.
-TUNE_PARAM(TM_MOVES, 40, 10, 80);
+// Candidates (Nov 11), each off by default until measured.
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 TUNE_PARAM(QS_TT, 0, 0, 1);
 // ASP_DELTA: the first aspiration window's half-width.

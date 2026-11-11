@@ -8,8 +8,24 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.2.1** (this branch, for `main`), bench
-**1088726** (6.2: 1531486; 6.1: 1887286),
+**Current best: ChessMcEngineFace 6.3** (on `main`, Nov 11) = 6.2.1
+planning 1/25 of the clock per move instead of 1/40 (`TM_MOVES`): **+27
++/- 17 over 6.2.1** (H1 after 448 games; 1/20 vs 1/25 was -3 +/- 11 over
+1,098). Baseline for SPRTs: build `main`, copy to `~/matches/engine2-6.3`.
+**Next candidates** (in the code, off; test with a tuning build and
+`OPTS_A="option.NAME=value"`, both sides the same binary): `QS_TT` 1
+(quiescence probes and stores in the table; flat three times before
+NNUE, never retried since), `ASP_DELTA` 15 (aspiration window, now 35),
+then a **sliding clock share by material** (owner's idea: e.g. 1/20 with
+a full board down to no less than 1/40 in bare endgames; two values, a
+short SPSA). `PARTIAL_ITER` (best move from a cut-short depth) was flat,
++2 +/- 9 over 1,480 games. Also check 6.3 vs 6.2.1 at 40+0.4. **Network
+ideas, need a retrain:** squared clipped activations (SCReLU) and output
+buckets by piece count; the net is still plain clipped ReLU with one
+output.
+
+**Before 6.3: ChessMcEngineFace 6.2.1**, bench
+**1088726** (6.2: 1531486; 6.1: 1887286; 6.3's is the same),
 network `nets/engine-6.0.nnue` (run 9 net-20: 1,024 hidden units,
 `--wdl 0.4`). About **3500 on CCRL Blitz** (6.0: +22 +/- 13 vs Tucano
 12.00 over 1,000 games; -71 +/- 41 vs Berserk 8). Baseline for SPRTs:
