@@ -8,9 +8,8 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.4** (Nov 11; on branch
-`claude/affectionate-sagan-wacmlh`, `main` has 6.3 until the owner merges
-it) = 6.3 with three changes on that were each flat alone: `PARTIAL_ITER`
+**Current best: ChessMcEngineFace 6.4** (on `main`, Nov 11) = 6.3 with
+three changes on that were each flat alone: `PARTIAL_ITER`
 1 (a move from a depth the clock cut short; +2 +/- 9 alone), `QS_TT` 1
 (quiescence uses the table; +3 +/- 9 alone) and `ASP_DELTA` 15
 (aspiration window, was 35; 0 +/- 12 alone). **Together +11 +/- 7 over
@@ -21,7 +20,7 @@ it) = 6.3 with three changes on that were each flat alone: `PARTIAL_ITER`
 names, with `OPTS_A="option.NAME=value"`. A background match is cut at 2
 hours (about 1,300 games at 8+0.08, 4 at a time): plan for legs and add
 the pentanomial counts.
-**Before 6.4: 6.3** (on `main`) = 6.2.1 planning 1/25 of the clock per
+**Before 6.4: 6.3** = 6.2.1 planning 1/25 of the clock per
 move instead of 1/40 (`TM_MOVES`): +27 +/- 17 over 6.2.1 (H1 after 448
 games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 **Open item (Nov 11): `HIST_DECAY_SHIFT` 0 against 6.4** at 8+0.08 (the
