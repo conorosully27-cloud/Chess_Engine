@@ -50,6 +50,7 @@ struct SearchLimits {
 struct TimeBudget {
   std::int64_t soft_ms = -1;
   std::int64_t hard_ms = -1;
+  std::int64_t hard_cap_ms = -1;  // the most hard_ms may be stretched to (search.cpp, TM_FAIL_LOW_PCT)
   bool adaptive = false;  // a share of a clock: the search may stop before or after soft_ms
   // Measured from when "go" arrived, not when the search thread got going.
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
@@ -141,6 +142,7 @@ class SearchWorker {
   std::uint64_t nodes_ = 0;
   std::uint64_t max_nodes_ = 0;
   std::int64_t hard_ms_ = -1;
+  std::int64_t hard_fail_low_ms_ = -1;  // hard_ms_ once the best move has failed low at the root
   int root_depth_ = 0;  // the iteration in progress
   Move root_prev_best_;  // the best move of the last finished depth
   bool root_prev_searched_ = false;  // ... and whether this depth has searched it yet

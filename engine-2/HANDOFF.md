@@ -12,14 +12,35 @@ history behind the search and evaluation.
 planning 1/25 of the clock per move instead of 1/40 (`TM_MOVES`): **+27
 +/- 17 over 6.2.1** (H1 after 448 games; 1/20 vs 1/25 was -3 +/- 11 over
 1,098). Baseline for SPRTs: build `main`, copy to `~/matches/engine2-6.3`.
-**Next candidates** (in the code, off; test with a tuning build and
-`OPTS_A="option.NAME=value"`, both sides the same binary): `QS_TT` 1
-(quiescence probes and stores in the table; flat three times before
-NNUE, never retried since), `ASP_DELTA` 15 (aspiration window, now 35),
-then a **sliding clock share by material** (owner's idea: e.g. 1/20 with
-a full board down to no less than 1/40 in bare endgames; two values, a
-short SPSA). `PARTIAL_ITER` (best move from a cut-short depth) was flat,
-+2 +/- 9 over 1,480 games. Also check 6.3 vs 6.2.1 at 40+0.4. **Network
+**Tested on 6.3 (Nov 11)**, all in the code, off; test with a tuning
+build and `OPTS_A="option.NAME=value"`, both sides the same binary
+(`~/matches/tune63-base`): `PARTIAL_ITER` 1 (+2 +/- 9, 1,480 games, on
+6.2.1), `QS_TT` 1 (+3 +/- 9, 1,380 games), `ASP_DELTA` 15 (0 +/- 12, 700
+games): each flat alone. **The three together (bumper build): +10 +/- 10
+after 1,340 games, LLR 2.20 of 2.94, undecided at the 2-hour limit: the
+open item.** Run a second leg; if it turns flat, the owner wants it at
+40+0.4.
+**Next candidates, in the code, off, untested:**
+- `HIST_DECAY_SHIFT` 1 or 0: every search starts by dividing all history
+  tables by 4 (from Engine 1.6, before history gravity); most engines
+  keep them for the whole game. Bench can't show it (one search per
+  position); only games can.
+- `TM_FAIL_LOW_PCT` 150 with `PARTIAL_ITER` 1 ("fail-low rescue"): when
+  the previous best move fails low at the root, the hard limit grows (within
+  half the clock) so the re-search can find a replacement.
+**Ideas, not written yet:**
+- **A clock curve fitted from our own games** (includes the owner's
+  sliding scale by pieces left): `engine-2/matches/*.pgn` from Nov 11 hold
+  about 4,700 games with score, depth and time per move; fit the expected
+  moves left from material and score, and spend less where the game is
+  decided or dead.
+- **Volatility history:** a table by pawn structure of how far search
+  results spread around the evaluation, to scale the reverse futility and
+  futility margins (not the size of the correction, which failed on 4.0).
+- **Remember the singular test** in the table entry's spare bits and skip
+  it next depth when it was lopsided (the test search uses no table).
+- **Correction history keyed by the network's most active hidden units.**
+Also check 6.3 vs 6.2.1 at 40+0.4. **Network
 ideas, need a retrain:** squared clipped activations (SCReLU) and output
 buckets by piece count; the net is still plain clipped ReLU with one
 output.
