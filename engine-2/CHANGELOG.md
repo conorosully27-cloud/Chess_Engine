@@ -5,6 +5,26 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.6: more time when the best move fails low
+
+6.5 with the "fail-low rescue" on (`TM_FAIL_LOW_PCT` 150 in
+`src/search.cpp`): when the previous depth's best move falls below the
+aspiration window at the root, the hard time limit grows to 150% of
+itself (4.5x the plan instead of 3x, still within half the clock), so
+the re-search has time to find a replacement, which 6.4's
+`PARTIAL_ITER` then plays even if the depth does not finish. The score
+drop scaling from 4.3 only acts between finished depths. Older engines
+(Crafty, Glaurung, early Stockfish) had this rule; most modern ones use
+a larger fixed hard limit instead. **Against 6.5** (cloud, 8+0.08,
+8moves_v3, SPRT 0/10, 4 games at a time, both sides the tuning build):
+**cut at the 2-hour limit after 1,338 games, undecided**, +210 -172 =956
+(51.4%), **+10 Elo (+/- 9)**, pentanomial [7, 114, 397, 136, 15], LLR
+2.15 of 2.94, **LOS 98%**. It read 0 at 558 games. Released by the
+owner on the LOS without a second leg. No time losses. Bench
+**1169368**, unchanged (only clock-based searches differ). Network
+unchanged. Only measured at 8+0.08. Not tried: the plain version, a hard
+limit of 5x the plan for every move with no fail-low condition.
+
 ## 6.5: history kept between moves
 
 6.4 keeping its history tables (main, continuation, capture) from one

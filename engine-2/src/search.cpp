@@ -200,8 +200,9 @@ TUNE_PARAM(HIST_DECAY_SHIFT, 0, 0, 4);
 // TM_FAIL_LOW_PCT: when the previous depth's best move fails low at the
 // root, the hard time limit grows to this percentage of itself (still
 // within half the clock), so the re-search can find a replacement
-// (played even from an unfinished depth with PARTIAL_ITER). 100 = off.
-TUNE_PARAM(TM_FAIL_LOW_PCT, 100, 100, 300);
+// (played even from an unfinished depth with PARTIAL_ITER). 100 = off;
+// 6.6: 150, +10 +/- 9 over 6.5.
+TUNE_PARAM(TM_FAIL_LOW_PCT, 150, 100, 300);
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
