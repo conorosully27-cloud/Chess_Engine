@@ -67,6 +67,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   by `VOL_SLOPE` percent per 80 cp of average miss above or below the
   usual 80 cp, at most `VOL_RANGE` (30) percent. Bench 1169368 off,
   1179352 at 50, 1064245 at 100.
+  **Leg 1 vs 6.6 at 50 (Nov 12; 8+0.08, both sides the 6.6 tuning
+  build, `~/matches/vol50.log`): cut at the 2-hour limit after 1,320
+  games, undecided**, +201 -181 =938 (50.8%), **+5 +/- 9**, pentanomial
+  [10, 110, 398, 134, 8], LLR 0.12, LOS 87%, no time losses (it read +10
+  at 740 games). Not tried: 100, a second leg.
 - **Remember the singular test** in the table entry's spare bits and skip
   it next depth when it was lopsided (the test search uses no table).
 - **Correction history keyed by the network's most active hidden units.**
