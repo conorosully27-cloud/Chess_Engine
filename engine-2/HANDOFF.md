@@ -81,6 +81,12 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   up to `SING_MEMO_PLIES` plies deeper the test search is skipped and
   its extension given again. Bench 1169368 off, 1230663 at 1, 1211321
   at 2.
+  **Vs 6.6 at 1 ply (Nov 12, 8+0.08, both stopped by the owner):
+  margin 60**, 560 games, +85 -92 =383, **-4 +/- 15**, LLR -1.57
+  (`~/matches/memo1.log`); **margin 100**, 900 games, +145 -126 =629
+  (51.1%), **+7 +/- 12**, pentanomial [5, 86, 252, 99, 8], LLR 0.66, LOS
+  89% (`~/matches/memo1m100.log`). **Open item: margin 100 together with
+  `VOL_SLOPE` 50 vs 6.6** (`~/matches/memo_vol.log`).
 - **Correction history keyed by the network's most active hidden units.**
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
