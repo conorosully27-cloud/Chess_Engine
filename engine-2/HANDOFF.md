@@ -14,6 +14,17 @@ when the previous best move fails low at the root): **+10 +/- 9 over
 6.5, LOS 98%** (1,338 games, +210 -172 =956, LLR 2.15, SPRT unfinished,
 released on the LOS; `CHANGELOG.md`). Bench **1169368** (same as 6.4 and
 6.5). Baseline for SPRTs: build it, copy to `~/matches/engine2-6.6`.
+**6.6 vs Berserk 8** (Nov 12; CCRL Blitz 3553; 10+0.1, 8moves_v3, SPRT
+-10/+10, Hash 64, 1 thread, 4 at a time, `~/matches/berserk8.log`): **H0
+after 364 games**, +59 -78 =227 (47.4%), **-18 +/- 20**, pentanomial [4,
+54, 85, 35, 4], no time losses: about **3535** by this pairing (6.0 was
+-71 +/- 41, so +53 against Berserk for about +110 of self-play gains).
+Berserk built from tag `8` with `make avx2-pext` in `~/tools/berserk/src`
+(works; only the `-march=native` build segfaults). **Next: 6.6 vs
+Renegade 1.1.0** (CCRL Blitz 3550 +/- 11), same conditions; built from
+tag `v1.1.0` with `make build=x86-64-bmi2` (clang++) in
+`~/tools/Renegade/Renegade`. The owner is considering 7.0 at a confirmed
+3550 against outside engines, then a major version every 50 Elo.
 **Before 6.6: 6.5** (Nov 12) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
 2): **+8 +/- 8 over 6.4, LOS 96.6%** (1,778 games in two legs, +278 -238
 =1262; SPRT unfinished, released on the LOS; `CHANGELOG.md`). Bench
