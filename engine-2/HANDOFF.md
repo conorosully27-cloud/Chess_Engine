@@ -85,8 +85,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   margin 60**, 560 games, +85 -92 =383, **-4 +/- 15**, LLR -1.57
   (`~/matches/memo1.log`); **margin 100**, 900 games, +145 -126 =629
   (51.1%), **+7 +/- 12**, pentanomial [5, 86, 252, 99, 8], LLR 0.66, LOS
-  89% (`~/matches/memo1m100.log`). **Open item: margin 100 together with
-  `VOL_SLOPE` 50 vs 6.6** (`~/matches/memo_vol.log`).
+  89% (`~/matches/memo1m100.log`). **Margin 100 together with
+  `VOL_SLOPE` 50 vs 6.6** (cut at the 2-hour limit): 1,320 games, +211
+  -183 =926 (51.06%), **+7 +/- 10**, pentanomial [10, 117, 377, 147, 9],
+  LLR 1.00, LOS 94% (`~/matches/memo_vol.log`). Not decided; a second
+  leg would settle it. Both still off by default.
 - **Correction history keyed by the network's most active hidden units.**
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
