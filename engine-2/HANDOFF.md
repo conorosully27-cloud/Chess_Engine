@@ -29,9 +29,15 @@ move instead of 1/40 (`TM_MOVES`): +27 +/- 17 over 6.2.1 (H1 after 448
 games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 **Candidates, in the code, off, untested:**
 - `HIST_DECAY_SHIFT` 1 (keep half between moves; 0, keep all, is 6.5).
-- `TM_FAIL_LOW_PCT` 150 ("fail-low rescue"; `PARTIAL_ITER` is on now): when
-  the previous best move fails low at the root, the hard limit grows (within
-  half the clock) so the re-search can find a replacement.
+- `TM_FAIL_LOW_PCT` 150 ("fail-low rescue"): when the previous best move
+  fails low at the root, the hard limit grows (within half the clock) so
+  the re-search can find a replacement. **Open item. Leg 1 vs 6.5 (Nov
+  12; 8+0.08, both sides the 6.5 tuning build, `~/matches/faillow.log`):
+  cut at the 2-hour limit after 1,338 games, undecided, ahead**, +210
+  -172 =956 (51.4%), **+10 +/- 9**, pentanomial [7, 114, 397, 136, 15],
+  LLR 2.15, LOS 98%, no time losses. If it is released, also try the
+  plain version most engines use: a hard limit of 5x the plan for every
+  move (now 3x), no fail-low condition.
 **Ideas, not written yet:**
 - **A clock curve fitted from our own games** (includes the owner's
   sliding scale by pieces left): `engine-2/matches/*.pgn` from Nov 11 hold
