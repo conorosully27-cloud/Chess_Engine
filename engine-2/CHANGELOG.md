@@ -5,6 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.5: history kept between moves
+
+6.4 keeping its history tables (main, continuation, capture) from one
+move of the game to the next (`HIST_DECAY_SHIFT` 0 in `src/search.cpp`).
+Until now every search began by dividing them all by 4, a leftover from
+Engine 1.6, before history gravity bounded the values; they are still
+cleared on `ucinewgame`. **Against 6.4** (cloud, 8+0.08, 8moves_v3, SPRT
+0/10, 4 games at a time, both sides the tuning build), in two legs:
+
+| leg | games | result | Elo | pentanomial | LLR (bound 2.94) |
+|---|---|---|---|---|---|
+| 1 (cut at the 2-hour limit) | 1,320 | +204 -182 =934 (50.8%) | +5.8 +/- 10.0 | [11, 131, 356, 149, 13] | 0.30 |
+| 2 (stopped by the owner) | 458 | +74 -56 =328 (52.0%) | +13.7 +/- 15.2 | [2, 37, 132, 57, 1] | 1.41 |
+| **both** | **1,778** | **+278 -238 =1262 (51.1%)** | **+8 +/- 8** | [13, 168, 488, 206, 14] | |
+
+**LOS 96.6%.** The SPRT did not finish: released by the owner on the LOS,
+as 6.2.1 was, and the second leg was stopped while it was ahead, so the
+figure is likely a little high. No time losses. Bench **1169368**,
+unchanged (bench runs one search per position, so it cannot show this).
+Network unchanged. Only measured at 8+0.08. Not tried: keeping half
+(`HIST_DECAY_SHIFT` 1).
+
 ## 6.4: three changes that were flat alone, on together
 
 6.3 with three search changes switched on (all in `src/search.cpp`), each
