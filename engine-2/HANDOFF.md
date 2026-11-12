@@ -93,7 +93,18 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   (`~/matches/memo_vol2.log`). **Both legs: 1,954 games, +288 -276
   =1390 (50.3%), +2 +/- 8, LOS 71%.** Rejected; both stay off (see
   `FAILED_EXPERIMENTS.md`).
-- **Correction history keyed by the network's most active hidden units.**
+- **Correction history keyed by the network's most active hidden units**
+  (`CORR_NET_RATE`, off = 0): **rejected** at rate 25 vs 6.6, 246 games,
+  -43 +/- 22 (`FAILED_EXPERIMENTS.md`).
+- **Running (Nov 12): SPSA of 12 values on 6.6** (owner: a long tune,
+  done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
+  `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
+  `SINGULAR_MARGIN`, `PROBCUT_MARGIN`, `HIST_PRUNE_MARGIN`, `ASP_DELTA`
+  (step size 2 added to `spsa.py`). 6,000 pairs, 8+0.08, `--r-end 0.02
+  --c-scale 2`, 4 workers, about 21 h; state in `~/spsa-66/` (resume
+  with `~/spsa-66/run.sh`; a copy of the state is kept in
+  `release-matches/spsa-66/`). Then an SPRT of the tuned build vs 6.6;
+  if it wins it is 6.6.1.
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
 ideas, need a retrain:** squared clipped activations (SCReLU) and output

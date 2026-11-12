@@ -5,6 +5,30 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Network correction history, on 6.6 (Nov 2026)
+
+**Change** (`CORR_NET_RATE` 25; code at `924033b`, off by default): a
+fifth correction table keyed by a 14-bit signature of the network's
+hidden layer (`nnue::signature()`): for seven hidden units picked from
+the bench positions (the most telling of those on about half the time),
+whether each is over its threshold, from either side. Learns at 25
+percent of the pawn table's speed, held within +/-50 cp. Bench 1169368
+-> 1129371; about 4% fewer nodes per second (the signature brings the
+hidden layer up to date where a stored evaluation would have been
+reused).
+
+**Result:** vs 6.6 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 246 games**, +22 -52 =172 (43.9%),
+**-43 +/- 22**, pentanomial [2, 42, 64, 14, 1], LLR -2.96
+(`~/matches/corrnet25.log`).
+
+**Prior:** 3/10 (untried).
+
+**Commentary:** far more than the speed cost (4% is about 3 Elo). 14
+on/off bits are too coarse a key: thousands of unrelated positions share
+an entry, so it adds noise of up to 50 cp, not a correction. A much
+lower rate and limit might reach flat; a gain looks unlikely.
+
 ## Volatility history and singular memo, on 6.6 (Nov 2026)
 
 **Change** (code at `d95ec94`, both off by default): two original ideas.
