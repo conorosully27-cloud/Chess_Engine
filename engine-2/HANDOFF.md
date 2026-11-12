@@ -23,8 +23,12 @@ the pentanomial counts.
 **Before 6.4: 6.3** = 6.2.1 planning 1/25 of the clock per
 move instead of 1/40 (`TM_MOVES`): +27 +/- 17 over 6.2.1 (H1 after 448
 games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
-**Open item (Nov 11): `HIST_DECAY_SHIFT` 0 against 6.4** at 8+0.08 (the
-owner asked for it after the bumper build); 1 is the follow-up if 0 is
+**Open item: `HIST_DECAY_SHIFT` 0 against 6.4** (keep all history
+between moves; 8+0.08, 4 at a time, both sides the 6.4 tuning build,
+`~/matches/hist0.log`). **Leg 1 (Nov 11-12): cut at the 2-hour limit
+after 1,320 games, undecided**, +204 -182 =934 (50.8%), **+6 +/- 10**,
+pentanomial [11, 131, 356, 149, 13], LLR 0.30, no time losses. Needs a
+second leg (add the pentanomial counts); 1 is the follow-up if it ends
 flat or worse.
 **Candidates, in the code, off, untested:**
 - `HIST_DECAY_SHIFT` 1 or 0: every search starts by dividing all history
