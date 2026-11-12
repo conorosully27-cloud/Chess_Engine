@@ -116,6 +116,13 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Singular memo: when the alternatives fell short of the singular test by
+// more than SING_MEMO_MARGIN cp, the result is remembered, and while the
+// same hash move comes back at up to SING_MEMO_PLIES plies deeper, the
+// test search (half the depth, and not helped by the table) is skipped and
+// its extension given again. 0 = off; candidates 1 and 2.
+TUNE_PARAM(SING_MEMO_PLIES, 0, 0, 4);
+TUNE_PARAM(SING_MEMO_MARGIN, 60, 20, 300);
 // Recapture extension (Berserk 8): 1 on, 0 off. Off: -10 +/- 13 vs 6.1
 // (FAILED_EXPERIMENTS.md).
 TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
@@ -323,6 +330,7 @@ void SearchWorker::new_game() {
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
+  std::fill(sing_memo_.begin(), sing_memo_.end(), SingMemo());
   std::fill(&vol_history_[0][0], &vol_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
 }
@@ -696,9 +704,22 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
         tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
       const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
-      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
-      pv_length_[ply] = ply;  // the test search wrote this node's PV
-      if (stopped_) return 0;
+      SingMemo& memo = sing_memo_[pos.key() & (SING_MEMO_SIZE - 1)];
+      const bool memo_hit = SING_MEMO_PLIES && memo.key == TranspositionTable::check(pos.key()) &&
+                            memo.move == move.raw() && depth > memo.depth && depth <= memo.depth + SING_MEMO_PLIES;
+      int score = singular_beta - SING_MEMO_MARGIN - 1;  // what the remembered test found, at least
+      if (!memo_hit) {
+        score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
+        pv_length_[ply] = ply;  // the test search wrote this node's PV
+        if (stopped_) return 0;
+        if (score < singular_beta - SING_MEMO_MARGIN) {
+          memo.key = TranspositionTable::check(pos.key());
+          memo.move = move.raw();
+          memo.depth = std::int8_t(depth);
+        } else if (memo.key == TranspositionTable::check(pos.key())) {
+          memo.key = 0;
+        }
+      }
       if (score < singular_beta) {
         extension = 1;
         if (!pv_node && score < singular_beta - DOUBLE_EXT_MARGIN && double_exts_[ply] < DOUBLE_EXT_MAX) extension = 2;

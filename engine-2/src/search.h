@@ -140,6 +140,15 @@ class SearchWorker {
              &corr_non_pawn_[us][WHITE][pos.non_pawn_key(WHITE) & (CORR_SIZE - 1)],
              &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)], cont}};
   }
+  // Singular memo (search.cpp, SING_MEMO_PLIES): positions whose hash move
+  // passed the singular test by a wide margin, and at what depth.
+  struct SingMemo {
+    std::uint32_t key = 0;
+    std::uint16_t move = 0;
+    std::int8_t depth = 0;
+  };
+  static constexpr int SING_MEMO_SIZE = 1 << 16;
+  std::vector<SingMemo> sing_memo_ = std::vector<SingMemo>(SING_MEMO_SIZE);
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};
 

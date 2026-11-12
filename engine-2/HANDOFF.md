@@ -71,9 +71,16 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   build, `~/matches/vol50.log`): cut at the 2-hour limit after 1,320
   games, undecided**, +201 -181 =938 (50.8%), **+5 +/- 9**, pentanomial
   [10, 110, 398, 134, 8], LLR 0.12, LOS 87%, no time losses (it read +10
-  at 740 games). Not tried: 100, a second leg.
-- **Remember the singular test** in the table entry's spare bits and skip
-  it next depth when it was lopsided (the test search uses no table).
+  at 740 games). **At 100: stopped by the owner at 580 games**, +84 -84
+  =412, **0 +/- 14**, LLR -0.91 (`~/matches/vol100.log`): no better, so
+  50 is the setting if it is taken up again (a second leg).
+- **Singular memo** (written Nov 12, `SING_MEMO_PLIES`, off = 0; open
+  item, SPRT vs 6.6 at 1): when the alternatives missed the singular
+  test by more than `SING_MEMO_MARGIN` (60 cp), a small table remembers
+  the position, move and depth, and while the same hash move comes back
+  up to `SING_MEMO_PLIES` plies deeper the test search is skipped and
+  its extension given again. Bench 1169368 off, 1230663 at 1, 1211321
+  at 2.
 - **Correction history keyed by the network's most active hidden units.**
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
