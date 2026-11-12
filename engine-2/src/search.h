@@ -127,18 +127,27 @@ class SearchWorker {
   // a running average minus VOL_MEAN_CP, in 1/16 centipawns (0 = average).
   std::int16_t vol_history_[COLOR_NB][CORR_SIZE] = {};
   std::vector<std::int16_t> corr_cont_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);  // [move 2 back][last move]
+  // Network correction history (search.cpp, CORR_NET_RATE): keyed by
+  // nnue::signature(), i.e. by which of the network's most telling hidden
+  // units are active, so positions the network reads alike share an entry
+  // whatever their pawns and pieces.
+  static constexpr int CORR_NET_SIZE = 1 << 14;
+  std::int16_t corr_net_[COLOR_NB][CORR_NET_SIZE] = {};
   struct CorrEntries {
-    std::int16_t* entry[4];
-    int total() const { return *entry[0] + *entry[1] + *entry[2] + (entry[3] ? *entry[3] : 0); }
+    std::int16_t* entry[5];
+    int total() const {
+      return *entry[0] + *entry[1] + *entry[2] + (entry[3] ? *entry[3] : 0) + (entry[4] ? *entry[4] : 0);
+    }
   };
-  CorrEntries corr_entries(const Position& pos, int ply) {
+  CorrEntries corr_entries(const Position& pos, int ply);
+  CorrEntries corr_entries_base(const Position& pos, int ply) {
     const Color us = pos.side_to_move();
     std::int16_t* cont = nullptr;
     if (CORR_CONT_ON && ply >= 2 && ply_move_[ply - 1] >= 0 && ply_move_[ply - 2] >= 0)
       cont = &corr_cont_[ply_move_[ply - 2] * CONT_INDEX + ply_move_[ply - 1]];
     return {{&corr_history_[us][pos.pawn_key() & (CORR_SIZE - 1)],
              &corr_non_pawn_[us][WHITE][pos.non_pawn_key(WHITE) & (CORR_SIZE - 1)],
-             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)], cont}};
+             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)], cont, nullptr}};
   }
   // Singular memo (search.cpp, SING_MEMO_PLIES): positions whose hash move
   // passed the singular test by a wide margin, and at what depth.

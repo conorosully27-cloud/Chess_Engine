@@ -253,4 +253,21 @@ int evaluate(const Position& pos) {
   return int((std::int64_t(sum) + net.out_bias) * SCALE / (QA * QB));
 }
 
+// The units and thresholds were picked for nets/engine-6.0.nnue from the
+// bench positions: of the units that are over their threshold in 35-55% of
+// evaluations, the seven whose output contribution varies most (the same
+// seven on either side). A different network needs its own list.
+int signature(const Position& pos) {
+  if (!have_net) return 0;
+  static constexpr int UNIT[7] = {216, 606, 826, 13, 36, 960, 1007};
+  static constexpr int OVER[7] = {0, 175, 254, 191, 0, 15, 0};
+  const Accumulator& acc = pos.accumulators()[pos.game_ply()];
+  if (acc.net != net_id) update(pos);
+  const Color us = pos.side_to_move();
+  int key = 0;
+  for (int i = 0; i < 7; i++)
+    key |= (acc.values[us][UNIT[i]] > OVER[i]) << i | (acc.values[~us][UNIT[i]] > OVER[i]) << (7 + i);
+  return key;
+}
+
 }  // namespace chess::nnue

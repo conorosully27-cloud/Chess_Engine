@@ -6,6 +6,7 @@
 
 #include "evaluate.h"
 #include "movepick.h"
+#include "nnue.h"
 #include "syzygy.h"
 #include "tune.h"
 #include "uci.h"
@@ -192,6 +193,9 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 // even with it then; retried on a newer network as the owner suggested).
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
+// Network correction history (search.h): learns at CORR_NET_RATE percent,
+// held within +/-CORR_LIMIT_CP. 0 = off.
+TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
 
 // TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
@@ -323,6 +327,12 @@ constexpr int VOL_MEAN_CP = 80;
 constexpr int VOL_GRAIN = 16;
 // ------------------------------------------------------------- the search
 
+SearchWorker::CorrEntries SearchWorker::corr_entries(const Position& pos, int ply) {
+  CorrEntries e = corr_entries_base(pos, ply);
+  if (CORR_NET_RATE) e.entry[4] = &corr_net_[pos.side_to_move()][nnue::signature(pos)];
+  return e;
+}
+
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
   std::fill(&capt_history_[0][0][0], &capt_history_[0][0][0] + PIECE_NB * 64 * 6, std::int16_t(0));
@@ -330,6 +340,7 @@ void SearchWorker::new_game() {
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
+  std::fill(&corr_net_[0][0], &corr_net_[0][0] + COLOR_NB * CORR_NET_SIZE, std::int16_t(0));
   std::fill(sing_memo_.begin(), sing_memo_.end(), SingMemo());
   std::fill(&vol_history_[0][0], &vol_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
@@ -855,12 +866,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     const CorrEntries corr = corr_entries(pos, ply);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
       if (!corr.entry[i]) continue;
       std::int16_t& c = *corr.entry[i];
-      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : CORR_CONT_RATE;  // percent
+      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : i == 3 ? CORR_CONT_RATE : CORR_NET_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
-      const int limit = (i < 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
+      const int limit = (i != 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
       c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));
     }
   }
