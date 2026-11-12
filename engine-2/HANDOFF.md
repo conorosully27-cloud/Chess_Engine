@@ -8,14 +8,12 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.5** (Nov 12; on branch
-`claude/affectionate-sagan-wacmlh`, `main` has 6.4 until the owner merges
-it) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
+**Current best: ChessMcEngineFace 6.5** (on `main`, Nov 12) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
 2): **+8 +/- 8 over 6.4, LOS 96.6%** (1,778 games in two legs, +278 -238
 =1262; SPRT unfinished, released on the LOS; `CHANGELOG.md`). Bench
 **1169368** (same as 6.4). Baseline for SPRTs: build it, copy to
 `~/matches/engine2-6.5`.
-**Before 6.5: 6.4** (on `main`, Nov 11) = 6.3 with
+**Before 6.5: 6.4** (Nov 11) = 6.3 with
 three changes on that were each flat alone: `PARTIAL_ITER`
 1 (a move from a depth the clock cut short; +2 +/- 9 alone), `QS_TT` 1
 (quiescence uses the table; +3 +/- 9 alone) and `ASP_DELTA` 15
