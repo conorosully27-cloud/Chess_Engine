@@ -20,10 +20,17 @@ after 364 games**, +59 -78 =227 (47.4%), **-18 +/- 20**, pentanomial [4,
 54, 85, 35, 4], no time losses: about **3535** by this pairing (6.0 was
 -71 +/- 41, so +53 against Berserk for about +110 of self-play gains).
 Berserk built from tag `8` with `make avx2-pext` in `~/tools/berserk/src`
-(works; only the `-march=native` build segfaults). **Next: 6.6 vs
-Renegade 1.1.0** (CCRL Blitz 3550 +/- 11), same conditions; built from
-tag `v1.1.0` with `make build=x86-64-bmi2` (clang++) in
-`~/tools/Renegade/Renegade`. The owner is considering 7.0 at a confirmed
+(works; only the `-march=native` build segfaults). **6.6 vs Renegade
+1.1.0** (Nov 12; CCRL Blitz 3550 +/- 11; same conditions,
+`~/matches/renegade.log`): **H0 after 104 games**, +11 -35 =58 (38.5%),
+**-82 +/- 41**, pentanomial [5, 20, 21, 6, 0], no time losses: about
+3470 by this pairing, 65 below the Berserk figure (few games, and one
+pairing each; Renegade may simply suit 10+0.1 or match up well against
+us). Together about **3500-3535**: not at 3550. Renegade built from tag
+`v1.1.0` with `make build=x86-64-bmi2` (clang++) in
+`~/tools/Renegade/Renegade`. For a firmer rating, a gauntlet against
+four or five engines near 3500-3550 with a fixed number of games each.
+The owner is considering 7.0 at a confirmed
 3550 against outside engines, then a major version every 50 Elo.
 **Before 6.6: 6.5** (Nov 12) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
 2): **+8 +/- 8 over 6.4, LOS 96.6%** (1,778 games in two legs, +278 -238
