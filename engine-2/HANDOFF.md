@@ -8,12 +8,16 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.5** (on `main`, Nov 12) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
+**Current best: ChessMcEngineFace 6.6** (on `main`, Nov 12) = 6.5 with
+the fail-low rescue (`TM_FAIL_LOW_PCT` 150: the hard limit grows by half
+when the previous best move fails low at the root): **+10 +/- 9 over
+6.5, LOS 98%** (1,338 games, +210 -172 =956, LLR 2.15, SPRT unfinished,
+released on the LOS; `CHANGELOG.md`). Bench **1169368** (same as 6.4 and
+6.5). Baseline for SPRTs: build it, copy to `~/matches/engine2-6.6`.
+**Before 6.6: 6.5** (Nov 12) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
 2): **+8 +/- 8 over 6.4, LOS 96.6%** (1,778 games in two legs, +278 -238
 =1262; SPRT unfinished, released on the LOS; `CHANGELOG.md`). Bench
-**1169368** (same as 6.4). Baseline for SPRTs: build it, copy to
-`~/matches/engine2-6.5`.
-**Before 6.5: 6.4** (Nov 11) = 6.3 with
+**1169368** (same as 6.4). **Before 6.5: 6.4** (Nov 11) = 6.3 with
 three changes on that were each flat alone: `PARTIAL_ITER`
 1 (a move from a depth the clock cut short; +2 +/- 9 alone), `QS_TT` 1
 (quiescence uses the table; +3 +/- 9 alone) and `ASP_DELTA` 15
@@ -29,9 +33,9 @@ move instead of 1/40 (`TM_MOVES`): +27 +/- 17 over 6.2.1 (H1 after 448
 games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 **Candidates, in the code, off, untested:**
 - `HIST_DECAY_SHIFT` 1 (keep half between moves; 0, keep all, is 6.5).
-- `TM_FAIL_LOW_PCT` 150 ("fail-low rescue"; `PARTIAL_ITER` is on now): when
-  the previous best move fails low at the root, the hard limit grows (within
-  half the clock) so the re-search can find a replacement.
+- Not written, one constant: **a hard limit of 5x the plan for every
+  move** (now 3x, 4.5x after a root fail-low), the plain version most
+  engines use; it tells whether the fail-low condition matters.
 **Ideas, not written yet:**
 - **A clock curve fitted from our own games** (includes the owner's
   sliding scale by pieces left): `engine-2/matches/*.pgn` from Nov 11 hold
