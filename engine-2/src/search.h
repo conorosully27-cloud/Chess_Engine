@@ -122,6 +122,10 @@ class SearchWorker {
   static constexpr int CORR_SIZE = 16384;
   std::int16_t corr_history_[COLOR_NB][CORR_SIZE] = {};
   std::int16_t corr_non_pawn_[COLOR_NB][COLOR_NB][CORR_SIZE] = {};  // [side to move][pieces' color]
+  // Volatility history (search.cpp, VOL_SLOPE): by pawn structure and side
+  // to move, how far search results land from the corrected evaluation, as
+  // a running average minus VOL_MEAN_CP, in 1/16 centipawns (0 = average).
+  std::int16_t vol_history_[COLOR_NB][CORR_SIZE] = {};
   std::vector<std::int16_t> corr_cont_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);  // [move 2 back][last move]
   struct CorrEntries {
     std::int16_t* entry[4];

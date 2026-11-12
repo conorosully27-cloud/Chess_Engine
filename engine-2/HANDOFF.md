@@ -60,9 +60,13 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   about 4,700 games with score, depth and time per move; fit the expected
   moves left from material and score, and spend less where the game is
   decided or dead.
-- **Volatility history:** a table by pawn structure of how far search
-  results spread around the evaluation, to scale the reverse futility and
-  futility margins (not the size of the correction, which failed on 4.0).
+- **Volatility history** (written Nov 12, `VOL_SLOPE`, off = 0; open
+  item, SPRT vs 6.6 at `VOL_SLOPE` 50): a table by pawn structure and
+  side to move of how far search results land from the corrected
+  evaluation; the reverse futility and futility margins grow or shrink
+  by `VOL_SLOPE` percent per 80 cp of average miss above or below the
+  usual 80 cp, at most `VOL_RANGE` (30) percent. Bench 1169368 off,
+  1179352 at 50, 1064245 at 100.
 - **Remember the singular test** in the table entry's spare bits and skip
   it next depth when it was lopsided (the test search uses no table).
 - **Correction history keyed by the network's most active hidden units.**

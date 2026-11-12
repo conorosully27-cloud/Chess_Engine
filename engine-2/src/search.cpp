@@ -303,6 +303,17 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   return b;
 }
 
+// Volatility history: where searches of a pawn structure have landed far
+// from the (corrected) evaluation, the evaluation is a poor guide, so the
+// reverse futility and futility margins grow; where they land close, the
+// margins shrink. The margins change by VOL_SLOPE percent per VOL_MEAN_CP
+// of average miss above or below the usual (VOL_MEAN_CP, measured on
+// bench), by at most VOL_RANGE percent. VOL_SLOPE 0 = off. Not the size of
+// the correction (that failed on 4.0): the spread that remains after it.
+TUNE_PARAM(VOL_SLOPE, 0, 0, 200);
+TUNE_PARAM(VOL_RANGE, 30, 5, 60);
+constexpr int VOL_MEAN_CP = 80;
+constexpr int VOL_GRAIN = 16;
 // ------------------------------------------------------------- the search
 
 void SearchWorker::new_game() {
@@ -312,6 +323,7 @@ void SearchWorker::new_game() {
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
+  std::fill(&vol_history_[0][0], &vol_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -530,6 +542,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     // Corrected by what searches of this pawn structure have found.
     static_eval = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
   }
+  // Percent of the usual futility margins here (volatility history).
+  int vol_pct = 100;
+  if (VOL_SLOPE && !in_check) {
+    const int v = vol_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
+    vol_pct += std::clamp(v * int(VOL_SLOPE) / (VOL_MEAN_CP * VOL_GRAIN), -int(VOL_RANGE), int(VOL_RANGE));
+  }
   eval_stack_[ply] = in_check ? EVAL_NONE : static_eval;
   const bool improving = !in_check && (ply < 2 || eval_stack_[ply - 2] == EVAL_NONE || static_eval > eval_stack_[ply - 2]);
   // The table's score refines the static evaluation for reverse futility
@@ -551,7 +569,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it
       // (a little sooner when the position is getting better).
-      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
+      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth * vol_pct / 100 + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && eval >= beta && has_pieces(pos)) {
@@ -610,7 +628,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + (FUT_BASE + FUT_MARGIN * depth) * vol_pct / 100 <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
   const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
@@ -809,6 +827,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   // the evaluation: not a lower bound below it or an upper bound above it.
   if (!in_check && !excluding && !best_move.is_capture() && !best_move.is_promotion() && !is_mate_score(best_score) &&
       !(bound == BOUND_LOWER && best_score <= static_eval) && !(bound == BOUND_UPPER && best_score >= static_eval)) {
+    // Volatility history: the miss that remained after the correction.
+    std::int16_t& vol = vol_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
+    const int miss = std::min(std::abs(best_score - static_eval), 400) - VOL_MEAN_CP;
+    vol = std::int16_t(vol + (miss * VOL_GRAIN - vol) / 32);
     const CorrEntries corr = corr_entries(pos, ply);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
