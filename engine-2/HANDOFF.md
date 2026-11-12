@@ -60,8 +60,8 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   about 4,700 games with score, depth and time per move; fit the expected
   moves left from material and score, and spend less where the game is
   decided or dead.
-- **Volatility history** (written Nov 12, `VOL_SLOPE`, off = 0; open
-  item, SPRT vs 6.6 at `VOL_SLOPE` 50): a table by pawn structure and
+- **Volatility history** (written Nov 12, `VOL_SLOPE`, off = 0;
+  rejected, see the combined test under the singular memo): a table by pawn structure and
   side to move of how far search results land from the corrected
   evaluation; the reverse futility and futility margins grow or shrink
   by `VOL_SLOPE` percent per 80 cp of average miss above or below the
@@ -74,8 +74,8 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   at 740 games). **At 100: stopped by the owner at 580 games**, +84 -84
   =412, **0 +/- 14**, LLR -0.91 (`~/matches/vol100.log`): no better, so
   50 is the setting if it is taken up again (a second leg).
-- **Singular memo** (written Nov 12, `SING_MEMO_PLIES`, off = 0; open
-  item, SPRT vs 6.6 at 1): when the alternatives missed the singular
+- **Singular memo** (written Nov 12, `SING_MEMO_PLIES`, off = 0;
+  rejected): when the alternatives missed the singular
   test by more than `SING_MEMO_MARGIN` (60 cp), a small table remembers
   the position, move and depth, and while the same hash move comes back
   up to `SING_MEMO_PLIES` plies deeper the test search is skipped and
@@ -88,8 +88,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   89% (`~/matches/memo1m100.log`). **Margin 100 together with
   `VOL_SLOPE` 50 vs 6.6** (cut at the 2-hour limit): 1,320 games, +211
   -183 =926 (51.06%), **+7 +/- 10**, pentanomial [10, 117, 377, 147, 9],
-  LLR 1.00, LOS 94% (`~/matches/memo_vol.log`). Not decided; a second
-  leg would settle it. Both still off by default.
+  LLR 1.00, LOS 94% (`~/matches/memo_vol.log`). **Leg 2: SPRT rejected
+  it after 634 games**, +77 -93 =464 (48.7%), **-9 +/- 13**, LLR -2.99
+  (`~/matches/memo_vol2.log`). **Both legs: 1,954 games, +288 -276
+  =1390 (50.3%), +2 +/- 8, LOS 71%.** Rejected; both stay off (see
+  `FAILED_EXPERIMENTS.md`).
 - **Correction history keyed by the network's most active hidden units.**
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network

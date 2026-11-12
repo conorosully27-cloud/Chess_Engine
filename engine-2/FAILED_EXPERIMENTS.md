@@ -5,6 +5,39 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Volatility history and singular memo, on 6.6 (Nov 2026)
+
+**Change** (code at `d95ec94`, both off by default): two original ideas.
+*Volatility history* (`VOL_SLOPE` 50): a table by pawn structure and
+side to move of how far search results land from the corrected
+evaluation; the reverse futility and futility margins grow or shrink
+with it, at most 30 percent. *Singular memo* (`SING_MEMO_PLIES` 1,
+`SING_MEMO_MARGIN` 100): when the alternatives missed the singular test
+by more than the margin, remember position, move and depth, and skip the
+test search (giving the extension again) while the same hash move comes
+back one ply deeper.
+
+**Result** (vs 6.6, cloud, 8+0.08, 4 at a time, both sides the tuning
+build, SPRT 0/10):
+
+| Test | Games | Score | Elo | LLR | LOS |
+|---|---|---|---|---|---|
+| Volatility 50 (cut at 2 h) | 1,320 | +201 -181 =938 | +5 +/- 9 | 0.12 | 87% |
+| Volatility 100 (stopped) | 580 | +84 -84 =412 | 0 +/- 14 | -0.91 | |
+| Memo, margin 60 (stopped) | 560 | +85 -92 =383 | -4 +/- 15 | -1.57 | |
+| Memo, margin 100 (stopped) | 900 | +145 -126 =629 | +7 +/- 12 | 0.66 | 89% |
+| Both, leg 1 (cut at 2 h) | 1,320 | +211 -183 =926 | +7 +/- 10 | 1.00 | 94% |
+| Both, leg 2 (**rejected**) | 634 | +77 -93 =464 | -9 +/- 13 | -2.99 | |
+| **Both, legs together** | 1,954 | +288 -276 =1390 | **+2 +/- 8** | | 71% |
+
+**Prior:** 3/10 each (untried ideas).
+
+**Commentary:** every run sat between flat and +7 with errors wider
+than the effect, and the best setting of each was picked from two, which
+flatters it. Together they are worth 0 to +5 at most, short of the
+owner's bar (LOS 96%+). Logs: `~/matches/vol50.log`, `vol100.log`,
+`memo1.log`, `memo1m100.log`, `memo_vol.log`, `memo_vol2.log`.
+
 ## Aspiration window of 15 instead of 35, on 6.3 (Nov 2026)
 
 **Change** (`ASP_DELTA` 15; in the code, default 35): the first
