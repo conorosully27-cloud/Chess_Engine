@@ -195,8 +195,8 @@ TUNE_PARAM(TM_MOVES, 25, 10, 80);
 TUNE_PARAM(PARTIAL_ITER, 1, 0, 1);
 // HIST_DECAY_SHIFT: every search starts by shifting all history tables
 // right by this (2 = keep a quarter, as Engine 1.6 did before history
-// gravity; 0 = keep everything). Candidate values: 1 and 0.
-TUNE_PARAM(HIST_DECAY_SHIFT, 2, 0, 4);
+// gravity; 0 = keep everything, 6.5: +8 +/- 8 over 6.4's 2).
+TUNE_PARAM(HIST_DECAY_SHIFT, 0, 0, 4);
 // TM_FAIL_LOW_PCT: when the previous depth's best move fails low at the
 // root, the hard time limit grows to this percentage of itself (still
 // within half the clock), so the re-search can find a replacement

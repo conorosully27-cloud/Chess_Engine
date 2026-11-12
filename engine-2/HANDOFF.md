@@ -8,14 +8,20 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.4** (on `main`, Nov 11) = 6.3 with
+**Current best: ChessMcEngineFace 6.5** (Nov 12; on branch
+`claude/affectionate-sagan-wacmlh`, `main` has 6.4 until the owner merges
+it) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
+2): **+8 +/- 8 over 6.4, LOS 96.6%** (1,778 games in two legs, +278 -238
+=1262; SPRT unfinished, released on the LOS; `CHANGELOG.md`). Bench
+**1169368** (same as 6.4). Baseline for SPRTs: build it, copy to
+`~/matches/engine2-6.5`.
+**Before 6.5: 6.4** (on `main`, Nov 11) = 6.3 with
 three changes on that were each flat alone: `PARTIAL_ITER`
 1 (a move from a depth the clock cut short; +2 +/- 9 alone), `QS_TT` 1
 (quiescence uses the table; +3 +/- 9 alone) and `ASP_DELTA` 15
 (aspiration window, was 35; 0 +/- 12 alone). **Together +11 +/- 7 over
 6.3** (2,600 games in two legs, +411 -332 =1857; `CHANGELOG.md`). Bench
-**1169368**. Baseline for SPRTs: build it, copy to
-`~/matches/engine2-6.4`. To test a switch, use one tuning build
+**1169368**. To test a switch, use one tuning build
 (`-DENGINE_TUNE=ON`, `build-tune/`) for both sides, copied under two
 names, with `OPTS_A="option.NAME=value"`. A background match is cut at 2
 hours (about 1,300 games at 8+0.08, 4 at a time): plan for legs and add
@@ -23,18 +29,8 @@ the pentanomial counts.
 **Before 6.4: 6.3** = 6.2.1 planning 1/25 of the clock per
 move instead of 1/40 (`TM_MOVES`): +27 +/- 17 over 6.2.1 (H1 after 448
 games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
-**Open item: `HIST_DECAY_SHIFT` 0 against 6.4** (keep all history
-between moves; 8+0.08, 4 at a time, both sides the 6.4 tuning build,
-`~/matches/hist0.log`). **Leg 1 (Nov 11-12): cut at the 2-hour limit
-after 1,320 games, undecided**, +204 -182 =934 (50.8%), **+6 +/- 10**,
-pentanomial [11, 131, 356, 149, 13], LLR 0.30, no time losses. Needs a
-second leg (add the pentanomial counts); 1 is the follow-up if it ends
-flat or worse.
 **Candidates, in the code, off, untested:**
-- `HIST_DECAY_SHIFT` 1 or 0: every search starts by dividing all history
-  tables by 4 (from Engine 1.6, before history gravity); most engines
-  keep them for the whole game. Bench can't show it (one search per
-  position); only games can.
+- `HIST_DECAY_SHIFT` 1 (keep half between moves; 0, keep all, is 6.5).
 - `TM_FAIL_LOW_PCT` 150 ("fail-low rescue"; `PARTIAL_ITER` is on now): when
   the previous best move fails low at the root, the hard limit grows (within
   half the clock) so the re-search can find a replacement.
