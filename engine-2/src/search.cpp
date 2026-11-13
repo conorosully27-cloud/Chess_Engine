@@ -6,6 +6,7 @@
 
 #include "evaluate.h"
 #include "movepick.h"
+#include "nnue.h"
 #include "syzygy.h"
 #include "tune.h"
 #include "uci.h"
@@ -21,20 +22,20 @@ namespace {
 // Reverse futility: at depth <= RFP_DEPTH, return when the static
 // evaluation beats beta by RFP_MARGIN per ply.
 TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
-TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
+TUNE_PARAM(RFP_MARGIN, 72, 20, 250);
 
 // Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
 TUNE_PARAM(FUT_DEPTH, 6, 1, 8);
 TUNE_PARAM(FUT_BASE, -3, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 115, 40, 300);
+TUNE_PARAM(FUT_MARGIN, 94, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
 // skipped (4, 7, 12 at depths 1-3).
 TUNE_PARAM(LMP_DEPTH, 5, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 80, 25, 300);
+TUNE_PARAM(LMP_SCALE, 69, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
@@ -55,17 +56,17 @@ TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
 TUNE_PARAM(TT_REFINE_SLACK, 2, 0, 6);
 
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
-TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
-TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
+TUNE_PARAM(SEE_QUIET_MARGIN, 10, 5, 120);
+TUNE_PARAM(SEE_CAPTURE_MARGIN, 67, 20, 300);
 
 // Late move reductions by depth and move number, in hundredths of a ply:
 // LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (before tuning: 1 + ... / 2).
-TUNE_PARAM(LMR_BASE, 98, -50, 250);
-TUNE_PARAM(LMR_DIV, 198, 100, 500);
+TUNE_PARAM(LMR_BASE, 64, -50, 250);
+TUNE_PARAM(LMR_DIV, 280, 100, 500);
 // A quiet move's history (its own plus both continuation histories) takes
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
-TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
+TUNE_PARAM(LMR_HISTORY, 5319, 500, 12000);
 // Extra late move reduction at cut nodes (null-window nodes expected to
 // fail high).
 TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
@@ -89,7 +90,7 @@ TUNE_PARAM(THREAT_LMR, 1, 0, 3);
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).
 TUNE_PARAM(HIST_PRUNE_DEPTH, 3, 0, 8);
-TUNE_PARAM(HIST_PRUNE_MARGIN, 4000, 500, 16000);
+TUNE_PARAM(HIST_PRUNE_MARGIN, 6431, 500, 16000);
 // Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
 // (at most HIST_BONUS_MAX) for the move that cut off, the same against the
 // quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
@@ -108,7 +109,7 @@ TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 // searches the other moves to half depth against the table's score less
 // SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
-TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
+TUNE_PARAM(SINGULAR_MARGIN, 12, 5, 80);
 // Double extension: off the main line, a hash move whose alternatives fall
 // short by more than DOUBLE_EXT_MARGIN gets two plies, at most
 // DOUBLE_EXT_MAX times on one line. Negative extension: when the
@@ -116,6 +117,13 @@ TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Singular memo: when the alternatives fell short of the singular test by
+// more than SING_MEMO_MARGIN cp, the result is remembered, and while the
+// same hash move comes back at up to SING_MEMO_PLIES plies deeper, the
+// test search (half the depth, and not helped by the table) is skipped and
+// its extension given again. 0 = off; candidates 1 and 2.
+TUNE_PARAM(SING_MEMO_PLIES, 0, 0, 4);
+TUNE_PARAM(SING_MEMO_MARGIN, 60, 20, 300);
 // Recapture extension (Berserk 8): 1 on, 0 off. Off: -10 +/- 13 vs 6.1
 // (FAILED_EXPERIMENTS.md).
 TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
@@ -139,7 +147,7 @@ TUNE_PARAM(CAPT_LMR_HISTORY, 4000, 500, 16000);
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
 // PROBCUT_REDUCTION plies shallower is taken as proof of a cutoff.
 TUNE_PARAM(PROBCUT_DEPTH, 4, 3, 10);
-TUNE_PARAM(PROBCUT_MARGIN, 222, 50, 500);
+TUNE_PARAM(PROBCUT_MARGIN, 190, 50, 500);
 TUNE_PARAM(PROBCUT_REDUCTION, 4, 2, 6);
 
 // Time use, in percent of the planned time: after a depth, the search stops
@@ -185,6 +193,9 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 // even with it then; retried on a newer network as the owner suggested).
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
+// Network correction history (search.h): learns at CORR_NET_RATE percent,
+// held within +/-CORR_LIMIT_CP. 0 = off.
+TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
 
 // TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
@@ -208,7 +219,7 @@ TUNE_PARAM(TM_FAIL_LOW_PCT, 150, 100, 300);
 TUNE_PARAM(QS_TT, 1, 0, 1);
 // ASP_DELTA: the first aspiration window's half-width (6.4: 15; 35 before,
 // 15 alone was 0 +/- 12 on 6.3).
-TUNE_PARAM(ASP_DELTA, 15, 5, 100);
+TUNE_PARAM(ASP_DELTA, 16, 5, 100);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
@@ -303,7 +314,24 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   return b;
 }
 
+// Volatility history: where searches of a pawn structure have landed far
+// from the (corrected) evaluation, the evaluation is a poor guide, so the
+// reverse futility and futility margins grow; where they land close, the
+// margins shrink. The margins change by VOL_SLOPE percent per VOL_MEAN_CP
+// of average miss above or below the usual (VOL_MEAN_CP, measured on
+// bench), by at most VOL_RANGE percent. VOL_SLOPE 0 = off. Not the size of
+// the correction (that failed on 4.0): the spread that remains after it.
+TUNE_PARAM(VOL_SLOPE, 0, 0, 200);
+TUNE_PARAM(VOL_RANGE, 30, 5, 60);
+constexpr int VOL_MEAN_CP = 80;
+constexpr int VOL_GRAIN = 16;
 // ------------------------------------------------------------- the search
+
+SearchWorker::CorrEntries SearchWorker::corr_entries(const Position& pos, int ply) {
+  CorrEntries e = corr_entries_base(pos, ply);
+  if (CORR_NET_RATE) e.entry[4] = &corr_net_[pos.side_to_move()][nnue::signature(pos)];
+  return e;
+}
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
@@ -312,6 +340,9 @@ void SearchWorker::new_game() {
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
+  std::fill(&corr_net_[0][0], &corr_net_[0][0] + COLOR_NB * CORR_NET_SIZE, std::int16_t(0));
+  std::fill(sing_memo_.begin(), sing_memo_.end(), SingMemo());
+  std::fill(&vol_history_[0][0], &vol_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -530,6 +561,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     // Corrected by what searches of this pawn structure have found.
     static_eval = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
   }
+  // Percent of the usual futility margins here (volatility history).
+  int vol_pct = 100;
+  if (VOL_SLOPE && !in_check) {
+    const int v = vol_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
+    vol_pct += std::clamp(v * int(VOL_SLOPE) / (VOL_MEAN_CP * VOL_GRAIN), -int(VOL_RANGE), int(VOL_RANGE));
+  }
   eval_stack_[ply] = in_check ? EVAL_NONE : static_eval;
   const bool improving = !in_check && (ply < 2 || eval_stack_[ply - 2] == EVAL_NONE || static_eval > eval_stack_[ply - 2]);
   // The table's score refines the static evaluation for reverse futility
@@ -551,7 +588,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it
       // (a little sooner when the position is getting better).
-      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
+      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth * vol_pct / 100 + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && eval >= beta && has_pieces(pos)) {
@@ -610,7 +647,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + FUT_BASE + FUT_MARGIN * depth <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + (FUT_BASE + FUT_MARGIN * depth) * vol_pct / 100 <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
   const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
@@ -678,9 +715,22 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
         tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
       const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
-      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
-      pv_length_[ply] = ply;  // the test search wrote this node's PV
-      if (stopped_) return 0;
+      SingMemo& memo = sing_memo_[pos.key() & (SING_MEMO_SIZE - 1)];
+      const bool memo_hit = SING_MEMO_PLIES && memo.key == TranspositionTable::check(pos.key()) &&
+                            memo.move == move.raw() && depth > memo.depth && depth <= memo.depth + SING_MEMO_PLIES;
+      int score = singular_beta - SING_MEMO_MARGIN - 1;  // what the remembered test found, at least
+      if (!memo_hit) {
+        score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
+        pv_length_[ply] = ply;  // the test search wrote this node's PV
+        if (stopped_) return 0;
+        if (score < singular_beta - SING_MEMO_MARGIN) {
+          memo.key = TranspositionTable::check(pos.key());
+          memo.move = move.raw();
+          memo.depth = std::int8_t(depth);
+        } else if (memo.key == TranspositionTable::check(pos.key())) {
+          memo.key = 0;
+        }
+      }
       if (score < singular_beta) {
         extension = 1;
         if (!pv_node && score < singular_beta - DOUBLE_EXT_MARGIN && double_exts_[ply] < DOUBLE_EXT_MAX) extension = 2;
@@ -809,15 +859,19 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   // the evaluation: not a lower bound below it or an upper bound above it.
   if (!in_check && !excluding && !best_move.is_capture() && !best_move.is_promotion() && !is_mate_score(best_score) &&
       !(bound == BOUND_LOWER && best_score <= static_eval) && !(bound == BOUND_UPPER && best_score >= static_eval)) {
+    // Volatility history: the miss that remained after the correction.
+    std::int16_t& vol = vol_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
+    const int miss = std::min(std::abs(best_score - static_eval), 400) - VOL_MEAN_CP;
+    vol = std::int16_t(vol + (miss * VOL_GRAIN - vol) / 32);
     const CorrEntries corr = corr_entries(pos, ply);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
       if (!corr.entry[i]) continue;
       std::int16_t& c = *corr.entry[i];
-      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : CORR_CONT_RATE;  // percent
+      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : i == 3 ? CORR_CONT_RATE : CORR_NET_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
-      const int limit = (i < 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
+      const int limit = (i != 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
       c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));
     }
   }

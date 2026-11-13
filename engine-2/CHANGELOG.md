@@ -5,6 +5,38 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.7: twelve search values retuned
+
+6.6 with twelve pruning, reduction and history values retuned by SPSA
+(`scripts/tune/spsa.py`, 6,000 pairs at 8+0.08, `--r-end 0.02 --c-scale
+2`, 4 at a time, about 19 h; log and state in
+`release-matches/spsa-66/`). The last tune was on 6.1, before 6.4
+changed the tree and 6.5 the history. The values were still swinging at
+the end, so the release uses the average of the last 1,000 pairs:
+
+| value | 6.6 | 6.7 |
+|---|---|---|
+| `RFP_MARGIN` | 90 | 72 |
+| `FUT_MARGIN` | 115 | 94 |
+| `LMP_SCALE` | 80 | 69 |
+| `SEE_QUIET_MARGIN` | 25 | 10 |
+| `SEE_CAPTURE_MARGIN` | 97 | 67 |
+| `LMR_BASE` | 98 | 64 |
+| `LMR_DIV` | 198 | 280 |
+| `LMR_HISTORY` | 2600 | 5319 |
+| `HIST_PRUNE_MARGIN` | 4000 | 6431 |
+| `SINGULAR_MARGIN` | 19 | 12 |
+| `PROBCUT_MARGIN` | 222 | 190 |
+| `ASP_DELTA` | 15 | 16 |
+
+Late moves are reduced less overall and history decides more of which.
+**Against 6.6** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a time,
+both sides the tuning build, the values set as options): **H1 after 754
+games**, +132 -93 =529 (52.6%), **+18 Elo (+/- 13)**, pentanomial [3,
+67, 205, 92, 10], LLR 2.95, LOS 99.7%. Bench **1626117** (6.6:
+1169368). Network unchanged. Only measured at 8+0.08. Numbered 6.7, not
+6.6.1, by the owner.
+
 ## 6.6: more time when the best move fails low
 
 6.5 with the "fail-low rescue" on (`TM_FAIL_LOW_PCT` 150 in

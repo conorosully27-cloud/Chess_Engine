@@ -8,12 +8,36 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.6** (on `main`, Nov 12) = 6.5 with
+**Current best: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
+with twelve search values retuned by SPSA (6,000 pairs): **+18 +/- 13
+over 6.6, LOS 99.7%** (H1 after 754 games; `CHANGELOG.md`). Bench
+**1626117**. Baseline for SPRTs: build it, copy to
+`~/matches/engine2-6.7`. Not yet played against outside engines.
+
+**Before 6.7: ChessMcEngineFace 6.6** (on `main`, Nov 12) = 6.5 with
 the fail-low rescue (`TM_FAIL_LOW_PCT` 150: the hard limit grows by half
 when the previous best move fails low at the root): **+10 +/- 9 over
 6.5, LOS 98%** (1,338 games, +210 -172 =956, LLR 2.15, SPRT unfinished,
 released on the LOS; `CHANGELOG.md`). Bench **1169368** (same as 6.4 and
 6.5). Baseline for SPRTs: build it, copy to `~/matches/engine2-6.6`.
+**6.6 vs Berserk 8** (Nov 12; CCRL Blitz 3553; 10+0.1, 8moves_v3, SPRT
+-10/+10, Hash 64, 1 thread, 4 at a time, `~/matches/berserk8.log`): **H0
+after 364 games**, +59 -78 =227 (47.4%), **-18 +/- 20**, pentanomial [4,
+54, 85, 35, 4], no time losses: about **3535** by this pairing (6.0 was
+-71 +/- 41, so +53 against Berserk for about +110 of self-play gains).
+Berserk built from tag `8` with `make avx2-pext` in `~/tools/berserk/src`
+(works; only the `-march=native` build segfaults). **6.6 vs Renegade
+1.1.0** (Nov 12; CCRL Blitz 3550 +/- 11; same conditions,
+`~/matches/renegade.log`): **H0 after 104 games**, +11 -35 =58 (38.5%),
+**-82 +/- 41**, pentanomial [5, 20, 21, 6, 0], no time losses: about
+3470 by this pairing, 65 below the Berserk figure (few games, and one
+pairing each; Renegade may simply suit 10+0.1 or match up well against
+us). Together about **3500-3535**: not at 3550. Renegade built from tag
+`v1.1.0` with `make build=x86-64-bmi2` (clang++) in
+`~/tools/Renegade/Renegade`. For a firmer rating, a gauntlet against
+four or five engines near 3500-3550 with a fixed number of games each.
+The owner is considering 7.0 at a confirmed
+3550 against outside engines, then a major version every 50 Elo.
 **Before 6.6: 6.5** (Nov 12) = 6.4 keeping all history between moves (`HIST_DECAY_SHIFT` 0, was
 2): **+8 +/- 8 over 6.4, LOS 96.6%** (1,778 games in two legs, +278 -238
 =1262; SPRT unfinished, released on the LOS; `CHANGELOG.md`). Bench
@@ -42,12 +66,63 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   about 4,700 games with score, depth and time per move; fit the expected
   moves left from material and score, and spend less where the game is
   decided or dead.
-- **Volatility history:** a table by pawn structure of how far search
-  results spread around the evaluation, to scale the reverse futility and
-  futility margins (not the size of the correction, which failed on 4.0).
-- **Remember the singular test** in the table entry's spare bits and skip
-  it next depth when it was lopsided (the test search uses no table).
-- **Correction history keyed by the network's most active hidden units.**
+- **Volatility history** (written Nov 12, `VOL_SLOPE`, off = 0;
+  rejected, see the combined test under the singular memo): a table by pawn structure and
+  side to move of how far search results land from the corrected
+  evaluation; the reverse futility and futility margins grow or shrink
+  by `VOL_SLOPE` percent per 80 cp of average miss above or below the
+  usual 80 cp, at most `VOL_RANGE` (30) percent. Bench 1169368 off,
+  1179352 at 50, 1064245 at 100.
+  **Leg 1 vs 6.6 at 50 (Nov 12; 8+0.08, both sides the 6.6 tuning
+  build, `~/matches/vol50.log`): cut at the 2-hour limit after 1,320
+  games, undecided**, +201 -181 =938 (50.8%), **+5 +/- 9**, pentanomial
+  [10, 110, 398, 134, 8], LLR 0.12, LOS 87%, no time losses (it read +10
+  at 740 games). **At 100: stopped by the owner at 580 games**, +84 -84
+  =412, **0 +/- 14**, LLR -0.91 (`~/matches/vol100.log`): no better, so
+  50 is the setting if it is taken up again (a second leg).
+- **Singular memo** (written Nov 12, `SING_MEMO_PLIES`, off = 0;
+  rejected): when the alternatives missed the singular
+  test by more than `SING_MEMO_MARGIN` (60 cp), a small table remembers
+  the position, move and depth, and while the same hash move comes back
+  up to `SING_MEMO_PLIES` plies deeper the test search is skipped and
+  its extension given again. Bench 1169368 off, 1230663 at 1, 1211321
+  at 2.
+  **Vs 6.6 at 1 ply (Nov 12, 8+0.08, both stopped by the owner):
+  margin 60**, 560 games, +85 -92 =383, **-4 +/- 15**, LLR -1.57
+  (`~/matches/memo1.log`); **margin 100**, 900 games, +145 -126 =629
+  (51.1%), **+7 +/- 12**, pentanomial [5, 86, 252, 99, 8], LLR 0.66, LOS
+  89% (`~/matches/memo1m100.log`). **Margin 100 together with
+  `VOL_SLOPE` 50 vs 6.6** (cut at the 2-hour limit): 1,320 games, +211
+  -183 =926 (51.06%), **+7 +/- 10**, pentanomial [10, 117, 377, 147, 9],
+  LLR 1.00, LOS 94% (`~/matches/memo_vol.log`). **Leg 2: SPRT rejected
+  it after 634 games**, +77 -93 =464 (48.7%), **-9 +/- 13**, LLR -2.99
+  (`~/matches/memo_vol2.log`). **Both legs: 1,954 games, +288 -276
+  =1390 (50.3%), +2 +/- 8, LOS 71%.** Rejected; both stay off (see
+  `FAILED_EXPERIMENTS.md`).
+- **Correction history keyed by the network's most active hidden units**
+  (`CORR_NET_RATE`, off = 0): **rejected** at rate 25 vs 6.6, 246 games,
+  -43 +/- 22 (`FAILED_EXPERIMENTS.md`).
+- **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
+  done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
+  `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
+  `SINGULAR_MARGIN`, `PROBCUT_MARGIN`, `HIST_PRUNE_MARGIN`, `ASP_DELTA`
+  (step size 2 added to `spsa.py`). 6,000 pairs, 8+0.08, `--r-end 0.02
+  --c-scale 2`, 4 workers, about 21 h; state in `~/spsa-66/` (resume
+  with `~/spsa-66/run.sh`; a copy of the state is kept in
+  `release-matches/spsa-66/`). **Result** (log and state in
+  `release-matches/spsa-66/`): the values were still swinging at the end
+  (`RFP_MARGIN` 63-85 over the last 1,000 pairs), so the test uses the
+  **average of the last 1,000 pairs**, not the end point: `RFP_MARGIN`
+  72 (was 90), `FUT_MARGIN` 94 (115), `LMP_SCALE` 69 (80),
+  `SEE_QUIET_MARGIN` 10 (25), `SEE_CAPTURE_MARGIN` 67 (97), `LMR_BASE`
+  64 (98), `LMR_DIV` 280 (198), `LMR_HISTORY` 5319 (2600),
+  `HIST_PRUNE_MARGIN` 6431 (4000), `SINGULAR_MARGIN` 12 (19),
+  `PROBCUT_MARGIN` 190 (222), `ASP_DELTA` 16 (15). Bench 1626117. End
+  point for reference: 66, 95, 64, 11, 69, 68, 291, 5015, 6899, 14, 190,
+  16. **SPRT vs 6.6** (`~/matches/spsa66.log`, values set as
+  options on the 6.6 tuning build): **H1 after 754 games**, +132 -93
+  =529 (52.6%), **+18 +/- 13**, pentanomial [3, 67, 205, 92, 10], LLR
+  2.95, LOS 99.7%. Released as **6.7** (owner's numbering).
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
 ideas, need a retrain:** squared clipped activations (SCReLU) and output
