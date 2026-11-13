@@ -214,6 +214,18 @@ TUNE_PARAM(HIST_DECAY_SHIFT, 0, 0, 4);
 // (played even from an unfinished depth with PARTIAL_ITER). 100 = off;
 // 6.6: 150, +10 +/- 9 over 6.5.
 TUNE_PARAM(TM_FAIL_LOW_PCT, 150, 100, 300);
+// Clock by game state (all 100 = off), fitted from 8,171 saved games at
+// 8+0.08: a side that is TM_DECIDED_CP or more ahead or behind has a median
+// of 15 moves left to play, and one within TM_DRAWISH_CP of level after ply
+// TM_DRAWISH_PLY has 11, and in both the result rarely changes; the fight
+// is everywhere else. So the plan is scaled by TM_DECIDED_PCT in the
+// first, TM_DRAWISH_PCT in the second, and TM_OPEN_PCT in the rest.
+TUNE_PARAM(TM_DECIDED_PCT, 100, 20, 100);
+TUNE_PARAM(TM_DECIDED_CP, 400, 150, 1000);
+TUNE_PARAM(TM_DRAWISH_PCT, 100, 20, 100);
+TUNE_PARAM(TM_DRAWISH_CP, 20, 5, 60);
+TUNE_PARAM(TM_DRAWISH_PLY, 60, 0, 200);
+TUNE_PARAM(TM_OPEN_PCT, 100, 100, 150);
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -471,6 +483,10 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
         const int stability = TM_STABLE_BASE - TM_STABLE_STEP * std::min(stable_depths, int(TM_STABLE_DEPTHS));
         const int falling = std::clamp(drop * TM_DROP_PER_CP, 0, int(TM_DROP_MAX));
         soft = soft * stability / 100 * (100 + falling) / 100;
+        const int state_pct = std::abs(score) >= TM_DECIDED_CP ? int(TM_DECIDED_PCT)
+                              : std::abs(score) <= TM_DRAWISH_CP && pos.game_ply() >= TM_DRAWISH_PLY ? int(TM_DRAWISH_PCT)
+                              : int(TM_OPEN_PCT);
+        soft = soft * state_pct / 100;
         if (depth >= TM_NODE_DEPTH && nodes_ > 0) {
           const int best_share = int(root_move_nodes_[result.best.from() * 64 + result.best.to()] * 100 / nodes_);
           soft = soft * std::max(TM_NODE_BASE - best_share * TM_NODE_MUL / 100, 10) / 100;
