@@ -8,7 +8,14 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.6** (on `main`, Nov 12) = 6.5 with
+**Current best: ChessMcEngineFace 6.7** (on branch
+`claude/affectionate-sagan-wacmlh`, Nov 13; not yet on `main`) = 6.6
+with twelve search values retuned by SPSA (6,000 pairs): **+18 +/- 13
+over 6.6, LOS 99.7%** (H1 after 754 games; `CHANGELOG.md`). Bench
+**1626117**. Baseline for SPRTs: build it, copy to
+`~/matches/engine2-6.7`. Not yet played against outside engines.
+
+**Before 6.7: ChessMcEngineFace 6.6** (on `main`, Nov 12) = 6.5 with
 the fail-low rescue (`TM_FAIL_LOW_PCT` 150: the hard limit grows by half
 when the previous best move fails low at the root): **+10 +/- 9 over
 6.5, LOS 98%** (1,338 games, +210 -172 =956, LLR 2.15, SPRT unfinished,
@@ -96,7 +103,7 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Correction history keyed by the network's most active hidden units**
   (`CORR_NET_RATE`, off = 0): **rejected** at rate 25 vs 6.6, 246 games,
   -43 +/- 22 (`FAILED_EXPERIMENTS.md`).
-- **Passed its SPRT (Nov 13), not yet released: SPSA of 12 values on 6.6** (owner: a long tune,
+- **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
   `SINGULAR_MARGIN`, `PROBCUT_MARGIN`, `HIST_PRUNE_MARGIN`, `ASP_DELTA`
@@ -116,8 +123,7 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   16. **SPRT vs 6.6** (`~/matches/spsa66.log`, values set as
   options on the 6.6 tuning build): **H1 after 754 games**, +132 -93
   =529 (52.6%), **+18 +/- 13**, pentanomial [3, 67, 205, 92, 10], LLR
-  2.95, LOS 99.7%. The defaults in the code are still 6.6's; releasing
-  it as 6.6.1 is the owner's call.
+  2.95, LOS 99.7%. Released as **6.7** (owner's numbering).
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
 ideas, need a retrain:** squared clipped activations (SCReLU) and output

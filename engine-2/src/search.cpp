@@ -22,20 +22,20 @@ namespace {
 // Reverse futility: at depth <= RFP_DEPTH, return when the static
 // evaluation beats beta by RFP_MARGIN per ply.
 TUNE_PARAM(RFP_DEPTH, 4, 1, 12);
-TUNE_PARAM(RFP_MARGIN, 90, 20, 250);
+TUNE_PARAM(RFP_MARGIN, 72, 20, 250);
 
 // Futility: at depth <= FUT_DEPTH, skip quiet moves when the static
 // evaluation plus FUT_BASE + FUT_MARGIN per ply can't reach alpha.
 TUNE_PARAM(FUT_DEPTH, 6, 1, 8);
 TUNE_PARAM(FUT_BASE, -3, -100, 300);
-TUNE_PARAM(FUT_MARGIN, 115, 40, 300);
+TUNE_PARAM(FUT_MARGIN, 94, 40, 300);
 
 // Late move pruning: at depth <= LMP_DEPTH, after LMP_BASE + depth^2 *
 // LMP_SCALE / 100 quiet moves have been tried, the remaining ones are
 // skipped (4, 7, 12 at depths 1-3).
 TUNE_PARAM(LMP_DEPTH, 5, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
-TUNE_PARAM(LMP_SCALE, 80, 25, 300);
+TUNE_PARAM(LMP_SCALE, 69, 25, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
@@ -56,17 +56,17 @@ TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
 TUNE_PARAM(TT_REFINE_SLACK, 2, 0, 6);
 
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
-TUNE_PARAM(SEE_QUIET_MARGIN, 25, 5, 120);
-TUNE_PARAM(SEE_CAPTURE_MARGIN, 97, 20, 300);
+TUNE_PARAM(SEE_QUIET_MARGIN, 10, 5, 120);
+TUNE_PARAM(SEE_CAPTURE_MARGIN, 67, 20, 300);
 
 // Late move reductions by depth and move number, in hundredths of a ply:
 // LMR_BASE + ln(depth) ln(move) * 100 / LMR_DIV (before tuning: 1 + ... / 2).
-TUNE_PARAM(LMR_BASE, 98, -50, 250);
-TUNE_PARAM(LMR_DIV, 198, 100, 500);
+TUNE_PARAM(LMR_BASE, 64, -50, 250);
+TUNE_PARAM(LMR_DIV, 280, 100, 500);
 // A quiet move's history (its own plus both continuation histories) takes
 // a ply off the reduction per LMR_HISTORY of score, or adds one per
 // LMR_HISTORY below zero, at most two either way.
-TUNE_PARAM(LMR_HISTORY, 2600, 500, 12000);
+TUNE_PARAM(LMR_HISTORY, 5319, 500, 12000);
 // Extra late move reduction at cut nodes (null-window nodes expected to
 // fail high).
 TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
@@ -90,7 +90,7 @@ TUNE_PARAM(THREAT_LMR, 1, 0, 3);
 // move whose history (its own plus both continuation histories) is below
 // -HIST_PRUNE_MARGIN per ply is skipped. 0 = off (flat on 5.2).
 TUNE_PARAM(HIST_PRUNE_DEPTH, 3, 0, 8);
-TUNE_PARAM(HIST_PRUNE_MARGIN, 4000, 500, 16000);
+TUNE_PARAM(HIST_PRUNE_MARGIN, 6431, 500, 16000);
 // Quiet history updates: a bonus of HIST_BONUS_MUL * depth - HIST_BONUS_SUB
 // (at most HIST_BONUS_MAX) for the move that cut off, the same against the
 // quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
@@ -109,7 +109,7 @@ TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
 // searches the other moves to half depth against the table's score less
 // SINGULAR_MARGIN / 10 per ply (before tuning: 2 x depth).
 TUNE_PARAM(SINGULAR_DEPTH, 8, 4, 14);
-TUNE_PARAM(SINGULAR_MARGIN, 19, 5, 80);
+TUNE_PARAM(SINGULAR_MARGIN, 12, 5, 80);
 // Double extension: off the main line, a hash move whose alternatives fall
 // short by more than DOUBLE_EXT_MARGIN gets two plies, at most
 // DOUBLE_EXT_MAX times on one line. Negative extension: when the
@@ -147,7 +147,7 @@ TUNE_PARAM(CAPT_LMR_HISTORY, 4000, 500, 16000);
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
 // PROBCUT_REDUCTION plies shallower is taken as proof of a cutoff.
 TUNE_PARAM(PROBCUT_DEPTH, 4, 3, 10);
-TUNE_PARAM(PROBCUT_MARGIN, 222, 50, 500);
+TUNE_PARAM(PROBCUT_MARGIN, 190, 50, 500);
 TUNE_PARAM(PROBCUT_REDUCTION, 4, 2, 6);
 
 // Time use, in percent of the planned time: after a depth, the search stops
@@ -219,7 +219,7 @@ TUNE_PARAM(TM_FAIL_LOW_PCT, 150, 100, 300);
 TUNE_PARAM(QS_TT, 1, 0, 1);
 // ASP_DELTA: the first aspiration window's half-width (6.4: 15; 35 before,
 // 15 alone was 0 +/- 12 on 6.3).
-TUNE_PARAM(ASP_DELTA, 15, 5, 100);
+TUNE_PARAM(ASP_DELTA, 16, 5, 100);
 
 using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
 LmrTable make_lmr() {
