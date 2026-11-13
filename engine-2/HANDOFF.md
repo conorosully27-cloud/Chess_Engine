@@ -102,6 +102,14 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Correction history keyed by the network's most active hidden units**
   (`CORR_NET_RATE`, off = 0): **rejected** at rate 25 vs 6.6, 246 games,
   -43 +/- 22 (`FAILED_EXPERIMENTS.md`).
+- **Clock by game state** (written Nov 13, `TM_DECIDED_PCT`,
+  `TM_DRAWISH_PCT`, `TM_OPEN_PCT`, all 100 = off; **SPRT vs 6.7 running**
+  at 50 / 60 / 110, `~/matches/clockstate.log`, binaries
+  `~/matches/tune67-clock` and `tune67-base`): from 8,171 saved 8+0.08
+  games, a side 4.00 or more ahead or behind has about 15 moves left,
+  and one within 0.20 of level after ply 60 about 11, while 22% of the
+  clock (1.74 s of 8) is unused at the end. The plan is halved when
+  decided, cut to 60% when level late on, and raised 10% elsewhere.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
