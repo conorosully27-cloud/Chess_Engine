@@ -8,8 +8,7 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.7** (on branch
-`claude/affectionate-sagan-wacmlh`, Nov 13; not yet on `main`) = 6.6
+**Current best: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
 with twelve search values retuned by SPSA (6,000 pairs): **+18 +/- 13
 over 6.6, LOS 99.7%** (H1 after 754 games; `CHANGELOG.md`). Bench
 **1626117**. Baseline for SPRTs: build it, copy to
