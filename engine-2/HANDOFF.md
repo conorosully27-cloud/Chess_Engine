@@ -96,7 +96,7 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Correction history keyed by the network's most active hidden units**
   (`CORR_NET_RATE`, off = 0): **rejected** at rate 25 vs 6.6, 246 games,
   -43 +/- 22 (`FAILED_EXPERIMENTS.md`).
-- **Finished (Nov 13), SPRT vs 6.6 running: SPSA of 12 values on 6.6** (owner: a long tune,
+- **Passed its SPRT (Nov 13), not yet released: SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
   `SINGULAR_MARGIN`, `PROBCUT_MARGIN`, `HIST_PRUNE_MARGIN`, `ASP_DELTA`
@@ -113,8 +113,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   `HIST_PRUNE_MARGIN` 6431 (4000), `SINGULAR_MARGIN` 12 (19),
   `PROBCUT_MARGIN` 190 (222), `ASP_DELTA` 16 (15). Bench 1626117. End
   point for reference: 66, 95, 64, 11, 69, 68, 291, 5015, 6899, 14, 190,
-  16. **SPRT vs 6.6 running** (`~/matches/spsa66.log`, values set as
-  options on the 6.6 tuning build); if it wins it is 6.6.1.
+  16. **SPRT vs 6.6** (`~/matches/spsa66.log`, values set as
+  options on the 6.6 tuning build): **H1 after 754 games**, +132 -93
+  =529 (52.6%), **+18 +/- 13**, pentanomial [3, 67, 205, 92, 10], LLR
+  2.95, LOS 99.7%. The defaults in the code are still 6.6's; releasing
+  it as 6.6.1 is the owner's call.
 Also check 6.4 vs 6.3 and 6.3 vs 6.2.1 at 40+0.4 (both only measured
 at 8+0.08). **Network
 ideas, need a retrain:** squared clipped activations (SCReLU) and output
