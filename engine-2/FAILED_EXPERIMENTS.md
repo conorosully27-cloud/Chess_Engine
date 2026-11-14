@@ -5,6 +5,25 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Corrected-evaluation reductions, on 6.7 (Nov 2026)
+
+**Change** (`CORR_LMR_CP` 40; in the code, 0 = off): late quiet moves
+are reduced a ply less at nodes where correction history moves the
+evaluation by 40 cp or more (Stockfish adjusts reductions by its
+correction value too). Bench 1626117 -> 1806939.
+
+**Result:** vs 6.7 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 848 games**, +118 -133 =597 (49.1%),
+**-6 +/- 12**, pentanomial [5, 88, 260, 59, 12], LLR -2.95
+(`~/matches/corrlmr40.log`).
+
+**Prior:** 4/10.
+
+**Commentary:** 11% more nodes for nothing. The reduction values had
+just been tuned (6.7), so a blanket ply less at these nodes mostly
+undoes that; a finer step (a fraction of a ply, scaled by the size of
+the correction) inside a retune would be the fair retry.
+
 ## Clock by game state, on 6.7 (Nov 2026)
 
 **Change** (`TM_DECIDED_PCT` 50, `TM_DRAWISH_PCT` 60, `TM_OPEN_PCT` 110;
