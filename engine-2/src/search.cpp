@@ -197,6 +197,13 @@ TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 // evaluation by CORR_LMR_CP centipawns or more, the evaluation has been
 // wrong here before, so late quiet moves are reduced a ply less. 0 = off.
 TUNE_PARAM(CORR_LMR_CP, 0, 0, 150);
+// Near-miss reductions: the moves already searched here say how close the
+// node is to alpha. If the best of them failed low by NEAR_LMR_CP
+// centipawns or less, one of the late moves may tip it, so they are
+// reduced a ply less; if it failed low by FAR_LMR_CP or more, a ply more.
+// 0 = off (each).
+TUNE_PARAM(NEAR_LMR_CP, 0, 0, 100);
+TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -798,6 +805,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
         if (CORR_LMR_CP && !in_check && std::abs(static_eval - raw_eval) >= CORR_LMR_CP) reduction--;
+        if (best_score < alpha && !is_mate_score(best_score) && !is_mate_score(alpha)) {
+          if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
+          if (FAR_LMR_CP && alpha - best_score >= FAR_LMR_CP) reduction++;
+        }
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)

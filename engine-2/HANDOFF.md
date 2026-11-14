@@ -113,6 +113,12 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   reductions by its correction value too, so this is borrowed, not
   original. Bench 1626117 off; 2036328 at 15, 2124528 at 25, 1806939 at
   40, 1779145 at 60.
+- **Near-miss reductions** (written Nov 14, `NEAR_LMR_CP` and
+  `FAR_LMR_CP`, 0 = off; **next in line, not yet built or benched**,
+  only syntax-checked because a match was running): late quiet moves
+  are reduced a ply less when the best move searched so far at the node
+  failed low by `NEAR_LMR_CP` or less, and a ply more when it failed low
+  by `FAR_LMR_CP` or more. First settings to try: 15 and 300.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
