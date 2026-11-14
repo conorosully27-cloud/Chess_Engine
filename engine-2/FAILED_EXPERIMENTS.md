@@ -5,6 +5,25 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Near-miss reductions, on 6.7 (Nov 2026)
+
+**Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):
+late quiet moves are reduced a ply less when the best move searched so
+far at the node failed low by 15 cp or less, and a ply more when it
+failed low by 300 cp or more. Bench 1626117 -> 1849539.
+
+**Result:** vs 6.7 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 962 games**, +115 -124 =723 (49.5%),
+**-3 +/- 10**, pentanomial [5, 88, 305, 77, 6], LLR -2.97
+(`~/matches/nearmiss.log`).
+
+**Prior:** 3/10 (untried).
+
+**Commentary:** flat for 14% more nodes. The scores it reads come from
+reduced null-window searches, so they are loose upper bounds: "failed
+low by 15" often is not a near miss. Not tried: each half alone, or the
+far half only (it shrinks the tree: bench 1592536 at 300).
+
 ## Corrected-evaluation reductions, on 6.7 (Nov 2026)
 
 **Change** (`CORR_LMR_CP` 40; in the code, 0 = off): late quiet moves

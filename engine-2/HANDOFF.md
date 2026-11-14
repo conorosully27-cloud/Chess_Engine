@@ -108,15 +108,9 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
-- **Near-miss reductions** (written Nov 14, `NEAR_LMR_CP` and
-  `FAR_LMR_CP`, 0 = off; **SPRT vs 6.7 running** at 15 / 300,
-  `~/matches/nearmiss.log`, binaries `~/matches/tune67c-near` and
-  `tune67c-base`): late quiet moves are reduced a ply less when the best
-  move searched so far at the node failed low by `NEAR_LMR_CP` or less,
-  and a ply more when it failed low by `FAR_LMR_CP` or more. Bench
-  1626117 off; near alone 1803466 at 10, 1734235 at 15, 1633508 at 25;
-  far alone 1498269 at 200, 1592536 at 300, 1572915 at 500; 15 / 300
-  together 1849539.
+- **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
+  **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
+  (`FAILED_EXPERIMENTS.md`). Nothing is running or queued after it.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
