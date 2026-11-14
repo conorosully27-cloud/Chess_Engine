@@ -8,6 +8,30 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
+### Testing policy from 6.7 on (owner, Nov 14): read before any SPRT
+
+1. **Every SPRT runs at the CCRL Blitz time control, 2 minutes + 1
+   second a move** (`scripts/match.sh A B games 120+1 4`), no longer at
+   8+0.08. CCRL Blitz is the list the engine is measured against, and
+   values that are best at 8+0.08 (depth 17) are not necessarily best
+   there. 8+0.08 is still fine for SPSA tunes and quick sanity checks,
+   but it no longer decides what is released.
+2. **Smaller gains are accepted.** The aim is steady improvement from
+   many small confirmed steps, not only changes worth +10. Use SPRT
+   bounds 0 / 5 (`ELO0=0 ELO1=5`), not 0 / 10, which rejects anything
+   under about +5 by design.
+
+What this costs: a 120+1 game takes about 5 minutes, so 4 at a time is
+about 50 games an hour, against about 650 at 8+0.08. A 2-hour leg is
+about 100 games (+/- 35 Elo); resolving +5 takes thousands of games,
+i.e. days on 4 cores. Plan tests in many resumed legs (keep the PGNs and
+add up the pentanomial counts), test fewer things, and prefer bundles of
+changes that each looked good at 8+0.08. More cores are the real fix.
+
+Not yet settled by the owner: the confidence needed to release (it was
+LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
+(Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
+
 **Current best: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
 with twelve search values retuned by SPSA (6,000 pairs): **+18 +/- 13
 over 6.6, LOS 99.7%** (H1 after 754 games; `CHANGELOG.md`). Bench
