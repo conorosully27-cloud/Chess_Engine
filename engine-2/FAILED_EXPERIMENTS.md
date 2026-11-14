@@ -5,6 +5,28 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Clock by game state, on 6.7 (Nov 2026)
+
+**Change** (`TM_DECIDED_PCT` 50, `TM_DRAWISH_PCT` 60, `TM_OPEN_PCT` 110;
+in the code, all 100 = off): the planned time per move is halved when
+the score is 4.00 or more either way, cut to 60% when it is within 0.20
+of level after ply 60, and raised 10% elsewhere. Fitted from 8,171 saved
+8+0.08 games: about 15 moves are left in the first case and 11 in the
+second, and 1.74 s of the 8 is unused at the end. Bench unchanged
+(clock only).
+
+**Result:** vs 6.7 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 1,122 games**, +161 -168 =793 (49.7%),
+**-2 +/- 10**, pentanomial [8, 103, 339, 110, 1], LLR -3.03
+(`~/matches/clockstate.log`).
+
+**Prior:** 4/10.
+
+**Commentary:** flat. The stability, score-drop and node-share scaling
+already stop early in settled positions, so little time was left to
+save there, and 10% more elsewhere is worth about 2 Elo at best. The
+"moves left" figures also owe much to the harness adjudicating early.
+
 ## Network correction history, on 6.6 (Nov 2026)
 
 **Change** (`CORR_NET_RATE` 25; code at `924033b`, off by default): a

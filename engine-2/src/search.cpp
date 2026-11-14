@@ -193,6 +193,10 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
 // even with it then; retried on a newer network as the owner suggested).
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
+// Corrected-evaluation reductions: where correction history moves the
+// evaluation by CORR_LMR_CP centipawns or more, the evaluation has been
+// wrong here before, so late quiet moves are reduced a ply less. 0 = off.
+TUNE_PARAM(CORR_LMR_CP, 0, 0, 150);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -793,6 +797,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
+        if (CORR_LMR_CP && !in_check && std::abs(static_eval - raw_eval) >= CORR_LMR_CP) reduction--;
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
