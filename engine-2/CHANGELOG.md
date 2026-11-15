@@ -5,6 +5,136 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.7: twelve search values retuned
+
+6.6 with twelve pruning, reduction and history values retuned by SPSA
+(`scripts/tune/spsa.py`, 6,000 pairs at 8+0.08, `--r-end 0.02 --c-scale
+2`, 4 at a time, about 19 h; log and state in
+`release-matches/spsa-66/`). The last tune was on 6.1, before 6.4
+changed the tree and 6.5 the history. The values were still swinging at
+the end, so the release uses the average of the last 1,000 pairs:
+
+| value | 6.6 | 6.7 |
+|---|---|---|
+| `RFP_MARGIN` | 90 | 72 |
+| `FUT_MARGIN` | 115 | 94 |
+| `LMP_SCALE` | 80 | 69 |
+| `SEE_QUIET_MARGIN` | 25 | 10 |
+| `SEE_CAPTURE_MARGIN` | 97 | 67 |
+| `LMR_BASE` | 98 | 64 |
+| `LMR_DIV` | 198 | 280 |
+| `LMR_HISTORY` | 2600 | 5319 |
+| `HIST_PRUNE_MARGIN` | 4000 | 6431 |
+| `SINGULAR_MARGIN` | 19 | 12 |
+| `PROBCUT_MARGIN` | 222 | 190 |
+| `ASP_DELTA` | 15 | 16 |
+
+Late moves are reduced less overall and history decides more of which.
+**Against 6.6** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a time,
+both sides the tuning build, the values set as options): **H1 after 754
+games**, +132 -93 =529 (52.6%), **+18 Elo (+/- 13)**, pentanomial [3,
+67, 205, 92, 10], LLR 2.95, LOS 99.7%. Bench **1626117** (6.6:
+1169368). Network unchanged. Only measured at 8+0.08. Numbered 6.7, not
+6.6.1, by the owner.
+
+## 6.6: more time when the best move fails low
+
+6.5 with the "fail-low rescue" on (`TM_FAIL_LOW_PCT` 150 in
+`src/search.cpp`): when the previous depth's best move falls below the
+aspiration window at the root, the hard time limit grows to 150% of
+itself (4.5x the plan instead of 3x, still within half the clock), so
+the re-search has time to find a replacement, which 6.4's
+`PARTIAL_ITER` then plays even if the depth does not finish. The score
+drop scaling from 4.3 only acts between finished depths. Older engines
+(Crafty, Glaurung, early Stockfish) had this rule; most modern ones use
+a larger fixed hard limit instead. **Against 6.5** (cloud, 8+0.08,
+8moves_v3, SPRT 0/10, 4 games at a time, both sides the tuning build):
+**cut at the 2-hour limit after 1,338 games, undecided**, +210 -172 =956
+(51.4%), **+10 Elo (+/- 9)**, pentanomial [7, 114, 397, 136, 15], LLR
+2.15 of 2.94, **LOS 98%**. It read 0 at 558 games. Released by the
+owner on the LOS without a second leg. No time losses. Bench
+**1169368**, unchanged (only clock-based searches differ). Network
+unchanged. Only measured at 8+0.08. Not tried: the plain version, a hard
+limit of 5x the plan for every move with no fail-low condition.
+
+## 6.5: history kept between moves
+
+6.4 keeping its history tables (main, continuation, capture) from one
+move of the game to the next (`HIST_DECAY_SHIFT` 0 in `src/search.cpp`).
+Until now every search began by dividing them all by 4, a leftover from
+Engine 1.6, before history gravity bounded the values; they are still
+cleared on `ucinewgame`. **Against 6.4** (cloud, 8+0.08, 8moves_v3, SPRT
+0/10, 4 games at a time, both sides the tuning build), in two legs:
+
+| leg | games | result | Elo | pentanomial | LLR (bound 2.94) |
+|---|---|---|---|---|---|
+| 1 (cut at the 2-hour limit) | 1,320 | +204 -182 =934 (50.8%) | +5.8 +/- 10.0 | [11, 131, 356, 149, 13] | 0.30 |
+| 2 (stopped by the owner) | 458 | +74 -56 =328 (52.0%) | +13.7 +/- 15.2 | [2, 37, 132, 57, 1] | 1.41 |
+| **both** | **1,778** | **+278 -238 =1262 (51.1%)** | **+8 +/- 8** | [13, 168, 488, 206, 14] | |
+
+**LOS 96.6%.** The SPRT did not finish: released by the owner on the LOS,
+as 6.2.1 was, and the second leg was stopped while it was ahead, so the
+figure is likely a little high. No time losses. Bench **1169368**,
+unchanged (bench runs one search per position, so it cannot show this).
+Network unchanged. Only measured at 8+0.08. Not tried: keeping half
+(`HIST_DECAY_SHIFT` 1).
+
+## 6.4: three changes that were flat alone, on together
+
+6.3 with three search changes switched on (all in `src/search.cpp`), each
+flat when tested alone:
+- **A move from a depth the clock cut short** (`PARTIAL_ITER` 1): when
+  the hard time limit stops a depth part-way, a root move that already
+  beat the previous depth's best move in it is played (6.3 discarded the
+  unfinished depth). Alone, on 6.2.1: +2 +/- 9 over 1,480 games.
+- **Quiescence uses the table** (`QS_TT` 1): it probes the table (a
+  cutoff at null-window nodes when the bound allows) and stores its
+  result at depth 0, only over an empty slot or another quiescence entry.
+  Alone, on 6.3: +3 +/- 9 over 1,380 games.
+- **Aspiration window of 15 cp instead of 35** (`ASP_DELTA` 15). Alone,
+  on 6.3: 0 +/- 12 over 700 games.
+
+**Against 6.3** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a time,
+both sides the tuning build), in two legs because a background match is
+cut at 2 hours:
+
+| leg | games | result | Elo | pentanomial | LLR (bound 2.94) |
+|---|---|---|---|---|---|
+| 1 (cut at the 2-hour limit) | 1,340 | +229 -189 =922 (51.5%) | +10.4 +/- 9.7 | [8, 122, 379, 144, 17] | 2.20 |
+| 2 (stopped by the owner) | 1,260 | +182 -143 =935 (51.6%) | +10.8 +/- 9.1 | [10, 87, 393, 134, 6] | 2.63 |
+| **both** | **2,600** | **+411 -332 =1857 (51.5%)** | **+11 +/- 7** | [18, 209, 772, 278, 23] | 4.82 |
+
+Neither leg reached the bound on its own; the owner released on the two
+together (the combined LLR is computed from the summed pentanomial
+counts, not a single uninterrupted SPRT). No time losses. The single
+results add up to +5, within the error of the +11 measured together, so
+this reads as three small gains adding up rather than the changes
+needing each other. Bench **1169368** (6.3: 1088726); the release build,
+the tuning build and the tested binary with the three options set all
+give it. Network unchanged. Only measured at 8+0.08. Fastchess warns
+"Bestmove does not match beginning of last PV" for moves taken from an
+unfinished depth (208 times in 2,600 games): expected, that depth
+printed no line.
+
+## 6.3: a larger share of the clock per move
+
+6.2.1 planning **1/25 of the remaining clock per move** instead of 1/40
+(`TM_MOVES`, new in `src/search.cpp`; plus 3/4 of the increment, as
+before). The plan had been 1/40 since Engine 1, and 4.3's and 5.3's
+scaling (stable best move, search effort) cut it further on quiet moves,
+so games ended with much of the clock unspent. The caps are unchanged (a
+fifth of the clock for the plan, half for the hard stop). **Against
+6.2.1** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a time, both
+sides the tuning build): **H1 accepted after 448 games**, +93 -58 =297
+(53.9%), **+27 Elo (+/- 17)**, pentanomial [2, 33, 124, 58, 7], no time
+losses. Not extended to a fixed length (owner's call), so the figure is
+likely high. **1/20 against 1/25**: stopped by the owner at 1,098 games,
++162 -170 =766 (49.6%), -3 +/- 11, LLR -2.40 (it read +15 at 280 games):
+no better, 25 stays. Bench **1088726**, unchanged (only clock-based
+searches differ). Network unchanged. Only measured at 8+0.08; check at
+40+0.4. Also in the code, off until 6.4: `PARTIAL_ITER`, `QS_TT`
+(quiescence uses the table) and `ASP_DELTA` (aspiration window width).
+
 ## 6.2.1: final SPSA values and a check extension near the leaves
 
 6.2 with the finished SPSA run (4,000 pairs on 6.1 + the check extension,

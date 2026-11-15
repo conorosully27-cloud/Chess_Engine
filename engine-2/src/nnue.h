@@ -31,4 +31,9 @@ bool loaded();
 // Centipawns from the side to move's point of view.
 int evaluate(const Position& pos);
 
+// A 14-bit summary of what the network sees in the position: for seven of
+// its most telling hidden units, whether each is over its threshold, from
+// the side to move's side and from the other's. 0 with no network loaded.
+int signature(const Position& pos);
+
 }  // namespace chess::nnue
