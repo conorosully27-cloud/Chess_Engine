@@ -135,16 +135,19 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
-- **Running (Nov 14): second SPSA, 12 more values on 6.7** (the ones the
-  first tune left out), starting from 6.7's: `HIST_BONUS_MUL` 200,
-  `HIST_BONUS_SUB` 150, `HIST_BONUS_MAX` 1800, `HIST_GRAVITY` 16384,
-  `CONT_HIST_GRAVITY` 16384, `CAPT_HIST_GRAVITY` 16384, `CORR_LIMIT_CP`
-  50, `CORR_NON_PAWN_RATE` 27, `NULL_EVAL_DIV` 200, `CAPT_LMR_BASE` 100,
-  `CAPT_LMR_HISTORY` 4000, `IMPROVING_RFP` 79. 6,000 pairs, 8+0.08,
-  `--r-end 0.02 --c-scale 2`, 4 workers, about 19 h; state in
-  `~/spsa-67/` (resume with `~/spsa-67/run.sh`; copies in
-  `release-matches/spsa-67/`). Then an SPRT vs 6.7 of the average of the
-  last 1,000 pairs.
+- **Finished, untested (Nov 15): second SPSA, 12 more values on 6.7** (the
+  ones the first tune left out). 6,000 pairs, 8+0.08, `--r-end 0.02
+  --c-scale 2`, 4 workers; tune games +1688 -1740 =8572. Owner will SPRT
+  it in another session; no SPRT was run here. Values as
+  6.7 start / end of tune / average of last 1,000 pairs (test the average):
+  `HIST_BONUS_MUL` 200 / 306 / 323, `HIST_BONUS_SUB` 150 / 54 / 29,
+  `HIST_BONUS_MAX` 1800 / 2409 / 2461, `HIST_GRAVITY` 16384 / 12486 /
+  12573, `CONT_HIST_GRAVITY` 16384 / 14700 / 14859, `CAPT_HIST_GRAVITY`
+  16384 / 25264 / 26137, `CORR_LIMIT_CP` 50 / 46 / 45,
+  `CORR_NON_PAWN_RATE` 27 / 19 / 20, `NULL_EVAL_DIV` 200 / 65 / 65,
+  `CAPT_LMR_BASE` 100 / 126 / 128, `CAPT_LMR_HISTORY` 4000 / 3487 / 3825,
+  `IMPROVING_RFP` 79 / 54 / 53. State and log in
+  `release-matches/spsa-67/`.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
