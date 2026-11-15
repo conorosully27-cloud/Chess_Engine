@@ -46,7 +46,7 @@ TUNE_PARAM(LMP_SCALE, 69, 25, 300);
 // (from the IMPROVING_LMR_MOVE-th) at non-PV nodes that are not improving
 // get IMPROVING_LMR plies more reduction. Earlier versions (2.10) halved
 // late move pruning and cut nodes by 35%: too much.
-TUNE_PARAM(IMPROVING_RFP, 79, 0, 150);
+TUNE_PARAM(IMPROVING_RFP, 53, 0, 150);
 TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
 TUNE_PARAM(IMPROVING_LMR_MOVE, 10, 3, 20);
 
@@ -79,7 +79,7 @@ TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // null search fell into quiescence or was clamped to 1 ply).
 TUNE_PARAM(NULL_DEEP_START, 7, 6, 30);
 TUNE_PARAM(NULL_DEEP_DIV, 3, 1, 12);
-TUNE_PARAM(NULL_EVAL_DIV, 200, 0, 1000);
+TUNE_PARAM(NULL_EVAL_DIV, 65, 0, 1000);
 TUNE_PARAM(NULL_EVAL_MAX, 3, 0, 6);
 // Threat-aware reductions: when the null move fails, the reply that refuted
 // it is the opponent's threat. If it captures one of our pieces, moves of
@@ -95,14 +95,14 @@ TUNE_PARAM(HIST_PRUNE_MARGIN, 6431, 500, 16000);
 // (at most HIST_BONUS_MAX) for the move that cut off, the same against the
 // quiet moves tried before it, applied with gravity toward +/-HIST_GRAVITY
 // (main table) and +/-CONT_HIST_GRAVITY (continuation tables).
-TUNE_PARAM(HIST_BONUS_MUL, 200, 50, 600);
-TUNE_PARAM(HIST_BONUS_SUB, 150, 0, 600);
-TUNE_PARAM(HIST_BONUS_MAX, 1800, 300, 4000);
-TUNE_PARAM(HIST_GRAVITY, 16384, 4000, 30000);
-TUNE_PARAM(CONT_HIST_GRAVITY, 16384, 4000, 30000);
+TUNE_PARAM(HIST_BONUS_MUL, 323, 50, 600);
+TUNE_PARAM(HIST_BONUS_SUB, 29, 0, 600);
+TUNE_PARAM(HIST_BONUS_MAX, 2461, 300, 4000);
+TUNE_PARAM(HIST_GRAVITY, 12573, 4000, 30000);
+TUNE_PARAM(CONT_HIST_GRAVITY, 14859, 4000, 30000);
 // Capture history (src/movepick.h): the same bonus, gravity toward
 // +/-CAPT_HIST_GRAVITY.
-TUNE_PARAM(CAPT_HIST_GRAVITY, 16384, 4000, 30000);
+TUNE_PARAM(CAPT_HIST_GRAVITY, 26137, 4000, 30000);
 
 // Singular extensions: from SINGULAR_DEPTH, a hash move that the table
 // rates well above every alternative is searched a ply deeper. The test
@@ -140,8 +140,8 @@ TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
 // Late move reductions for captures: the table's value less
 // CAPT_LMR_BASE hundredths of a ply (rounded down after), a ply less per CAPT_LMR_HISTORY of capture
 // history (or more below zero), at most two either way.
-TUNE_PARAM(CAPT_LMR_BASE, 100, 0, 300);
-TUNE_PARAM(CAPT_LMR_HISTORY, 4000, 500, 16000);
+TUNE_PARAM(CAPT_LMR_BASE, 128, 0, 300);
+TUNE_PARAM(CAPT_LMR_HISTORY, 3825, 500, 16000);
 
 // ProbCut: from PROBCUT_DEPTH at a non-PV node, a capture that wins enough
 // material (SEE) and still beats beta + PROBCUT_MARGIN in a search
@@ -185,9 +185,9 @@ TUNE_PARAM(TM_SURPRISE_PCT, 100, 50, 200);
 // Values from an SPSA run (Oct 2026, 2,000 pairs at 8+0.08, from 64, 16, 25).
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_WEIGHT_SCALE = 256;
-TUNE_PARAM(CORR_LIMIT_CP, 50, 16, 127);
+TUNE_PARAM(CORR_LIMIT_CP, 45, 16, 127);
 TUNE_PARAM(CORR_MAX_WEIGHT, 15, 4, 64);
-TUNE_PARAM(CORR_NON_PAWN_RATE, 27, 5, 100);
+TUNE_PARAM(CORR_NON_PAWN_RATE, 20, 5, 100);
 // The last-two-moves table, far sparser, learns at CORR_CONT_RATE percent
 // and is held within +/-CORR_CONT_LIMIT_CP (the cautious version from 4.0,
 // even with it then; retried on a newer network as the owner suggested).
