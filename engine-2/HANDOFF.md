@@ -148,6 +148,14 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   `CAPT_LMR_BASE` 100 / 126 / 128, `CAPT_LMR_HISTORY` 4000 / 3487 / 3825,
   `IMPROVING_RFP` 79 / 54 / 53. State and log in
   `release-matches/spsa-67/`.
+  **Averaged values vs Renegade 1.1.0** (Nov 15; 8+0.08 by the owner's
+  choice for this one match, SPRT -10/+10, Hash 64, 1 thread, 4 at a
+  time, `~/matches/renegade68.log`): **H0 after 124 games**, +15 -34 =75
+  (42.3%), **-54 +/- 39**, pentanomial [7, 15, 30, 10, 0]. Three of the
+  15 wins were Renegade losing on time (100 ms overruns), so the real
+  gap is a little wider. Not comparable to a self-play gain: 6.7 itself
+  has not played Renegade, and 6.6's -82 +/- 41 was at 10+0.1. Still no
+  SPRT against 6.7.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
