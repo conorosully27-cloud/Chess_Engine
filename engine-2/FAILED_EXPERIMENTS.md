@@ -5,6 +5,29 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Cutoff-count reductions, on 6.7 (Nov 2026)
+
+**Change** (`CUTOFF_LMR` 1, `CUTOFF_LMR_MIN` 3; in the code, 0 = off;
+commit `21faed9`): each node counts its children that ended in a beta
+cutoff; once more than 3 have, its later late moves (quiets and
+captures) get a ply more reduction. Bench 1626117 -> 1182891 (27% fewer
+nodes).
+
+**Result:** vs 6.7 (cloud, 4 at a time, SPRT 0 / 5), stopped as flat by
+the owner at both time controls:
+- **40+0.4: 982 games**, +104 -105 =773 (49.95%), **0 +/- 9**,
+  pentanomial [4, 69, 343, 74, 1], LLR -0.70; it swung between -12 and
+  +7 and kept coming back to zero (`~/matches/cutcnt-67-40.log`).
+- **8+0.08: 618 games**, +91 -95 =432 (49.7%), **-2 +/- 14**,
+  pentanomial [4, 65, 175, 61, 4] (`~/matches/cutcnt-67-8.log`).
+
+**Prior:** 5/10 (Stockfish's cutoffCnt; untried here).
+
+**Why it failed (likely):** the node count fell by a quarter but the
+strength did not move, so the plies saved went to moves that did not
+need them. History, cut-node and improving terms probably already
+reduce the same late moves at such nodes.
+
 ## Near-miss reductions, on 6.7 (Nov 2026)
 
 **Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):

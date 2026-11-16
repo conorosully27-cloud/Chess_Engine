@@ -141,6 +141,9 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Cutoff-count reductions** (`CUTOFF_LMR`, 0 = off): **flat** at
+  1 / 3 vs 6.7, 0 +/- 9 over 982 games at 40+0.4 and -2 +/- 14 over
+  618 at 8+0.08 (`FAILED_EXPERIMENTS.md`).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
