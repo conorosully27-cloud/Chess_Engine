@@ -41,7 +41,27 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
+**Current best: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
+result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
+over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
+(978 games, LOS 94.7%), both stopped by the owner before the SPRT
+finished (`CHANGELOG.md`). Bench **1471053**. Baseline for SPRTs: build
+it, copy to `~/matches/engine2-6.9`.
+
+**Before 6.9: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
+more search values retuned by SPSA on 6.7 (history bonus and gravity,
+capture LMR, correction limits, null-move eval divisor, improving RFP;
+average of the last 1,000 of 6,000 pairs, log in
+`release-matches/spsa-67/` on `claude/affectionate-sagan-wacmlh`):
+**+10 +/- 8 over 6.7** at 8+0.08 (H1 after 1,734 games). Bench
+**1440683**. Not measured at a long time control vs 6.7. The same tune
+stopped at about pair 3,000 ("half-tuned") was +20 +/- 14 vs 6.7 at
+8+0.08 (H1, 642 games) but +4 +/- 9 at 40+0.4 (1,040 games, stopped
+undecided); the final values vs the half-tuned ones: H0 at 8+0.08 (+0
++/- 8, 1,982 games), level after 240 games at 60+0.5 (stopped).
+Baseline for SPRTs: build it, copy to `~/matches/engine2-6.8`.
+
+**Before 6.8: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
 with twelve search values retuned by SPSA (6,000 pairs): **+18 +/- 13
 over 6.6, LOS 99.7%** (H1 after 754 games; `CHANGELOG.md`). Bench
 **1626117**. Baseline for SPRTs: build it, copy to
@@ -147,7 +167,17 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
-- **Finished, untested (Nov 15): second SPSA, 12 more values on 6.7** (the
+- **Released as 6.9 (Nov 16): re-search depth from the reduced search's
+  result, on 6.8** (owner: a change aimed at longer time controls).
+  Stockfish's rule and values (40 + 2 x depth deeper, 8 shallower),
+  untuned. vs 6.8 at 40+0.4 (bounds 0 / 5, `~/matches/research-leg1..4.log`):
+  stopped by the owner at 1,018 games, +129 -95 =794, **+12 +/- 9, LOS
+  99.4%**, LLR 2.13. At 8+0.08 (bounds 0 / 10, `~/matches/research-stc.log`),
+  the owner's check that it does not hurt there: stopped at 978 games,
+  +144 -120 =714, +9 +/- 10, LOS 94.7%, LLR 1.27. Next for it: an SPSA of
+  the two values (and whether to apply only the deeper or only the
+  shallower half).
+- **Released as 6.8 by the owner's other session; here (Nov 15): second SPSA, 12 more values on 6.7** (the
   ones the first tune left out). 6,000 pairs, 8+0.08, `--r-end 0.02
   --c-scale 2`, 4 workers; tune games +1688 -1740 =8572. Owner will SPRT
   it in another session; no SPRT was run here. Values as
@@ -160,6 +190,14 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   `CAPT_LMR_BASE` 100 / 126 / 128, `CAPT_LMR_HISTORY` 4000 / 3487 / 3825,
   `IMPROVING_RFP` 79 / 54 / 53. State and log in
   `release-matches/spsa-67/`.
+  **Averaged values vs Renegade 1.1.0** (Nov 15; 8+0.08 by the owner's
+  choice for this one match, SPRT -10/+10, Hash 64, 1 thread, 4 at a
+  time, `~/matches/renegade68.log`): **H0 after 124 games**, +15 -34 =75
+  (42.3%), **-54 +/- 39**, pentanomial [7, 15, 30, 10, 0]. Three of the
+  15 wins were Renegade losing on time (100 ms overruns), so the real
+  gap is a little wider. Not comparable to a self-play gain: 6.7 itself
+  has not played Renegade, and 6.6's -82 +/- 41 was at 10+0.1. Still no
+  SPRT against 6.7.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
@@ -292,6 +330,18 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   setting). On the laptop: `-G "MinGW Makefiles"`; fastchess there too.
 
 ## Where things stand
+
+- **From session cool-bardeen (Nov 5-8, on 5.4; merged in after 6.2.1):**
+  root move list sorted by score H0 (-5); TT buckets H0 (-6); SPSA of the
+  LMR values H0 (+1); `LMR_BASE` 30 vs 98 H0 (-8). **SPSA convergence
+  check:** from far-away starts, values moved only ~10-15% of the way in
+  2,000 pairs at `--r-end 0.005`, and `LMR_BASE` alone not at all: use
+  bigger steps (`--r-end 0.02` moved values far) or rough SPRT scans first.
+  **Pruning margins tuned with 4x steps** (`RFP_MARGIN` 94 -> 52,
+  `FUT_MARGIN` 147 -> 96, `LMP_SCALE` 102 -> 141, commit `c26be3d`) vs 5.4:
+  H0 after 2,996 games, about +1, LOS 66%; **owner: keep the idea**
+  (check against 6.2.1's tuned values first). Fractional-reduction
+  restructure (`44be401`, bench-neutral on 5.4) not carried into 6.2.1.
 
 - **Engine 2.0 is Engine 1.6 ported to C++**: same search, same
   evaluation (identical scores on 30,000 positions), about 6x the speed.

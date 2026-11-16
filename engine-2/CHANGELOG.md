@@ -5,6 +5,58 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.9: re-search depth from the reduced search's result
+
+6.8 with one search change, aimed at longer time controls. A late move
+that beats alpha in its reduced search is searched again at full depth;
+how far it beat the best score so far now sets the depth of that second
+search: by more than 40 + 2 x depth centipawns, a ply deeper than full
+depth; by less than 8, a ply shallower (`RESEARCH_DEEPER_CP` 40,
+`RESEARCH_SHALLOWER_CP` 8; Stockfish's rule and values, untuned here).
+Reductions grow with depth, so the re-searches matter more in longer
+games.
+
+**Against 6.8** (cloud, 8moves_v3, 4 games at a time, both stopped by
+the owner before the SPRT finished):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 40+0.4 | 1,018 | +129 -95 =794 | **+12 +/- 9** | 99.4% | 2.13 (0/5) |
+| 8+0.08 | 978 | +144 -120 =714 | +9 +/- 10 | 94.7% | 1.27 (0/10) |
+
+Pentanomial [1, 65, 350, 85, 8] and [0, 93, 285, 105, 6]. The 8+0.08
+match was a check that it does not hurt at a short time control. Bench
+**1471053** (6.8: 1440683). Network unchanged.
+
+## 6.8: twelve more search values retuned
+
+6.7 with a second SPSA of twelve values the first tune left out
+(`scripts/tune/spsa.py`, 6,000 pairs at 8+0.08, `--r-end 0.02 --c-scale
+2`, 4 at a time); the release uses the average of the last 1,000 pairs:
+
+| value | 6.7 | 6.8 |
+|---|---|---|
+| `HIST_BONUS_MUL` | 200 | 323 |
+| `HIST_BONUS_SUB` | 150 | 29 |
+| `HIST_BONUS_MAX` | 1800 | 2461 |
+| `HIST_GRAVITY` | 16384 | 12573 |
+| `CONT_HIST_GRAVITY` | 16384 | 14859 |
+| `CAPT_HIST_GRAVITY` | 16384 | 26137 |
+| `CORR_LIMIT_CP` | 50 | 45 |
+| `CORR_NON_PAWN_RATE` | 27 | 20 |
+| `NULL_EVAL_DIV` | 200 | 65 |
+| `CAPT_LMR_BASE` | 100 | 128 |
+| `CAPT_LMR_HISTORY` | 4000 | 3825 |
+| `IMPROVING_RFP` | 79 | 53 |
+
+**Against 6.7** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a
+time): **H1 after 1,734 games**, +261 -211 =1262 (51.4%), **+10 Elo
+(+/- 8)**, LLR 2.95. Bench **1440683** (6.7: 1626117). Network
+unchanged. Only measured at 8+0.08 against 6.7; the values from halfway
+through the tune were +20 at 8+0.08 but +4 +/- 9 at 40+0.4 (1,040 games,
+stopped), and the final values were level with them at 8+0.08 (H0, 1,982
+games, +0 +/- 8) and after 240 games at 60+0.5.
+
 ## 6.7: twelve search values retuned
 
 6.6 with twelve pruning, reduction and history values retuned by SPSA
