@@ -193,6 +193,28 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 20, 5, 100);
 // even with it then; retried on a newer network as the owner suggested).
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
+// Corrected-evaluation reductions: where correction history moves the
+// evaluation by CORR_LMR_CP centipawns or more, the evaluation has been
+// wrong here before, so late quiet moves are reduced a ply less. 0 = off.
+TUNE_PARAM(CORR_LMR_CP, 0, 0, 150);
+// Near-miss reductions: the moves already searched here say how close the
+// node is to alpha. If the best of them failed low by NEAR_LMR_CP
+// centipawns or less, one of the late moves may tip it, so they are
+// reduced a ply less; if it failed low by FAR_LMR_CP or more, a ply more.
+// 0 = off (each).
+TUNE_PARAM(NEAR_LMR_CP, 0, 0, 100);
+TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
+// Re-search depth from the reduced search's own result. A late move that
+// beat alpha in its reduced search is searched again at full depth; how
+// far it beat the best score so far says how much that second search
+// deserves. By more than RESEARCH_DEEPER_CP + 2 x depth centipawns: a ply
+// deeper than full depth (the move looks really better, so make sure). By
+// less than RESEARCH_SHALLOWER_CP: a ply shallower (it only just got
+// there). Known from Stockfish. Reductions, and so re-searches, grow with
+// depth: meant for longer time controls. 0 = off (each). On since 6.9:
+// +12 +/- 9 at 40+0.4, +9 +/- 10 at 8+0.08, vs 6.8.
+TUNE_PARAM(RESEARCH_DEEPER_CP, 40, 0, 200);
+TUNE_PARAM(RESEARCH_SHALLOWER_CP, 8, 0, 50);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -214,6 +236,18 @@ TUNE_PARAM(HIST_DECAY_SHIFT, 0, 0, 4);
 // (played even from an unfinished depth with PARTIAL_ITER). 100 = off;
 // 6.6: 150, +10 +/- 9 over 6.5.
 TUNE_PARAM(TM_FAIL_LOW_PCT, 150, 100, 300);
+// Clock by game state (all 100 = off), fitted from 8,171 saved games at
+// 8+0.08: a side that is TM_DECIDED_CP or more ahead or behind has a median
+// of 15 moves left to play, and one within TM_DRAWISH_CP of level after ply
+// TM_DRAWISH_PLY has 11, and in both the result rarely changes; the fight
+// is everywhere else. So the plan is scaled by TM_DECIDED_PCT in the
+// first, TM_DRAWISH_PCT in the second, and TM_OPEN_PCT in the rest.
+TUNE_PARAM(TM_DECIDED_PCT, 100, 20, 100);
+TUNE_PARAM(TM_DECIDED_CP, 400, 150, 1000);
+TUNE_PARAM(TM_DRAWISH_PCT, 100, 20, 100);
+TUNE_PARAM(TM_DRAWISH_CP, 20, 5, 60);
+TUNE_PARAM(TM_DRAWISH_PLY, 60, 0, 200);
+TUNE_PARAM(TM_OPEN_PCT, 100, 100, 150);
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -471,6 +505,10 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
         const int stability = TM_STABLE_BASE - TM_STABLE_STEP * std::min(stable_depths, int(TM_STABLE_DEPTHS));
         const int falling = std::clamp(drop * TM_DROP_PER_CP, 0, int(TM_DROP_MAX));
         soft = soft * stability / 100 * (100 + falling) / 100;
+        const int state_pct = std::abs(score) >= TM_DECIDED_CP ? int(TM_DECIDED_PCT)
+                              : std::abs(score) <= TM_DRAWISH_CP && pos.game_ply() >= TM_DRAWISH_PLY ? int(TM_DRAWISH_PCT)
+                              : int(TM_OPEN_PCT);
+        soft = soft * state_pct / 100;
         if (depth >= TM_NODE_DEPTH && nodes_ > 0) {
           const int best_share = int(root_move_nodes_[result.best.from() * 64 + result.best.to()] * 100 / nodes_);
           soft = soft * std::max(TM_NODE_BASE - best_share * TM_NODE_MUL / 100, 10) / 100;
@@ -777,6 +815,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
+        if (CORR_LMR_CP && !in_check && std::abs(static_eval - raw_eval) >= CORR_LMR_CP) reduction--;
+        if (best_score < alpha && !is_mate_score(best_score) && !is_mate_score(alpha)) {
+          if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
+          if (FAR_LMR_CP && alpha - best_score >= FAR_LMR_CP) reduction++;
+        }
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
@@ -792,8 +835,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
       score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, true, false);
-      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
-      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false, false);
+      int full_depth = new_depth;
+      if (reduction > 0 && score > alpha) {
+        if (!is_mate_score(best_score) && !is_mate_score(score)) {
+          if (RESEARCH_DEEPER_CP && score > best_score + RESEARCH_DEEPER_CP + 2 * new_depth && ply < 2 * root_depth_)
+            full_depth++;
+          else if (RESEARCH_SHALLOWER_CP && score < best_score + RESEARCH_SHALLOWER_CP)
+            full_depth--;
+        }
+        if (full_depth > new_depth - reduction) score = -negamax(full_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
+      }
+      if (score > alpha && score < beta) score = -negamax(full_depth, -beta, -alpha, ply + 1, false, false);
     }
     pos.unmake_move();
     if (ply == 0) root_move_nodes_[move.from() * 64 + move.to()] += nodes_ - nodes_before;

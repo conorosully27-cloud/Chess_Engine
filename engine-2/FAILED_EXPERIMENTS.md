@@ -5,6 +5,66 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Near-miss reductions, on 6.7 (Nov 2026)
+
+**Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):
+late quiet moves are reduced a ply less when the best move searched so
+far at the node failed low by 15 cp or less, and a ply more when it
+failed low by 300 cp or more. Bench 1626117 -> 1849539.
+
+**Result:** vs 6.7 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 962 games**, +115 -124 =723 (49.5%),
+**-3 +/- 10**, pentanomial [5, 88, 305, 77, 6], LLR -2.97
+(`~/matches/nearmiss.log`).
+
+**Prior:** 3/10 (untried).
+
+**Commentary:** flat for 14% more nodes. The scores it reads come from
+reduced null-window searches, so they are loose upper bounds: "failed
+low by 15" often is not a near miss. Not tried: each half alone, or the
+far half only (it shrinks the tree: bench 1592536 at 300).
+
+## Corrected-evaluation reductions, on 6.7 (Nov 2026)
+
+**Change** (`CORR_LMR_CP` 40; in the code, 0 = off): late quiet moves
+are reduced a ply less at nodes where correction history moves the
+evaluation by 40 cp or more (Stockfish adjusts reductions by its
+correction value too). Bench 1626117 -> 1806939.
+
+**Result:** vs 6.7 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 848 games**, +118 -133 =597 (49.1%),
+**-6 +/- 12**, pentanomial [5, 88, 260, 59, 12], LLR -2.95
+(`~/matches/corrlmr40.log`).
+
+**Prior:** 4/10.
+
+**Commentary:** 11% more nodes for nothing. The reduction values had
+just been tuned (6.7), so a blanket ply less at these nodes mostly
+undoes that; a finer step (a fraction of a ply, scaled by the size of
+the correction) inside a retune would be the fair retry.
+
+## Clock by game state, on 6.7 (Nov 2026)
+
+**Change** (`TM_DECIDED_PCT` 50, `TM_DRAWISH_PCT` 60, `TM_OPEN_PCT` 110;
+in the code, all 100 = off): the planned time per move is halved when
+the score is 4.00 or more either way, cut to 60% when it is within 0.20
+of level after ply 60, and raised 10% elsewhere. Fitted from 8,171 saved
+8+0.08 games: about 15 moves are left in the first case and 11 in the
+second, and 1.74 s of the 8 is unused at the end. Bench unchanged
+(clock only).
+
+**Result:** vs 6.7 (cloud, 8+0.08, 4 at a time, both sides the tuning
+build): **SPRT rejected it after 1,122 games**, +161 -168 =793 (49.7%),
+**-2 +/- 10**, pentanomial [8, 103, 339, 110, 1], LLR -3.03
+(`~/matches/clockstate.log`).
+
+**Prior:** 4/10.
+
+**Commentary:** flat. The stability, score-drop and node-share scaling
+already stop early in settled positions, so little time was left to
+save there, and 10% more elsewhere is worth about 2 Elo at best. The
+"moves left" figures also owe much to the harness adjudicating early.
+
 ## Network correction history, on 6.6 (Nov 2026)
 
 **Change** (`CORR_NET_RATE` 25; code at `924033b`, off by default): a

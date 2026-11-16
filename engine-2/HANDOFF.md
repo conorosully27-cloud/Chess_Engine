@@ -8,7 +8,38 @@ history behind the search and evaluation.
 
 ## Next session: start here (Nov 9, after 6.1)
 
-**Current best: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
+### Testing policy from 6.7 on (owner, Nov 14): read before any SPRT
+
+1. **Every SPRT runs at the CCRL Blitz time control, 2 minutes + 1
+   second a move** (`scripts/match.sh A B games 120+1 4`), no longer at
+   8+0.08. CCRL Blitz is the list the engine is measured against, and
+   values that are best at 8+0.08 (depth 17) are not necessarily best
+   there. 8+0.08 is still fine for SPSA tunes and quick sanity checks,
+   but it no longer decides what is released.
+2. **Smaller gains are accepted.** The aim is steady improvement from
+   many small confirmed steps, not only changes worth +10. Use SPRT
+   bounds 0 / 5 (`ELO0=0 ELO1=5`), not 0 / 10, which rejects anything
+   under about +5 by design.
+
+What this costs: a 120+1 game takes about 5 minutes, so 4 at a time is
+about 50 games an hour, against about 650 at 8+0.08. A 2-hour leg is
+about 100 games (+/- 35 Elo); resolving +5 takes thousands of games,
+i.e. days on 4 cores. Plan tests in many resumed legs (keep the PGNs and
+add up the pentanomial counts), test fewer things, and prefer bundles of
+changes that each looked good at 8+0.08. More cores are the real fix.
+
+Not yet settled by the owner: the confidence needed to release (it was
+LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
+(Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
+
+**Current best: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
+result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
+over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
+(978 games, LOS 94.7%), both stopped by the owner before the SPRT
+finished (`CHANGELOG.md`). Bench **1471053**. Baseline for SPRTs: build
+it, copy to `~/matches/engine2-6.9`.
+
+**Before 6.9: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
 more search values retuned by SPSA on 6.7 (history bonus and gravity,
 capture LMR, correction limits, null-move eval divisor, improving RFP;
 average of the last 1,000 of 6,000 pairs, log in
@@ -115,6 +146,46 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Correction history keyed by the network's most active hidden units**
   (`CORR_NET_RATE`, off = 0): **rejected** at rate 25 vs 6.6, 246 games,
   -43 +/- 22 (`FAILED_EXPERIMENTS.md`).
+- **Clock by game state** (`TM_DECIDED_PCT`, `TM_DRAWISH_PCT`,
+  `TM_OPEN_PCT`, all 100 = off): **rejected** at 50 / 60 / 110 vs 6.7,
+  1,122 games, -2 +/- 10 (`FAILED_EXPERIMENTS.md`).
+- **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
+  **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
+  (`FAILED_EXPERIMENTS.md`).
+- **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
+  **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
+  (`FAILED_EXPERIMENTS.md`).
+- **Released as 6.9 (Nov 16): re-search depth from the reduced search's
+  result, on 6.8** (owner: a change aimed at longer time controls).
+  Stockfish's rule and values (40 + 2 x depth deeper, 8 shallower),
+  untuned. vs 6.8 at 40+0.4 (bounds 0 / 5, `~/matches/research-leg1..4.log`):
+  stopped by the owner at 1,018 games, +129 -95 =794, **+12 +/- 9, LOS
+  99.4%**, LLR 2.13. At 8+0.08 (bounds 0 / 10, `~/matches/research-stc.log`),
+  the owner's check that it does not hurt there: stopped at 978 games,
+  +144 -120 =714, +9 +/- 10, LOS 94.7%, LLR 1.27. Next for it: an SPSA of
+  the two values (and whether to apply only the deeper or only the
+  shallower half).
+- **Released as 6.8 by the owner's other session; here (Nov 15): second SPSA, 12 more values on 6.7** (the
+  ones the first tune left out). 6,000 pairs, 8+0.08, `--r-end 0.02
+  --c-scale 2`, 4 workers; tune games +1688 -1740 =8572. Owner will SPRT
+  it in another session; no SPRT was run here. Values as
+  6.7 start / end of tune / average of last 1,000 pairs (test the average):
+  `HIST_BONUS_MUL` 200 / 306 / 323, `HIST_BONUS_SUB` 150 / 54 / 29,
+  `HIST_BONUS_MAX` 1800 / 2409 / 2461, `HIST_GRAVITY` 16384 / 12486 /
+  12573, `CONT_HIST_GRAVITY` 16384 / 14700 / 14859, `CAPT_HIST_GRAVITY`
+  16384 / 25264 / 26137, `CORR_LIMIT_CP` 50 / 46 / 45,
+  `CORR_NON_PAWN_RATE` 27 / 19 / 20, `NULL_EVAL_DIV` 200 / 65 / 65,
+  `CAPT_LMR_BASE` 100 / 126 / 128, `CAPT_LMR_HISTORY` 4000 / 3487 / 3825,
+  `IMPROVING_RFP` 79 / 54 / 53. State and log in
+  `release-matches/spsa-67/`.
+  **Averaged values vs Renegade 1.1.0** (Nov 15; 8+0.08 by the owner's
+  choice for this one match, SPRT -10/+10, Hash 64, 1 thread, 4 at a
+  time, `~/matches/renegade68.log`): **H0 after 124 games**, +15 -34 =75
+  (42.3%), **-54 +/- 39**, pentanomial [7, 15, 30, 10, 0]. Three of the
+  15 wins were Renegade losing on time (100 ms overruns), so the real
+  gap is a little wider. Not comparable to a self-play gain: 6.7 itself
+  has not played Renegade, and 6.6's -82 +/- 41 was at 10+0.1. Still no
+  SPRT against 6.7.
 - **Released as 6.7 (Nov 13): SPSA of 12 values on 6.6** (owner: a long tune,
   done within 24 h): `RFP_MARGIN`, `FUT_MARGIN`, `LMP_SCALE`, `LMR_BASE`,
   `LMR_DIV`, `LMR_HISTORY`, `SEE_QUIET_MARGIN`, `SEE_CAPTURE_MARGIN`,
