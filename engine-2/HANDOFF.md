@@ -32,7 +32,7 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 6.9** (Nov 17; on this branch, not on
+**Current best: ChessMcEngineFace 6.9** (Nov 16; on this branch, not on
 `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
 over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
@@ -157,7 +157,7 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
-- **Released as 6.9 (Nov 17): re-search depth from the reduced search's
+- **Released as 6.9 (Nov 16): re-search depth from the reduced search's
   result, on 6.8** (owner: a change aimed at longer time controls).
   Stockfish's rule and values (40 + 2 x depth deeper, 8 shallower),
   untuned. vs 6.8 at 40+0.4 (bounds 0 / 5, `~/matches/research-leg1..4.log`):
