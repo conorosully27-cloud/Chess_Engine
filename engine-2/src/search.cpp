@@ -215,6 +215,11 @@ TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
 // +12 +/- 9 at 40+0.4, +9 +/- 10 at 8+0.08, vs 6.8.
 TUNE_PARAM(RESEARCH_DEEPER_CP, 40, 0, 200);
 TUNE_PARAM(RESEARCH_SHALLOWER_CP, 8, 0, 50);
+// Reductions that learn within a node: once LMR_SURPRISES late moves at
+// this node were reduced, beat alpha, and the full-depth re-search
+// confirmed it, the move ordering here is unreliable, so every later
+// move at the node is reduced a ply less. 0 = off.
+TUNE_PARAM(LMR_SURPRISES, 0, 0, 4);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -726,6 +731,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   int best_score = -INF;
   Move best_move;
   int legal = 0;
+  int lmr_surprises = 0;  // reduced late moves here that beat alpha and held at full depth
   // The move that led here, for the recapture extension.
   const Move prev_move = ply > 0 ? pos.last_move() : Move();
 
@@ -843,6 +849,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
           if (FAR_LMR_CP && alpha - best_score >= FAR_LMR_CP) reduction++;
         }
+        if (LMR_SURPRISES && lmr_surprises >= LMR_SURPRISES) reduction--;
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
@@ -853,6 +860,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
         if (move.from() == threat_sq) reduction -= THREAT_LMR;
+        if (LMR_SURPRISES && lmr_surprises >= LMR_SURPRISES) reduction--;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
@@ -866,7 +874,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           else if (RESEARCH_SHALLOWER_CP && score < best_score + RESEARCH_SHALLOWER_CP)
             full_depth--;
         }
-        if (full_depth > new_depth - reduction) score = -negamax(full_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
+        if (full_depth > new_depth - reduction) {
+          score = -negamax(full_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
+          if (score > alpha) lmr_surprises++;  // the reduction was wrong here
+        }
       }
       if (score > alpha && score < beta) score = -negamax(full_depth, -beta, -alpha, ply + 1, false, false);
     }
