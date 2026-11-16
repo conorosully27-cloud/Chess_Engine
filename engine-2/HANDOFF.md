@@ -148,6 +148,15 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
+- **Running (Nov 16): re-search depth from the reduced search's result,
+  on 6.8** (owner: a change aimed at longer time controls, tested at
+  40+0.4). `RESEARCH_DEEPER_CP` / `RESEARCH_SHALLOWER_CP` (both 0 = off
+  in the source): a late move that beats alpha in its reduced search is
+  re-searched a ply deeper than full depth if it beat the best score by
+  more than 40 + 2 x depth, a ply shallower if by less than 8 (Stockfish's
+  rule and values). Bench with 40 / 8: 1471053 (6.8: 1440683). SPRT vs
+  6.8 at 40+0.4, bounds 0 / 5, 4 at a time: `~/matches/research.log`
+  (`tune68-research` with `OPTS_A`, vs `tune68-base`).
 - **Finished, untested (Nov 15): second SPSA, 12 more values on 6.7** (the
   ones the first tune left out). 6,000 pairs, 8+0.08, `--r-end 0.02
   --c-scale 2`, 4 workers; tune games +1688 -1740 =8572. Owner will SPRT

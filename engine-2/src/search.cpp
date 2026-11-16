@@ -204,6 +204,16 @@ TUNE_PARAM(CORR_LMR_CP, 0, 0, 150);
 // 0 = off (each).
 TUNE_PARAM(NEAR_LMR_CP, 0, 0, 100);
 TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
+// Re-search depth from the reduced search's own result. A late move that
+// beat alpha in its reduced search is searched again at full depth; how
+// far it beat the best score so far says how much that second search
+// deserves. By more than RESEARCH_DEEPER_CP + 2 x depth centipawns: a ply
+// deeper than full depth (the move looks really better, so make sure). By
+// less than RESEARCH_SHALLOWER_CP: a ply shallower (it only just got
+// there). Known from Stockfish. Reductions, and so re-searches, grow with
+// depth: meant for longer time controls. 0 = off (each).
+TUNE_PARAM(RESEARCH_DEEPER_CP, 0, 0, 200);
+TUNE_PARAM(RESEARCH_SHALLOWER_CP, 0, 0, 50);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -824,8 +834,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
       score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, true, false);
-      if (reduction > 0 && score > alpha) score = -negamax(new_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
-      if (score > alpha && score < beta) score = -negamax(new_depth, -beta, -alpha, ply + 1, false, false);
+      int full_depth = new_depth;
+      if (reduction > 0 && score > alpha) {
+        if (!is_mate_score(best_score) && !is_mate_score(score)) {
+          if (RESEARCH_DEEPER_CP && score > best_score + RESEARCH_DEEPER_CP + 2 * new_depth && ply < 2 * root_depth_)
+            full_depth++;
+          else if (RESEARCH_SHALLOWER_CP && score < best_score + RESEARCH_SHALLOWER_CP)
+            full_depth--;
+        }
+        if (full_depth > new_depth - reduction) score = -negamax(full_depth, -alpha - 1, -alpha, ply + 1, !cut_node, false);
+      }
+      if (score > alpha && score < beta) score = -negamax(full_depth, -beta, -alpha, ply + 1, false, false);
     }
     pos.unmake_move();
     if (ply == 0) root_move_nodes_[move.from() * 64 + move.to()] += nodes_ - nodes_before;
