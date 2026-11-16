@@ -106,7 +106,8 @@ class SearchWorker {
   std::uint64_t tbhits_ = 0;
   std::array<std::uint64_t, 64 * 64> root_move_nodes_{};  // nodes spent under each root move (from * 64 + to)  // tablebase probes that found the position
   int eval_stack_[MAX_PLY + 2] = {};  // each ply's static evaluation (EVAL_NONE in check), for "improving"
-  int double_exts_[MAX_PLY + 2] = {};  // double extensions on the line from the root to each ply
+  int double_exts_[MAX_PLY + 2] = {};
+  int cutoff_cnt_[MAX_PLY + 2] = {};  // beta cutoffs among the children of the node at ply - 1 (CUTOFF_LMR)  // double extensions on the line from the root to each ply
   int ply_move_[MAX_PLY + 1] = {};  // piece * 64 + to of the move made at each ply; -1 for a null move
   // The continuation history row after the move made `back` plies before
   // ply, or nullptr if there was none (before the root, a null move).

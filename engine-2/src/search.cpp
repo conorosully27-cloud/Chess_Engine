@@ -237,6 +237,12 @@ TUNE_PARAM(TM_DRAWISH_PCT, 100, 20, 100);
 TUNE_PARAM(TM_DRAWISH_CP, 20, 5, 60);
 TUNE_PARAM(TM_DRAWISH_PLY, 60, 0, 200);
 TUNE_PARAM(TM_OPEN_PCT, 100, 100, 150);
+// Cutoff-count reductions: counts the children of this node that ended in a
+// beta cutoff (each such child refuted the move that led to it). Once more
+// than CUTOFF_LMR_MIN have, the node is likely to fail low, so the late
+// moves still to come get CUTOFF_LMR plies more reduction. 0 = off.
+TUNE_PARAM(CUTOFF_LMR, 0, 0, 2);
+TUNE_PARAM(CUTOFF_LMR_MIN, 3, 0, 10);
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -528,6 +534,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (alpha >= beta) return alpha;
   }
 
+  cutoff_cnt_[ply + 1] = 0;  // counted afresh for this node's children
   double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
   if (in_check && depth < CHECK_EXT_DEPTH) depth++;  // look further when in check, near the leaves (Berserk 8)
@@ -809,6 +816,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
           if (FAR_LMR_CP && alpha - best_score >= FAR_LMR_CP) reduction++;
         }
+        if (cutoff_cnt_[ply + 1] > CUTOFF_LMR_MIN) reduction += CUTOFF_LMR;  // the earlier moves were refuted at once
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
@@ -819,6 +827,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
         if (move.from() == threat_sq) reduction -= THREAT_LMR;
+        if (cutoff_cnt_[ply + 1] > CUTOFF_LMR_MIN) reduction += CUTOFF_LMR;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
@@ -843,6 +852,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         alpha = score;
         update_pv(ply, move);
         if (score >= beta) {
+          cutoff_cnt_[ply]++;  // seen by the parent's later moves (CUTOFF_LMR)
           // History gravity: each update moves an entry toward +/-the
           // limit by a share of the bonus that shrinks as it nears it, so
           // entries saturate smoothly and recent results still count.
