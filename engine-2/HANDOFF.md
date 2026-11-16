@@ -20,6 +20,15 @@ history behind the search and evaluation.
    many small confirmed steps, not only changes worth +10. Use SPRT
    bounds 0 / 5 (`ELO0=0 ELO1=5`), not 0 / 10, which rejects anything
    under about +5 by design.
+3. **Report every score with its pentanomial count, explained** (owner,
+   Nov 16). Alongside games, W/L/D, Elo and LLR, give fastchess's
+   `Ptnml(0-2)` line and say what it shows in plain words. Each opening
+   is played twice with colours swapped; the pair is scored 0, 1/2, 1,
+   1 1/2 or 2 for the new version, and the five numbers count the pairs
+   in each box (lost both ... won both). Example: `[0, 15, 77, 8, 0]` =
+   77 of 100 pairs even, the old version ahead in 15, the new one in 8.
+   Pairs cancel out openings that favour one colour, which is why the
+   SPRT works on them.
 
 What this costs: a 120+1 game takes about 5 minutes, so 4 at a time is
 about 50 games an hour, against about 650 at 8+0.08. A 2-hour leg is
