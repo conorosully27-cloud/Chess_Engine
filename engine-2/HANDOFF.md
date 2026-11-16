@@ -37,7 +37,7 @@ result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
 over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
 (978 games, LOS 94.7%), both stopped by the owner before the SPRT
 finished (`CHANGELOG.md`). Bench **1471053**. Baseline for SPRTs: build
-it, copy to `~/matches/engine2-6.9`. 6.8 went to `main` in the same merge.
+it, copy to `~/matches/engine2-6.9`.
 
 **Before 6.9: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
 more search values retuned by SPSA on 6.7 (history bonus and gravity,
