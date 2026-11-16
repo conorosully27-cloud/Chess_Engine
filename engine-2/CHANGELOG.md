@@ -5,6 +5,35 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.8: twelve more search values retuned
+
+6.7 with a second SPSA of twelve values the first tune left out
+(`scripts/tune/spsa.py`, 6,000 pairs at 8+0.08, `--r-end 0.02 --c-scale
+2`, 4 at a time); the release uses the average of the last 1,000 pairs:
+
+| value | 6.7 | 6.8 |
+|---|---|---|
+| `HIST_BONUS_MUL` | 200 | 323 |
+| `HIST_BONUS_SUB` | 150 | 29 |
+| `HIST_BONUS_MAX` | 1800 | 2461 |
+| `HIST_GRAVITY` | 16384 | 12573 |
+| `CONT_HIST_GRAVITY` | 16384 | 14859 |
+| `CAPT_HIST_GRAVITY` | 16384 | 26137 |
+| `CORR_LIMIT_CP` | 50 | 45 |
+| `CORR_NON_PAWN_RATE` | 27 | 20 |
+| `NULL_EVAL_DIV` | 200 | 65 |
+| `CAPT_LMR_BASE` | 100 | 128 |
+| `CAPT_LMR_HISTORY` | 4000 | 3825 |
+| `IMPROVING_RFP` | 79 | 53 |
+
+**Against 6.7** (cloud, 8+0.08, 8moves_v3, SPRT 0/10, 4 games at a
+time): **H1 after 1,734 games**, +261 -211 =1262 (51.4%), **+10 Elo
+(+/- 8)**, LLR 2.95. Bench **1440683** (6.7: 1626117). Network
+unchanged. Only measured at 8+0.08 against 6.7; the values from halfway
+through the tune were +20 at 8+0.08 but +4 +/- 9 at 40+0.4 (1,040 games,
+stopped), and the final values were level with them at 8+0.08 (H0, 1,982
+games, +0 +/- 8) and after 240 games at 60+0.5.
+
 ## 6.7: twelve search values retuned
 
 6.6 with twelve pruning, reduction and history values retuned by SPSA

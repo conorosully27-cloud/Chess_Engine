@@ -32,7 +32,20 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
+**Current best: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
+more search values retuned by SPSA on 6.7 (history bonus and gravity,
+capture LMR, correction limits, null-move eval divisor, improving RFP;
+average of the last 1,000 of 6,000 pairs, log in
+`release-matches/spsa-67/` on `claude/affectionate-sagan-wacmlh`):
+**+10 +/- 8 over 6.7** at 8+0.08 (H1 after 1,734 games). Bench
+**1440683**. Not measured at a long time control vs 6.7. The same tune
+stopped at about pair 3,000 ("half-tuned") was +20 +/- 14 vs 6.7 at
+8+0.08 (H1, 642 games) but +4 +/- 9 at 40+0.4 (1,040 games, stopped
+undecided); the final values vs the half-tuned ones: H0 at 8+0.08 (+0
++/- 8, 1,982 games), level after 240 games at 60+0.5 (stopped).
+Baseline for SPRTs: build it, copy to `~/matches/engine2-6.8`.
+
+**Before 6.8: ChessMcEngineFace 6.7** (on `main`, Nov 13) = 6.6
 with twelve search values retuned by SPSA (6,000 pairs): **+18 +/- 13
 over 6.6, LOS 99.7%** (H1 after 754 games; `CHANGELOG.md`). Bench
 **1626117**. Baseline for SPRTs: build it, copy to
@@ -277,6 +290,18 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   setting). On the laptop: `-G "MinGW Makefiles"`; fastchess there too.
 
 ## Where things stand
+
+- **From session cool-bardeen (Nov 5-8, on 5.4; merged in after 6.2.1):**
+  root move list sorted by score H0 (-5); TT buckets H0 (-6); SPSA of the
+  LMR values H0 (+1); `LMR_BASE` 30 vs 98 H0 (-8). **SPSA convergence
+  check:** from far-away starts, values moved only ~10-15% of the way in
+  2,000 pairs at `--r-end 0.005`, and `LMR_BASE` alone not at all: use
+  bigger steps (`--r-end 0.02` moved values far) or rough SPRT scans first.
+  **Pruning margins tuned with 4x steps** (`RFP_MARGIN` 94 -> 52,
+  `FUT_MARGIN` 147 -> 96, `LMP_SCALE` 102 -> 141, commit `c26be3d`) vs 5.4:
+  H0 after 2,996 games, about +1, LOS 66%; **owner: keep the idea**
+  (check against 6.2.1's tuned values first). Fractional-reduction
+  restructure (`44be401`, bench-neutral on 5.4) not carried into 6.2.1.
 
 - **Engine 2.0 is Engine 1.6 ported to C++**: same search, same
   evaluation (identical scores on 30,000 positions), about 6x the speed.
