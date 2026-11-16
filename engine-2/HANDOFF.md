@@ -32,7 +32,16 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
+**Current best: ChessMcEngineFace 6.9** (Nov 17; on this branch, not on
+`main`) = 6.8 with the re-search depth set by the reduced search's
+result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
+over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
+(978 games, LOS 94.7%), both stopped by the owner before the SPRT
+finished (`CHANGELOG.md`). Bench **1471053**. Baseline for SPRTs: build
+it, copy to `~/matches/engine2-6.9`. Neither 6.8 nor 6.9 is on `main`
+yet (6.8 is on `claude/cool-bardeen-9xe4gd`, merged into this branch).
+
+**Before 6.9: ChessMcEngineFace 6.8** (Nov 16) = 6.7 with twelve
 more search values retuned by SPSA on 6.7 (history bonus and gravity,
 capture LMR, correction limits, null-move eval divisor, improving RFP;
 average of the last 1,000 of 6,000 pairs, log in
@@ -148,20 +157,17 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
-- **Running (Nov 16): re-search depth from the reduced search's result,
-  on 6.8** (owner: a change aimed at longer time controls, tested at
-  40+0.4). `RESEARCH_DEEPER_CP` / `RESEARCH_SHALLOWER_CP` (both 0 = off
-  in the source): a late move that beats alpha in its reduced search is
-  re-searched a ply deeper than full depth if it beat the best score by
-  more than 40 + 2 x depth, a ply shallower if by less than 8 (Stockfish's
-  rule and values). Bench with 40 / 8: 1471053 (6.8: 1440683). SPRT vs
-  6.8 at 40+0.4, bounds 0 / 5, 4 at a time (`tune68-research` with
-  `OPTS_A`, vs `tune68-base`; `~/matches/research-leg1..4.log`):
-  **stopped by the owner at 1,018 games**, +129 -95 =794, **+12 +/- 9,
-  LOS 99.4%**, LLR 2.13 of 2.94, pentanomial [1, 65, 350, 85, 8]. Now
-  the same pair at 8+0.08 (bounds 0 / 10, `~/matches/research-stc.log`)
-  to see what it does at a short time control.
-- **Finished, untested (Nov 15): second SPSA, 12 more values on 6.7** (the
+- **Released as 6.9 (Nov 17): re-search depth from the reduced search's
+  result, on 6.8** (owner: a change aimed at longer time controls).
+  Stockfish's rule and values (40 + 2 x depth deeper, 8 shallower),
+  untuned. vs 6.8 at 40+0.4 (bounds 0 / 5, `~/matches/research-leg1..4.log`):
+  stopped by the owner at 1,018 games, +129 -95 =794, **+12 +/- 9, LOS
+  99.4%**, LLR 2.13. At 8+0.08 (bounds 0 / 10, `~/matches/research-stc.log`),
+  the owner's check that it does not hurt there: stopped at 978 games,
+  +144 -120 =714, +9 +/- 10, LOS 94.7%, LLR 1.27. Next for it: an SPSA of
+  the two values (and whether to apply only the deeper or only the
+  shallower half).
+- **Released as 6.8 by the owner's other session; here (Nov 15): second SPSA, 12 more values on 6.7** (the
   ones the first tune left out). 6,000 pairs, 8+0.08, `--r-end 0.02
   --c-scale 2`, 4 workers; tune games +1688 -1740 =8572. Owner will SPRT
   it in another session; no SPRT was run here. Values as

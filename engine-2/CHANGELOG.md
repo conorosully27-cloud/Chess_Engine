@@ -5,6 +5,29 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 6.9: re-search depth from the reduced search's result
+
+6.8 with one search change, aimed at longer time controls. A late move
+that beats alpha in its reduced search is searched again at full depth;
+how far it beat the best score so far now sets the depth of that second
+search: by more than 40 + 2 x depth centipawns, a ply deeper than full
+depth; by less than 8, a ply shallower (`RESEARCH_DEEPER_CP` 40,
+`RESEARCH_SHALLOWER_CP` 8; Stockfish's rule and values, untuned here).
+Reductions grow with depth, so the re-searches matter more in longer
+games.
+
+**Against 6.8** (cloud, 8moves_v3, 4 games at a time, both stopped by
+the owner before the SPRT finished):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 40+0.4 | 1,018 | +129 -95 =794 | **+12 +/- 9** | 99.4% | 2.13 (0/5) |
+| 8+0.08 | 978 | +144 -120 =714 | +9 +/- 10 | 94.7% | 1.27 (0/10) |
+
+Pentanomial [1, 65, 350, 85, 8] and [0, 93, 285, 105, 6]. The 8+0.08
+match was a check that it does not hurt at a short time control. Bench
+**1471053** (6.8: 1440683). Network unchanged.
+
 ## 6.8: twelve more search values retuned
 
 6.7 with a second SPSA of twelve values the first tune left out

@@ -211,9 +211,10 @@ TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
 // deeper than full depth (the move looks really better, so make sure). By
 // less than RESEARCH_SHALLOWER_CP: a ply shallower (it only just got
 // there). Known from Stockfish. Reductions, and so re-searches, grow with
-// depth: meant for longer time controls. 0 = off (each).
-TUNE_PARAM(RESEARCH_DEEPER_CP, 0, 0, 200);
-TUNE_PARAM(RESEARCH_SHALLOWER_CP, 0, 0, 50);
+// depth: meant for longer time controls. 0 = off (each). On since 6.9:
+// +12 +/- 9 at 40+0.4, +9 +/- 10 at 8+0.08, vs 6.8.
+TUNE_PARAM(RESEARCH_DEEPER_CP, 40, 0, 200);
+TUNE_PARAM(RESEARCH_SHALLOWER_CP, 8, 0, 50);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
