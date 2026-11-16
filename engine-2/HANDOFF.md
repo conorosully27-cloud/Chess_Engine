@@ -155,8 +155,12 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   re-searched a ply deeper than full depth if it beat the best score by
   more than 40 + 2 x depth, a ply shallower if by less than 8 (Stockfish's
   rule and values). Bench with 40 / 8: 1471053 (6.8: 1440683). SPRT vs
-  6.8 at 40+0.4, bounds 0 / 5, 4 at a time: `~/matches/research.log`
-  (`tune68-research` with `OPTS_A`, vs `tune68-base`).
+  6.8 at 40+0.4, bounds 0 / 5, 4 at a time (`tune68-research` with
+  `OPTS_A`, vs `tune68-base`; `~/matches/research-leg1..4.log`):
+  **stopped by the owner at 1,018 games**, +129 -95 =794, **+12 +/- 9,
+  LOS 99.4%**, LLR 2.13 of 2.94, pentanomial [1, 65, 350, 85, 8]. Now
+  the same pair at 8+0.08 (bounds 0 / 10, `~/matches/research-stc.log`)
+  to see what it does at a short time control.
 - **Finished, untested (Nov 15): second SPSA, 12 more values on 6.7** (the
   ones the first tune left out). 6,000 pairs, 8+0.08, `--r-end 0.02
   --c-scale 2`, 4 workers; tune games +1688 -1740 =8572. Owner will SPRT
