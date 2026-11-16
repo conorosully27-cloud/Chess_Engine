@@ -20,11 +20,17 @@ constexpr int QA = 255;
 constexpr int QB = 64;
 constexpr int SCALE = 400;
 
+constexpr int MAX_BUCKETS = 8;
+
 struct Network {
   alignas(64) std::int16_t ft_weight[INPUTS][HIDDEN];
   alignas(64) std::int16_t ft_bias[HIDDEN];
-  alignas(64) std::int16_t out_weight[2 * HIDDEN];  // side to move's units first
-  std::int32_t out_bias;
+  // One output layer per bucket (only the first `buckets` are used); in
+  // each, the side to move's units first.
+  alignas(64) std::int16_t out_weight[MAX_BUCKETS][2 * HIDDEN];
+  std::int32_t out_bias[MAX_BUCKETS];
+  int buckets = 1;      // output layers, chosen by piece count
+  bool screlu = false;  // the clipped units are squared before the output layer
 };
 
 Network net;
@@ -118,6 +124,41 @@ inline std::int32_t output(Row us, Row them, Row w) {
   for (int j = 0; j < HIDDEN; j++) {
     sum += std::min<std::int16_t>(std::max<std::int16_t>(us[j], 0), QA) * w[j];
     sum += std::min<std::int16_t>(std::max<std::int16_t>(them[j], 0), QA) * w[HIDDEN + j];
+  }
+  return sum;
+}
+#endif
+
+// The same with the clipped units squared (SCReLU): unit x unit x weight.
+// unit x weight is formed first and fits 16 bits (the trainer keeps these
+// output weights within +/-127), so the 16-bit multiply-add still applies.
+// The sum is in units of QA x QA x QB.
+#if defined(__AVX2__)
+inline std::int32_t output_squared(Row us, Row them, Row w) {
+  const __m256i zero = _mm256_setzero_si256(), qa = _mm256_set1_epi16(QA);
+  __m256i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 16) {
+    const __m256i u = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(us + j)), zero), qa);
+    const __m256i t = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(them + j)), zero), qa);
+    const __m256i uw = _mm256_mullo_epi16(u, _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + j)));
+    const __m256i tw = _mm256_mullo_epi16(t, _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + HIDDEN + j)));
+    s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(uw, u));
+    s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(tw, t));
+  }
+  __m256i s = _mm256_add_epi32(s0, s1);
+  __m128i h = _mm_add_epi32(_mm256_castsi256_si128(s), _mm256_extracti128_si256(s, 1));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0x4E));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0xB1));
+  return _mm_cvtsi128_si32(h);
+}
+#else
+inline std::int32_t output_squared(Row us, Row them, Row w) {
+  std::int32_t sum = 0;
+  for (int j = 0; j < HIDDEN; j++) {
+    const std::int32_t u = std::min<std::int16_t>(std::max<std::int16_t>(us[j], 0), QA);
+    const std::int32_t t = std::min<std::int16_t>(std::max<std::int16_t>(them[j], 0), QA);
+    sum += std::int16_t(u * w[j]) * u;
+    sum += std::int16_t(t * w[HIDDEN + j]) * t;
   }
   return sum;
 }
@@ -217,12 +258,19 @@ bool load(const unsigned char* data, std::size_t size) {
   std::size_t pos = 0;
   if (!take(data, size, pos, magic, 4) || !take(data, size, pos, &version, 4) || !take(data, size, pos, &hidden, 4))
     return false;
-  if (std::memcmp(magic, "E2NN", 4) != 0 || version != 1 || hidden != HIDDEN) return false;
+  if (std::memcmp(magic, "E2NN", 4) != 0 || (version != 1 && version != 2) || hidden != HIDDEN) return false;
+  // Version 2 adds the activation and the number of output layers; version
+  // 1 is plain clipped units and one output.
+  std::uint32_t screlu = 0, buckets = 1;
+  if (version == 2 && (!take(data, size, pos, &screlu, 4) || !take(data, size, pos, &buckets, 4))) return false;
+  if (screlu > 1 || buckets < 1 || buckets > MAX_BUCKETS) return false;
   if (!take(data, size, pos, net.ft_weight, sizeof(net.ft_weight)) ||
       !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)) ||
-      !take(data, size, pos, net.out_weight, sizeof(net.out_weight)) ||
-      !take(data, size, pos, &net.out_bias, sizeof(net.out_bias)) || pos != size)
+      !take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
+      !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size)
     return false;
+  net.screlu = screlu == 1;
+  net.buckets = int(buckets);
   if (++net_id == 0) net_id = 1;
   have_net = true;
   return true;
@@ -249,8 +297,16 @@ int evaluate(const Position& pos) {
   // Accumulators fit in 16 bits: the trainer keeps first-layer weights and
   // biases within 1.98, so 33 terms of at most 1.98 * QA stay under 32767.
   const Color us = pos.side_to_move();
-  const std::int32_t sum = output(acc.values[us], acc.values[~us], net.out_weight);
-  return int((std::int64_t(sum) + net.out_bias) * SCALE / (QA * QB));
+  // The output layer for this many pieces (2 to 32): equal steps of piece
+  // count, the fullest boards in the last. train.py's bucket_of is the same.
+  const int bucket = net.buckets == 1 ? 0 : std::min((popcount(pos.pieces()) - 2) * net.buckets / 32, net.buckets - 1);
+  const std::int16_t* w = net.out_weight[bucket];
+  if (net.screlu) {
+    const std::int32_t sum = output_squared(acc.values[us], acc.values[~us], w);
+    return int((std::int64_t(sum) / QA + net.out_bias[bucket]) * SCALE / (QA * QB));
+  }
+  const std::int32_t sum = output(acc.values[us], acc.values[~us], w);
+  return int((std::int64_t(sum) + net.out_bias[bucket]) * SCALE / (QA * QB));
 }
 
 // The units and thresholds were picked for nets/engine-6.0.nnue from the

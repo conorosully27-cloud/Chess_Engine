@@ -8,6 +8,11 @@ The network (the engine's src/nnue.h must match):
   -> --hidden units (512 by default), shared weights for both sides, clipped to [0, 1]
   -> both sides' units, side to move first -> 1 output, the evaluation in
      units of SCALE centipawns.
+Two optional extras, each on its own or together (the engine reads which
+from the network file, so no rebuild is needed):
+  --screlu            the clipped units are squared before the output layer
+  --output-buckets N  N output layers instead of one, chosen by the number
+                      of pieces on the board (8 is the usual choice)
 Loss: squared error between win probabilities, sigmoid(eval / K), and a
 blend of the search score's and the game result's (--wdl of the result).
 
@@ -35,6 +40,14 @@ QB = 64      # output weights times QB
 SCALE = 400  # output unit, in centipawns
 K = 400      # centipawns per unit of the sigmoid that turns scores into win probabilities
 FT_CLIP = 1.98  # first-layer weight limit: 32 pieces * 1.98 * QA fits a 16-bit accumulator
+OUT_CLIP = 127 / QB  # output weight limit with --screlu: unit x weight must fit 16 bits in the engine
+
+
+def bucket_of(count, buckets):
+    """The output layer for a position with `count` pieces (2 to 32): equal
+    steps of piece count, the fullest boards in the last. The engine's
+    src/nnue.cpp has the same formula."""
+    return torch.clamp((count - 2) * buckets // 32, 0, buckets - 1)
 
 
 class Dataset:
@@ -113,21 +126,31 @@ def features(pieces, device):
 
 
 class NNUE(torch.nn.Module):
-    def __init__(self, hidden=HIDDEN):
+    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1):
         super().__init__()
+        self.screlu, self.buckets = screlu, buckets
         self.ft = torch.nn.Linear(INPUTS, hidden)
-        self.out = torch.nn.Linear(2 * hidden, 1)
+        self.out = torch.nn.Linear(2 * hidden, buckets)
 
-    def forward(self, xw, xb, stm):
+    def forward(self, xw, xb, stm, count=None):
+        """count: pieces on the board, (B,); only needed with output buckets."""
         w, b = self.ft(xw), self.ft(xb)
         black_to_move = (stm == 1).unsqueeze(1)
         hidden = torch.where(black_to_move, torch.cat([b, w], 1), torch.cat([w, b], 1))
-        return self.out(torch.clamp(hidden, 0, 1)).squeeze(1)
+        act = torch.clamp(hidden, 0, 1)
+        if self.screlu:
+            act = act * act
+        out = self.out(act)
+        if self.buckets == 1:
+            return out.squeeze(1)
+        return out.gather(1, bucket_of(count, self.buckets).unsqueeze(1)).squeeze(1)
 
     def clip(self):
         with torch.no_grad():
             self.ft.weight.clamp_(-FT_CLIP, FT_CLIP)
             self.ft.bias.clamp_(-FT_CLIP, FT_CLIP)
+            if self.screlu:
+                self.out.weight.clamp_(-OUT_CLIP, OUT_CLIP)
 
 
 def batch_loss(model, records, device, wdl):
@@ -140,25 +163,33 @@ def batch_loss(model, records, device, wdl):
     score_stm = torch.where(white, score, -score)
     result_stm = torch.where(white, result, 1 - result)
     target = (1 - wdl) * torch.sigmoid(score_stm / K) + wdl * result_stm
-    pred = torch.sigmoid(model(xw, xb, stm_t) * SCALE / K)
+    count = torch.from_numpy((pieces >= 0).sum(axis=1)).to(device)
+    pred = torch.sigmoid(model(xw, xb, stm_t, count) * SCALE / K)
     return torch.mean((pred - target) ** 2)
 
 
 def export(model, path):
-    """The engine's network file (little-endian):
+    """The engine's network file (little-endian). Without --screlu and
+    --output-buckets, version 1, as before:
     b"E2NN", u32 version 1, u32 hidden,
     i16 ft_weight[768][hidden] (input-major), i16 ft_bias[hidden],
-    i16 out_weight[2 * hidden] (side to move first), i32 out_bias."""
+    i16 out_weight[2 * hidden] (side to move first), i32 out_bias.
+    With either, version 2: after hidden come u32 screlu (0 or 1) and
+    u32 buckets, and the output layer is
+    i16 out_weight[buckets][2 * hidden], i32 out_bias[buckets]."""
     ft_w = torch.round(model.ft.weight.detach().cpu().T * QA).to(torch.int16).numpy()
     ft_b = torch.round(model.ft.bias.detach().cpu() * QA).to(torch.int16).numpy()
-    out_w = torch.round(model.out.weight.detach().cpu().squeeze(0) * QB).to(torch.int16).numpy()
-    out_b = int(round(model.out.bias.item() * QA * QB))
+    out_w = torch.round(model.out.weight.detach().cpu() * QB).to(torch.int16).numpy()  # (buckets, 2 * hidden)
+    out_b = torch.round(model.out.bias.detach().cpu().double() * QA * QB).to(torch.int32).numpy()
     with open(path, "wb") as f:
-        f.write(b"E2NN" + struct.pack("<II", 1, model.ft.out_features))
+        if model.screlu or model.buckets > 1:
+            f.write(b"E2NN" + struct.pack("<IIII", 2, model.ft.out_features, int(model.screlu), model.buckets))
+        else:
+            f.write(b"E2NN" + struct.pack("<II", 1, model.ft.out_features))
         f.write(ft_w.astype("<i2").tobytes())
         f.write(ft_b.astype("<i2").tobytes())
         f.write(out_w.astype("<i2").tobytes())
-        f.write(struct.pack("<i", out_b))
+        f.write(out_b.astype("<i4").tobytes())
 
 
 def main():
@@ -173,7 +204,12 @@ def main():
     ap.add_argument("--resume", help="checkpoint to continue from")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--hidden", type=int, default=HIDDEN, help="hidden units per side (the engine is built to match)")
+    ap.add_argument("--screlu", action="store_true", help="square the clipped hidden units (SCReLU)")
+    ap.add_argument("--output-buckets", type=int, default=1, metavar="N",
+                    help="N output layers chosen by piece count (1 = a single output, as before; 8 is usual)")
     args = ap.parse_args()
+    if not 1 <= args.output_buckets <= 8:
+        raise SystemExit("--output-buckets must be between 1 and 8")
 
     paths = sorted(p for pattern in args.data for p in glob.glob(pattern))
     if not paths:
@@ -182,16 +218,20 @@ def main():
     data = Dataset(paths)
     val = data.validation()
     os.makedirs(args.out, exist_ok=True)
-    print(f"{len(paths)} files, {data.size:,} training positions, {args.hidden} hidden units, device {device}")
+    print(f"{len(paths)} files, {data.size:,} training positions, {args.hidden} hidden units, "
+          f"{'squared clipped (SCReLU)' if args.screlu else 'clipped'} units, "
+          f"{args.output_buckets} output layer{'s' if args.output_buckets > 1 else ''}, device {device}")
 
     torch.manual_seed(args.seed)
-    model = NNUE(args.hidden).to(device)
+    model = NNUE(args.hidden, args.screlu, args.output_buckets).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     # The learning rate falls by 10x over the run, on a cosine.
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs, eta_min=args.lr / 10)
     start_epoch = 1
     if args.resume:
         state = torch.load(args.resume, map_location=device)
+        if state.get("screlu", False) != args.screlu or state["model"]["out.weight"].shape[0] != args.output_buckets:
+            raise SystemExit("the checkpoint was trained with different --screlu / --output-buckets settings")
         model.load_state_dict(state["model"])
         opt.load_state_dict(state["opt"])
         sched.load_state_dict(state["sched"])
@@ -219,7 +259,8 @@ def main():
         with torch.no_grad():
             val_loss = batch_loss(model, val, device, args.wdl).item()
         print(f"epoch {epoch}: train {total / max(n, 1):.6f}, validation {val_loss:.6f}, {time.time() - t0:.0f} s", flush=True)
-        torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch},
+        torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
+                    "screlu": args.screlu},
                    os.path.join(args.out, "checkpoint.pt"))
         export(model, os.path.join(args.out, f"net-{epoch}.nnue"))
 

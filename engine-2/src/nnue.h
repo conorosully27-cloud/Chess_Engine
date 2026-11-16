@@ -3,6 +3,9 @@
 //   768 inputs per side (piece kind x square, seen from that side)
 //   -> HIDDEN hidden units (accumulator.h; 1024 by default since 5.6, 512 before), clipped to [0, QA]
 //   -> both sides' units, side to move first -> 1 output.
+// A network file may also ask for the clipped units to be squared (SCReLU)
+// and for up to 8 output layers chosen by piece count (train.py's --screlu
+// and --output-buckets); the engine reads which from the file.
 // Integer arithmetic throughout. The hidden layer's sums (accumulator.h) are
 // updated from the position before rather than recomputed: each move only
 // adds and removes a few pieces.
