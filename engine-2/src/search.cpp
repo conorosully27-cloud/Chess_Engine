@@ -220,6 +220,9 @@ TUNE_PARAM(RESEARCH_SHALLOWER_CP, 8, 0, 50);
 // confirmed it, the move ordering here is unreliable, so every later
 // move at the node is reduced a ply less. 0 = off.
 TUNE_PARAM(LMR_SURPRISES, 0, 0, 4);
+// Only use it at depth <= LMR_SURPRISE_MAX_DEPTH (0 = any depth): at long
+// time controls the deep nodes made it cost more than it gained.
+TUNE_PARAM(LMR_SURPRISE_MAX_DEPTH, 0, 0, 30);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -849,7 +852,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
           if (FAR_LMR_CP && alpha - best_score >= FAR_LMR_CP) reduction++;
         }
-        if (LMR_SURPRISES && lmr_surprises >= LMR_SURPRISES) reduction--;
+        if (LMR_SURPRISES && lmr_surprises >= LMR_SURPRISES &&
+            (!LMR_SURPRISE_MAX_DEPTH || depth <= LMR_SURPRISE_MAX_DEPTH))
+          reduction--;
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
@@ -860,7 +865,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
         if (move.from() == threat_sq) reduction -= THREAT_LMR;
-        if (LMR_SURPRISES && lmr_surprises >= LMR_SURPRISES) reduction--;
+        if (LMR_SURPRISES && lmr_surprises >= LMR_SURPRISES &&
+            (!LMR_SURPRISE_MAX_DEPTH || depth <= LMR_SURPRISE_MAX_DEPTH))
+          reduction--;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
