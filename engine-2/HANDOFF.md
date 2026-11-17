@@ -68,8 +68,12 @@ in `~/tools/thrawn`), 40+0.4, same conditions
 (`~/matches/610-thrawn-ltc.log`): **H0 after 230 games**, +27 -44 =159
 (46.3%), **-26 +/- 24**, pentanomial [3, 31, 64, 14, 3], LLR -3.02, no
 time losses: about 3565 by this pairing. **All three at 40+0.4: about
-3550-3565**; 7.0 is the owner's call (not renamed so far). Then the same vs Thrawn at
-8+0.08 (`~/matches/610-thrawn-stc.log`). Note: the current CCRL page shows only
+3550-3565**; 7.0 is the owner's call (not renamed so far). Same vs Thrawn at
+8+0.08 (`~/matches/610-thrawn-stc.log`): **H1 after 104 games**, +33 -9
+=62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
+losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
+100 Elo of swing), as Berserk did the other way. Short-TC results against
+outside engines say little about CCRL Blitz (2+1). Note: the current CCRL page shows only
 the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
 3693), so the 3553 / 3550 figures are from older list pages.
 
