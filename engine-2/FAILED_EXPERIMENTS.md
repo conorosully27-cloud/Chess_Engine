@@ -23,6 +23,11 @@ the owner at both time controls:
   pentanomial [9, 122, 407, 125, 7], LLR -0.66
   (`~/matches/ttpv-69-8.log`).
 
+**Retried at 2 plies on 7.0** (`TT_PV_LMR` 2, bench 1277145 -> 1307770):
+stopped by the owner at **40+0.4 after 562 games**, +50 -57 =455
+(49.4%), **-4 +/- 11**, pentanomial [1, 43, 200, 36, 1], LLR -1.02
+(`~/matches/ttpv2-70.log`). No better than 1 ply.
+
 **Prior:** 6/10 (standard in strong engines; untried here).
 
 **Why it failed (likely):** engine-2 already reduces PV nodes by a ply
