@@ -93,6 +93,9 @@ class SearchWorker {
   void update_pv(int ply, Move m);
   void check_limits();
   std::int64_t elapsed_ms() const;
+  // A UCI "info" line for a depth; elapsed < 0 reads the clock.
+  std::string info_line(int depth, int score, bool lowerbound, const std::vector<Move>& pv,
+                        std::int64_t elapsed = -1) const;
 
   TranspositionTable& tt_;
   Position* pos_ = nullptr;
@@ -169,6 +172,8 @@ class SearchWorker {
   int root_depth_ = 0;  // the iteration in progress
   Move root_prev_best_;  // the best move of the last finished depth
   bool root_prev_searched_ = false;  // ... and whether this depth has searched it yet
+  int root_pv_score_ = 0;  // the score of the root PV's first move in the depth in progress
+  bool root_pv_lower_ = false;  // ... and whether it failed high (a lower bound)
   bool stopped_ = false;
   bool can_stop_ = false;  // depth 1 always finishes, so there is always a move
   const std::atomic<bool>* stop_flag_ = nullptr;

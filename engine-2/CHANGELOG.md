@@ -5,6 +5,45 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.0: a new network (first released as 6.10)
+
+Released on Nov 17 as 6.10 and renamed 7.0 the same day by the owner,
+after matches against three outside engines put it at about 3550 on
+CCRL Blitz (the owner's mark for 7.0). Same code, network and bench as
+6.10.
+
+**Against outside engines at 40+0.4** (Hash 64, 1 thread, 4 at a time,
+SPRT -10 / +10; CCRL Blitz ratings from older list pages):
+
+| opponent (CCRL Blitz) | games | result | Elo | SPRT |
+|---|---|---|---|---|
+| Berserk 8 (3553) | 108 | +23 -10 =75 | +42 +/- 31 | H1 |
+| Renegade 1.1.0 (~3550) | 346 | +53 -70 =223 | -17 +/- 20 | H0 |
+| Thrawn 3.2 (3591) | 230 | +27 -44 =159 | -26 +/- 24 | H0 |
+
+About 3555 weighted by games. At 8+0.08 the picture differs a lot by
+opponent (Berserk -1 +/- 12, Thrawn +82 +/- 43), so the longer matches
+are the ones that count; none was run at CCRL's own 2+1.
+
+6.9's code with the owner's new network, a run's `net-20` (1,024 hidden
+units, the same format as 6.0's), as `nets/engine-6.10.nnue` (now `nets/engine-7.0.nnue`). No search
+change.
+
+**Against 6.9** (cloud, 8moves_v3, 4 games at a time, both SPRTs passed):
+
+| time control | games | result | Elo | LLR (bounds) |
+|---|---|---|---|---|
+| 40+0.4 | 984 | +142 -89 =753 | **+19 +/- 10** | 2.96, H1 (0/5) |
+| 8+0.08 | 476 | +97 -59 =320 | **+28 +/- 17** | 3.02, H1 (0/10) |
+
+Pentanomial [5, 61, 306, 116, 4] and [3, 36, 125, 68, 6]. At 40+0.4 it
+read +36 at 420 games and drifted down. **Against Berserk 8** (CCRL Blitz
+3553; Hash 64, 1 thread, SPRT -10/+10) at 8+0.08: stopped at 1,160
+games, +227 -231 =702, **-1 +/- 12**, pentanomial [20, 131, 279, 133,
+17]: level with Berserk at that time control, not proof of 3550 (one
+opponent, short time control). A 40+0.4 run against it followed. Bench
+**1277145** (6.9: 1471053).
+
 ## 6.9: re-search depth from the reduced search's result
 
 6.8 with one search change, aimed at longer time controls. A late move

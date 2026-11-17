@@ -403,6 +403,17 @@ void SearchWorker::check_limits() {
     stopped_ = true;
 }
 
+std::string SearchWorker::info_line(int depth, int score, bool lowerbound, const std::vector<Move>& pv,
+                                    std::int64_t elapsed) const {
+  if (elapsed < 0) elapsed = elapsed_ms();
+  std::string line = "info depth " + std::to_string(depth) + " score " + score_to_uci(score) +
+                     (lowerbound ? " lowerbound" : "") + " nodes " + std::to_string(nodes_) + " nps " +
+                     std::to_string(nodes_ * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
+                     std::to_string(elapsed) + (tbhits_ ? " tbhits " + std::to_string(tbhits_) : "") + " pv";
+  for (Move m : pv) line += " " + m.uci();
+  return line;
+}
+
 SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, const TimeBudget& budget,
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
@@ -481,6 +492,9 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
       if (PARTIAL_ITER && depth > 1 && root_prev_searched_ && pv_length_[0] > 0 && pv_table_[0][0] != result.best) {
         result.pv.assign(pv_table_[0], pv_table_[0] + pv_length_[0]);
         result.best = result.pv[0];
+        // Tell the GUI, so the last PV it saw starts with the move played.
+        // The depth is unfinished, so the score is the new move's so far.
+        if (on_info) on_info(info_line(depth, root_pv_score_, root_pv_lower_, result.pv));
       }
       break;
     }
@@ -498,14 +512,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
     result.depth = depth;
 
     const std::int64_t elapsed = elapsed_ms();
-    if (on_info) {
-      std::string line = "info depth " + std::to_string(depth) + " score " + score_to_uci(score) +
-                         " nodes " + std::to_string(nodes_) + " nps " +
-                         std::to_string(nodes_ * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
-                         std::to_string(elapsed) + (tbhits_ ? " tbhits " + std::to_string(tbhits_) : "") + " pv";
-      for (Move m : result.pv) line += " " + m.uci();
-      on_info(line);
-    }
+    if (on_info) on_info(info_line(depth, score, false, result.pv, elapsed));
 
     if (legal.size() == 1 && depth >= 4) break;  // only one move: no need to think
     if (is_mate_score(score) && MATE - std::abs(score) <= depth) break;  // forced mate found
@@ -881,6 +888,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       if (score > alpha) {
         alpha = score;
         update_pv(ply, move);
+        if (ply == 0) {
+          root_pv_score_ = score;
+          root_pv_lower_ = score >= beta;
+        }
         if (score >= beta) {
           cutoff_cnt_[ply]++;  // seen by the parent's later moves (CUTOFF_LMR)
           // History gravity: each update moves an entry toward +/-the
