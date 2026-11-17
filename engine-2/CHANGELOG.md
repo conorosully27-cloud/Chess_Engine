@@ -5,10 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## 6.10: a new network
+## 7.0: a new network (first released as 6.10)
+
+Released on Nov 17 as 6.10 and renamed 7.0 the same day by the owner,
+after matches against three outside engines put it at about 3550 on
+CCRL Blitz (the owner's mark for 7.0). Same code, network and bench as
+6.10.
+
+**Against outside engines at 40+0.4** (Hash 64, 1 thread, 4 at a time,
+SPRT -10 / +10; CCRL Blitz ratings from older list pages):
+
+| opponent (CCRL Blitz) | games | result | Elo | SPRT |
+|---|---|---|---|---|
+| Berserk 8 (3553) | 108 | +23 -10 =75 | +42 +/- 31 | H1 |
+| Renegade 1.1.0 (~3550) | 346 | +53 -70 =223 | -17 +/- 20 | H0 |
+| Thrawn 3.2 (3591) | 230 | +27 -44 =159 | -26 +/- 24 | H0 |
+
+About 3555 weighted by games. At 8+0.08 the picture differs a lot by
+opponent (Berserk -1 +/- 12, Thrawn +82 +/- 43), so the longer matches
+are the ones that count; none was run at CCRL's own 2+1.
 
 6.9's code with the owner's new network, a run's `net-20` (1,024 hidden
-units, the same format as 6.0's), as `nets/engine-6.10.nnue`. No search
+units, the same format as 6.0's), as `nets/engine-6.10.nnue` (now `nets/engine-7.0.nnue`). No search
 change.
 
 **Against 6.9** (cloud, 8moves_v3, 4 games at a time, both SPRTs passed):
