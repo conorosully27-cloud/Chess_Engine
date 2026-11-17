@@ -32,6 +32,18 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
+**New net candidate (Nov 17): 6.9's code + the owner's new net-20**
+(1,024 units, same format as 6.0's; `nets/candidate-net20.nnue`; build
+with `-DENGINE_NET=nets/candidate-net20.nnue` in a fresh build folder).
+Bench **1277145**. Both SPRTs vs 6.9 passed (4 at a time):
+- **8+0.08, bounds 0 / 10: H1 after 476 games**, +97 -59 =320 (54.0%),
+  **+28 +/- 17**, pentanomial [3, 36, 125, 68, 6], LLR 3.02.
+- **40+0.4, bounds 0 / 5: H1 after 984 games**, +142 -89 =753 (52.7%),
+  **+19 +/- 10**, pentanomial [5, 61, 306, 116, 4], LLR 2.96 (it read +36
+  at 420 games and drifted down). Resumed once after a container restart
+  (fastchess `-config file=config.json`).
+Not yet released or numbered (owner's call); not tested at 120+1.
+
 **Current best: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
 over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
