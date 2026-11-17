@@ -32,12 +32,13 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 6.10** (Nov 17; on `main`) = 6.9's
-code with the owner's new network (`nets/engine-6.10.nnue`, a run's
-net-20, 1,024 units, same format as 6.0's). Bench **1277145**. Baseline
-for SPRTs: build it, copy to `~/matches/engine2-6.10`. The owner does not
-take it as 3550 yet (no 7.0): level with one outside engine at 8+0.08 is
-not enough. Note `nnue::signature` (only for the rejected
+**Current best: ChessMcEngineFace 7.0** (Nov 17; on `main`; first
+released as 6.10 the same day and renamed by the owner after the outside
+matches below put it at about 3550 on CCRL Blitz) = 6.9's code with the
+owner's new network (`nets/engine-7.0.nnue`, a run's net-20, 1,024 units,
+same format as 6.0's). Bench **1277145**. Baseline for SPRTs: build it,
+copy to `~/matches/engine2-7.0` (the match logs below call it
+`engine2-6.10` or `engine2-6.9-net20`: the same engine). Note `nnue::signature` (only for the rejected
 `CORR_NET_RATE`) still uses units picked for the 6.0 network.
 Its tests, from when it was the candidate:
 Both SPRTs vs 6.9 passed (4 at a time):
@@ -68,7 +69,7 @@ in `~/tools/thrawn`), 40+0.4, same conditions
 (`~/matches/610-thrawn-ltc.log`): **H0 after 230 games**, +27 -44 =159
 (46.3%), **-26 +/- 24**, pentanomial [3, 31, 64, 14, 3], LLR -3.02, no
 time losses: about 3565 by this pairing. **All three at 40+0.4: about
-3550-3565**; 7.0 is the owner's call (not renamed so far). Same vs Thrawn at
+3550-3565**; the owner called that 7.0 (Nov 17). Same vs Thrawn at
 8+0.08 (`~/matches/610-thrawn-stc.log`): **H1 after 104 games**, +33 -9
 =62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
 losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
@@ -77,7 +78,7 @@ outside engines say little about CCRL Blitz (2+1). Note: the current CCRL page s
 the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
 3693), so the 3553 / 3550 figures are from older list pages.
 
-**Before 6.10: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
+**Before 7.0: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
 over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
 (978 games, LOS 94.7%), both stopped by the owner before the SPRT
