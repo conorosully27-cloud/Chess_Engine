@@ -95,9 +95,11 @@ move on moves 9-20 at 8+0.08 against Renegade's 0.26, less from move 20).
 **At 32 / 20 / 12 vs 7.0, 8+0.08, bounds 0 / 5** (both sides the tuning
 build, `~/matches/tm-men-stc.log`): **H1 after 2,012 games**, +272 -214
 =1526 (51.4%), **+10 +/- 7**, pentanomial [7, 149, 644, 191, 15], LLR
-2.97, no time losses. Then the same at 40+0.4 (`~/matches/tm-men-ltc.log`);
-if that holds, make 32 / 20 the defaults and re-check vs Renegade at
-8+0.08 (7.0 was -58 +/- 40 there).
+2.97, no time losses. **At 40+0.4: stopped by the owner at 402 games**,
++25 -39 =338 (48.3%), **-12 +/- 13**, pentanomial [1, 33, 146, 21, 0],
+LLR -1.70 (`~/matches/tm-men-ltc.log`): helps at 8+0.08, likely hurts at
+40+0.4. **Milder 28 / 22** next: 8+0.08 (`~/matches/tm-men28-stc.log`),
+then 40+0.4 if it passes (`~/matches/tm-men28-ltc.log`).
 
 **Before 7.0: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
