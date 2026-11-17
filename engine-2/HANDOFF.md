@@ -156,6 +156,10 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Was-PV reductions** (`TT_PV_LMR`, 0 = off; 1-bit flag in the TT
+  entry): **flat** vs 6.9, 0 +/- 9 over 778 games at 40+0.4 and
+  0 +/- 9 over 1,340 at 8+0.08 (`FAILED_EXPERIMENTS.md`). The flag is
+  still stored, so other was-PV uses can be tried without a TT change.
 - **Cutoff-count reductions** (`CUTOFF_LMR`, 0 = off): **flat** at
   1 / 3 vs 6.7, 0 +/- 9 over 982 games at 40+0.4 and -2 +/- 14 over
   618 at 8+0.08 (`FAILED_EXPERIMENTS.md`).

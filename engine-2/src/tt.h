@@ -20,7 +20,8 @@ struct TTEntry {
   std::uint16_t move;
   std::int16_t score;
   std::int8_t depth;
-  Bound bound;
+  Bound bound : 7;
+  std::uint8_t pv : 1;  // the position was on a principal variation when stored (TT_PV_LMR)
   std::int16_t eval;  // the position's static evaluation, or EVAL_NONE
 };
 static_assert(sizeof(TTEntry) == 12, "the evaluation fills what was padding");

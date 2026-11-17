@@ -254,6 +254,12 @@ TUNE_PARAM(TM_OPEN_PCT, 100, 100, 150);
 // moves still to come get CUTOFF_LMR plies more reduction. 0 = off.
 TUNE_PARAM(CUTOFF_LMR, 0, 0, 2);
 TUNE_PARAM(CUTOFF_LMR_MIN, 3, 0, 10);
+// Was-PV reductions: the table remembers whether a position was searched
+// on a principal variation (as Stockfish's ttPv). Such positions are where
+// the game is decided, and they come back at greater depth as the time
+// control gets longer, so at non-PV nodes their late moves get TT_PV_LMR
+// plies less reduction (PV nodes already get one less). 0 = off.
+TUNE_PARAM(TT_PV_LMR, 0, 0, 2);
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -561,7 +567,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   Move tt_move;
   int tt_eval = EVAL_NONE, tt_score = 0, tt_depth = 0;
   Bound tt_bound = BOUND_NONE;
+  bool tt_was_pv = false;
   if (tte.bound != BOUND_NONE && tte.key == check) {
+    tt_was_pv = tte.pv;
     tt_move = Move::from_raw(tte.move);
     tt_eval = tte.eval;
     tt_score = from_tt(tte.score, ply);
@@ -822,6 +830,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
+        if (!pv_node && tt_was_pv) reduction -= TT_PV_LMR;  // a former main line
         if (CORR_LMR_CP && !in_check && std::abs(static_eval - raw_eval) >= CORR_LMR_CP) reduction--;
         if (best_score < alpha && !is_mate_score(best_score) && !is_mate_score(alpha)) {
           if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
@@ -837,6 +846,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (pv_node) reduction--;
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
+        if (!pv_node && tt_was_pv) reduction -= TT_PV_LMR;
         if (move.from() == threat_sq) reduction -= THREAT_LMR;
         if (cutoff_cnt_[ply + 1] > CUTOFF_LMR_MIN) reduction += CUTOFF_LMR;
         reduction = std::clamp(reduction, 0, depth - 2);
@@ -947,6 +957,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
+    tte.pv = pv_node || tt_was_pv;
     tte.eval = std::int16_t(in_check ? EVAL_NONE : raw_eval);
   }
   return best_score;

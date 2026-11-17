@@ -5,6 +5,32 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Was-PV reductions, on 6.9 (Nov 2026)
+
+**Change** (`TT_PV_LMR` 1; in the code, 0 = off): each TT entry keeps a
+1-bit was-PV flag (taken from the bound field, so entries stay 12
+bytes), set when the position was searched on a PV or already flagged.
+At non-PV nodes whose entry has the flag, late quiets and captures get
+one ply less reduction (as Stockfish's ttPv). Bench 1471053 ->
+1451553; with it off, bench is identical to 6.9.
+
+**Result:** vs 6.9 (cloud, 4 at a time, SPRT 0 / 5), stopped as flat by
+the owner at both time controls:
+- **40+0.4: 778 games**, +67 -67 =644 (50.0%), **0 +/- 9**,
+  pentanomial [2, 50, 285, 50, 2], LLR -0.54; it dipped to -12 at 380
+  games and came back (`~/matches/ttpv-69.log`).
+- **8+0.08: 1340 games**, +174 -175 =991 (49.96%), **0 +/- 9**,
+  pentanomial [9, 122, 407, 125, 7], LLR -0.66
+  (`~/matches/ttpv-69-8.log`).
+
+**Prior:** 6/10 (standard in strong engines; untried here).
+
+**Why it failed (likely):** engine-2 already reduces PV nodes by a ply
+less and its history and correction terms seem to protect the same
+moves; the bit may also need other was-PV uses (pruning margins, TT
+cutoff rules) before it pays, as in Stockfish where ttPv feeds many
+terms at once.
+
 ## Cutoff-count reductions, on 6.7 (Nov 2026)
 
 **Change** (`CUTOFF_LMR` 1, `CUTOFF_LMR_MIN` 3; in the code, 0 = off;
