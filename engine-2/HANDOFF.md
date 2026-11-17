@@ -74,7 +74,15 @@ time losses: about 3565 by this pairing. **All three at 40+0.4: about
 =62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
 losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
 100 Elo of swing), as Berserk did the other way. Short-TC results against
-outside engines say little about CCRL Blitz (2+1). Note: the current CCRL page shows only
+outside engines say little about CCRL Blitz (2+1). **7.0 vs Renegade 1.1.0 at
+8+0.08** (`~/matches/70-renegade-stc.log`): **H0 after 126 games**, +18
+-39 =69 (41.7%), **-58 +/- 40**, pentanomial [7, 19, 25, 12, 0], no time
+losses (Nov 15's -54 +/- 39 at the same time control agrees). From the
+PGNs: we spend about 0.31 s a move on moves 9-20 against Renegade's
+0.26, then less from move 20 (0.15 vs 0.16; same shape at 40+0.4), and
+Renegade reaches 1.5-3 plies more (17.9 vs 21.2 in endgames). Next idea:
+flatter time use (less in the opening, more from move 20), then more
+endgame reduction. Note: the current CCRL page shows only
 the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
 3693), so the 3553 / 3550 figures are from older list pages.
 
