@@ -65,7 +65,11 @@ above. Owner left 7.0 open pending a third engine: **6.10 vs Thrawn 3.2**
 (CCRL Blitz 3591 +/- 15, 1 CPU; tag `v3.2`, its net thrawn-nn-2 from
 github.com/feftywacky/thrawn-nnue releases into `nn/`, `make ARCH=native`
 in `~/tools/thrawn`), 40+0.4, same conditions
-(`~/matches/610-thrawn-ltc.log`). Note: the current CCRL page shows only
+(`~/matches/610-thrawn-ltc.log`): **H0 after 230 games**, +27 -44 =159
+(46.3%), **-26 +/- 24**, pentanomial [3, 31, 64, 14, 3], LLR -3.02, no
+time losses: about 3565 by this pairing. **All three at 40+0.4: about
+3550-3565**, so 6.10 stays 6.10 (not 7.0). Then the same vs Thrawn at
+8+0.08 (`~/matches/610-thrawn-stc.log`). Note: the current CCRL page shows only
 the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
 3693), so the 3553 / 3550 figures are from older list pages.
 
