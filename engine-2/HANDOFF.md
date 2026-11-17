@@ -43,6 +43,12 @@ Bench **1277145**. Both SPRTs vs 6.9 passed (4 at a time):
   at 420 games and drifted down). Resumed once after a container restart
   (fastchess `-config file=config.json`).
 Not yet released or numbered (owner's call); not tested at 120+1.
+**Vs Berserk 8** (Nov 17; tag `8`, `make avx2-pext`; SPRT -10 / +10,
+Hash 64, 1 thread, 4 at a time): **8+0.08, stopped by the owner at 1,160
+games**, +227 -231 =702 (49.8%), **-1 +/- 12**, pentanomial [20, 131,
+279, 133, 17], LLR -0.65, no time losses (`~/matches/net20-berserk8.log`):
+level with Berserk at 8+0.08 (6.6 was -18 +/- 20 at 10+0.1). Then the
+same at 40+0.4 (`~/matches/net20-berserk8-ltc.log`).
 
 **Current best: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
