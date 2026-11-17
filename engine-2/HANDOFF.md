@@ -56,8 +56,18 @@ level with Berserk at 8+0.08 (6.6 was -18 +/- 20 at 10+0.1). Then the
 same at 40+0.4 (`~/matches/net20-berserk8-ltc.log`): **H1 after 108
 games**, +23 -10 =75 (56.0%), **+42 +/- 31**, pentanomial [0, 6, 30, 17,
 1], LLR 2.98, no time losses: ahead of Berserk at 40+0.4 (few games, one
-opponent). Then 6.10 vs Renegade 1.1.0 at 40+0.4, same conditions
-(`~/matches/610-renegade-ltc.log`), toward the 7.0 question.
+opponent). **6.10 vs Renegade 1.1.0 at 40+0.4**, same conditions
+(`~/matches/610-renegade-ltc.log`): **H0 after 346 games**, +53 -70 =223
+(47.5%), **-17 +/- 20**, pentanomial [4, 45, 93, 26, 5], LLR -3.03, no
+time losses. **Both ~3550 engines at 40+0.4 together: 454 games, +76
+-80 =298 (49.6%), about -3**: level with them, about 3550, not clearly
+above. Owner left 7.0 open pending a third engine: **6.10 vs Thrawn 3.2**
+(CCRL Blitz 3591 +/- 15, 1 CPU; tag `v3.2`, its net thrawn-nn-2 from
+github.com/feftywacky/thrawn-nnue releases into `nn/`, `make ARCH=native`
+in `~/tools/thrawn`), 40+0.4, same conditions
+(`~/matches/610-thrawn-ltc.log`). Note: the current CCRL page shows only
+the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
+3693), so the 3553 / 3550 figures are from older list pages.
 
 **Before 6.10: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
