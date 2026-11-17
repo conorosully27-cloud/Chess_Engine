@@ -86,6 +86,19 @@ endgame reduction. Note: the current CCRL page shows only
 the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
 3693), so the 3553 / 3550 figures are from older list pages.
 
+**Time by material** (Nov 17, on 7.0; `TM_MOVES_FULL` / `TM_MOVES_FEW` /
+`TM_FEW_MEN`, off = 25 / 25 / 12): the moves planned for (`TM_MOVES`)
+slide with the men on the board, from `TM_MOVES_FULL` at 32 to
+`TM_MOVES_FEW` at `TM_FEW_MEN` or fewer, so less time in the opening and
+more from the middlegame on (from the Renegade PGNs: 7.0 spent 0.31 s a
+move on moves 9-20 at 8+0.08 against Renegade's 0.26, less from move 20).
+**At 32 / 20 / 12 vs 7.0, 8+0.08, bounds 0 / 5** (both sides the tuning
+build, `~/matches/tm-men-stc.log`): **H1 after 2,012 games**, +272 -214
+=1526 (51.4%), **+10 +/- 7**, pentanomial [7, 149, 644, 191, 15], LLR
+2.97, no time losses. Then the same at 40+0.4 (`~/matches/tm-men-ltc.log`);
+if that holds, make 32 / 20 the defaults and re-check vs Renegade at
+8+0.08 (7.0 was -58 +/- 40 there).
+
 **Before 7.0: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
 over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
