@@ -53,7 +53,11 @@ Hash 64, 1 thread, 4 at a time): **8+0.08, stopped by the owner at 1,160
 games**, +227 -231 =702 (49.8%), **-1 +/- 12**, pentanomial [20, 131,
 279, 133, 17], LLR -0.65, no time losses (`~/matches/net20-berserk8.log`):
 level with Berserk at 8+0.08 (6.6 was -18 +/- 20 at 10+0.1). Then the
-same at 40+0.4 (`~/matches/net20-berserk8-ltc.log`).
+same at 40+0.4 (`~/matches/net20-berserk8-ltc.log`): **H1 after 108
+games**, +23 -10 =75 (56.0%), **+42 +/- 31**, pentanomial [0, 6, 30, 17,
+1], LLR 2.98, no time losses: ahead of Berserk at 40+0.4 (few games, one
+opponent). Then 6.10 vs Renegade 1.1.0 at 40+0.4, same conditions
+(`~/matches/610-renegade-ltc.log`), toward the 7.0 question.
 
 **Before 6.10: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
