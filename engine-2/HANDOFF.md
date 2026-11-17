@@ -32,7 +32,30 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
+**Current best: ChessMcEngineFace 6.10** (Nov 17; on `main`) = 6.9's
+code with the owner's new network (`nets/engine-6.10.nnue`, a run's
+net-20, 1,024 units, same format as 6.0's). Bench **1277145**. Baseline
+for SPRTs: build it, copy to `~/matches/engine2-6.10`. The owner does not
+take it as 3550 yet (no 7.0): level with one outside engine at 8+0.08 is
+not enough. Note `nnue::signature` (only for the rejected
+`CORR_NET_RATE`) still uses units picked for the 6.0 network.
+Its tests, from when it was the candidate:
+Both SPRTs vs 6.9 passed (4 at a time):
+- **8+0.08, bounds 0 / 10: H1 after 476 games**, +97 -59 =320 (54.0%),
+  **+28 +/- 17**, pentanomial [3, 36, 125, 68, 6], LLR 3.02.
+- **40+0.4, bounds 0 / 5: H1 after 984 games**, +142 -89 =753 (52.7%),
+  **+19 +/- 10**, pentanomial [5, 61, 306, 116, 4], LLR 2.96 (it read +36
+  at 420 games and drifted down). Resumed once after a container restart
+  (fastchess `-config file=config.json`).
+Not tested at 120+1.
+**Vs Berserk 8** (Nov 17; tag `8`, `make avx2-pext`; SPRT -10 / +10,
+Hash 64, 1 thread, 4 at a time): **8+0.08, stopped by the owner at 1,160
+games**, +227 -231 =702 (49.8%), **-1 +/- 12**, pentanomial [20, 131,
+279, 133, 17], LLR -0.65, no time losses (`~/matches/net20-berserk8.log`):
+level with Berserk at 8+0.08 (6.6 was -18 +/- 20 at 10+0.1). Then the
+same at 40+0.4 (`~/matches/net20-berserk8-ltc.log`).
+
+**Before 6.10: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
 over 6.8 at 40+0.4** (1,018 games, LOS 99.4%) and +9 +/- 10 at 8+0.08
 (978 games, LOS 94.7%), both stopped by the owner before the SPRT
