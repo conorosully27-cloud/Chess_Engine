@@ -110,7 +110,10 @@ buckets 1). Needs the loader from commit `9294859` (train.py
 `--screlu` / `--output-buckets` and the engine reading version 2; from
 `claude/affectionate-sagan-wacmlh`), now on this branch: 7.0's own net
 still benches 1277145 with it. Candidate bench **1382932**. vs 7.0 at
-8+0.08, bounds 0 / 10 (`~/matches/scr-stc.log`), then 40+0.4, bounds 0 / 5
+8+0.08, bounds 0 / 10 (`~/matches/scr-stc.log`; resumed after two
+container restarts): **H1 after 1,324 games**, +227 -175 =922 (52.0%),
+**+14 +/- 10**, pentanomial [15, 114, 361, 148, 24], LLR 3.02, no time
+losses. Then 40+0.4, bounds 0 / 5
 (`~/matches/scr-ltc.log`). Next run planned by the owner: the same with
 `--output-buckets 8`.
 
