@@ -109,6 +109,7 @@ class SearchWorker {
   std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
   std::uint64_t tbhits_ = 0;
   std::array<std::uint64_t, 64 * 64> root_move_nodes_{};  // nodes spent under each root move (from * 64 + to)  // tablebase probes that found the position
+  int red_stack_[MAX_PLY + 2] = {};   // the LMR reduction each ply gave the move being searched (0 outside reduced searches)
   int eval_stack_[MAX_PLY + 2] = {};  // each ply's static evaluation (EVAL_NONE in check), for "improving"
   int double_exts_[MAX_PLY + 2] = {};
   int cutoff_cnt_[MAX_PLY + 2] = {};  // beta cutoffs among the children of the node at ply - 1 (CUTOFF_LMR)  // double extensions on the line from the root to each ply
