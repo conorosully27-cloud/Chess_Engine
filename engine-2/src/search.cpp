@@ -219,10 +219,10 @@ TUNE_PARAM(RESEARCH_SHALLOWER_CP, 8, 0, 50);
 // this node were reduced, beat alpha, and the full-depth re-search
 // confirmed it, the move ordering here is unreliable, so every later
 // move at the node is reduced a ply less. 0 = off.
-TUNE_PARAM(LMR_SURPRISES, 0, 0, 4);
+TUNE_PARAM(LMR_SURPRISES, 1, 0, 4);
 // Only use it at depth <= LMR_SURPRISE_MAX_DEPTH (0 = any depth): at long
 // time controls the deep nodes made it cost more than it gained.
-TUNE_PARAM(LMR_SURPRISE_MAX_DEPTH, 0, 0, 30);
+TUNE_PARAM(LMR_SURPRISE_MAX_DEPTH, 8, 0, 30);
 // Network correction history (search.h): learns at CORR_NET_RATE percent,
 // held within +/-CORR_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
@@ -266,6 +266,16 @@ TUNE_PARAM(TM_DRAWISH_PCT, 100, 20, 100);
 TUNE_PARAM(TM_DRAWISH_CP, 20, 5, 60);
 TUNE_PARAM(TM_DRAWISH_PLY, 60, 0, 200);
 TUNE_PARAM(TM_OPEN_PCT, 100, 100, 150);
+// Hindsight depth: a child of a heavily reduced move looks back at the
+// evaluations. Reduced by HINDSIGHT_EXT_RED+ plies yet the side to move is
+// no worse off than the parent thought: one ply more (the reduction was a
+// mistake). Reduced by 2+ and both sides think they stand well (the sum of
+// the two static evals above HINDSIGHT_CP): one ply less (a quiet
+// position). Non-PV nodes, as Stockfish. 0 = off.
+TUNE_PARAM(HINDSIGHT, 1, 0, 1);  // on in the hindsight + depth-cap candidate
+TUNE_PARAM(HINDSIGHT_EXT_RED, 3, 2, 6);
+TUNE_PARAM(HINDSIGHT_CP, 175, 50, 400);
+
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -638,6 +648,11 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   }
   eval_stack_[ply] = in_check ? EVAL_NONE : static_eval;
   const bool improving = !in_check && (ply < 2 || eval_stack_[ply - 2] == EVAL_NONE || static_eval > eval_stack_[ply - 2]);
+  if (HINDSIGHT && !pv_node && !in_check && !excluding && ply > 0 && eval_stack_[ply - 1] != EVAL_NONE) {
+    const int prior_reduction = red_stack_[ply - 1];
+    if (prior_reduction >= HINDSIGHT_EXT_RED && static_eval <= -eval_stack_[ply - 1]) depth++;
+    else if (prior_reduction >= 2 && depth >= 2 && static_eval + eval_stack_[ply - 1] > HINDSIGHT_CP) depth--;
+  }
   // The table's score refines the static evaluation for reverse futility
   // and null move, in the direction its bound allows: an upper bound below
   // the static eval lowers it (any depth: it only makes those two prunings
@@ -872,7 +887,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
+      red_stack_[ply] = reduction;
       score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, true, false);
+      red_stack_[ply] = 0;
       int full_depth = new_depth;
       if (reduction > 0 && score > alpha) {
         if (!is_mate_score(best_score) && !is_mate_score(score)) {
