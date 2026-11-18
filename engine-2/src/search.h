@@ -56,7 +56,8 @@ struct TimeBudget {
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 };
 
-TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms);
+// men: pawns and pieces on the board, for the time-by-material scale (0 = unknown).
+TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms, int men = 0);
 
 // Rebuilds the tables made from tunable parameters (src/tune.h); call
 // after changing one.

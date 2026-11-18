@@ -7,6 +7,9 @@
 //   engine2 eval [network|classical]  static evaluation of each FEN read from stdin:
 //                                  the built-in network's, another network
 //                                  file's, or the hand-written evaluation's
+//   engine2 evalnet <network>      the network's own output for each FEN, before
+//                                  the engine's endgame scaling and score
+//                                  limit (scripts/nnue/check_net.py)
 //   engine2 datagen <file> <positions> [nodes] [seed] [book] [keep]
 //                                  self-play training data for NNUE (datagen.h)
 #include <chrono>
@@ -61,7 +64,8 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  if (cmd == "eval") {
+  const bool net_only = cmd == "evalnet";
+  if (cmd == "eval" || (net_only && argc >= 3)) {
     if (argc >= 3 && std::string(argv[2]) == "classical") {
       nnue::unload();
     } else if (argc >= 3 && !nnue::load(argv[2])) {
@@ -76,7 +80,7 @@ int main(int argc, char** argv) {
         std::cout << "bad FEN\n";
         continue;
       }
-      std::cout << evaluate(pos) << "\n";
+      std::cout << (net_only ? nnue::evaluate(pos) : evaluate(pos)) << "\n";
     }
     return 0;
   }
