@@ -98,8 +98,21 @@ build, `~/matches/tm-men-stc.log`): **H1 after 2,012 games**, +272 -214
 2.97, no time losses. **At 40+0.4: stopped by the owner at 402 games**,
 +25 -39 =338 (48.3%), **-12 +/- 13**, pentanomial [1, 33, 146, 21, 0],
 LLR -1.70 (`~/matches/tm-men-ltc.log`): helps at 8+0.08, likely hurts at
-40+0.4. **Milder 28 / 22** next: 8+0.08 (`~/matches/tm-men28-stc.log`),
-then 40+0.4 if it passes (`~/matches/tm-men28-ltc.log`).
+40+0.4. **Milder 28 / 22 at 8+0.08: stopped at 3,082 games, +405 -405
+=2272, 0 +/- 6**, pentanomial [15, 264, 987, 256, 19], LLR -1.49
+(`~/matches/tm-men28-stc.log`): flat. Untried: the 32 / 20 shift scaled
+by the clock (full at short clocks, none at long ones). All stay off.
+
+**SCReLU network (Nov 18):** the owner's run v12 (`--hidden 1024 --wdl
+0.4 --epochs 20 --screlu`, same data as 7.0's net), net-20 as
+`nets/candidate-v12-screlu.nnue` (network file version 2, screlu 1,
+buckets 1). Needs the loader from commit `9294859` (train.py
+`--screlu` / `--output-buckets` and the engine reading version 2; from
+`claude/affectionate-sagan-wacmlh`), now on this branch: 7.0's own net
+still benches 1277145 with it. Candidate bench **1382932**. vs 7.0 at
+8+0.08, bounds 0 / 10 (`~/matches/scr-stc.log`), then 40+0.4, bounds 0 / 5
+(`~/matches/scr-ltc.log`). Next run planned by the owner: the same with
+`--output-buckets 8`.
 
 **Before 7.0: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9
