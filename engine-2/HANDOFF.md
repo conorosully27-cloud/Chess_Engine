@@ -32,7 +32,16 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 7.0** (Nov 17; on `main`; first
+**Current best: ChessMcEngineFace 7.1** (Nov 19; on `main`) = 7.0 with
+the owner's SCReLU network (run v12, `--screlu`, same data;
+`nets/engine-7.1.nnue`): **+14 +/- 10 over 7.0 at 8+0.08** (H1, 1,324
+games, LOS 99.5%) and **+6 +/- 6 at 40+0.4** (2,298 games, LOS 96.5%,
+LLR 1.60 of 2.94, stopped by the owner, released on both together).
+Bench **1382932**. Baseline for SPRTs: build it, copy to
+`~/matches/engine2-7.1`. Next network (owner's run v13): the same with
+`--output-buckets 8`, to test against 7.1.
+
+**Before 7.1: ChessMcEngineFace 7.0** (Nov 17; first
 released as 6.10 the same day and renamed by the owner after the outside
 matches below put it at about 3550 on CCRL Blitz) = 6.9's code with the
 owner's new network (`nets/engine-7.0.nnue`, a run's net-20, 1,024 units,
@@ -105,7 +114,7 @@ by the clock (full at short clocks, none at long ones). All stay off.
 
 **SCReLU network (Nov 18):** the owner's run v12 (`--hidden 1024 --wdl
 0.4 --epochs 20 --screlu`, same data as 7.0's net), net-20 as
-`nets/candidate-v12-screlu.nnue` (network file version 2, screlu 1,
+`nets/candidate-v12-screlu.nnue`, now `nets/engine-7.1.nnue` (network file version 2, screlu 1,
 buckets 1). Needs the loader from commit `9294859` (train.py
 `--screlu` / `--output-buckets` and the engine reading version 2; from
 `claude/affectionate-sagan-wacmlh`), now on this branch: 7.0's own net
@@ -114,7 +123,8 @@ still benches 1277145 with it. Candidate bench **1382932**. vs 7.0 at
 container restarts): **H1 after 1,324 games**, +227 -175 =922 (52.0%),
 **+14 +/- 10**, pentanomial [15, 114, 361, 148, 24], LLR 3.02, no time
 losses. Then 40+0.4, bounds 0 / 5
-(`~/matches/scr-ltc.log`). Next run planned by the owner: the same with
+(`~/matches/scr-ltc.log`): stopped by the owner at 2,298 games, +281 -243
+=1774, **+6 +/- 6**, LOS 96.5%, LLR 1.60; released as **7.1**. Next run planned by the owner: the same with
 `--output-buckets 8`.
 
 **Before 7.0: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's

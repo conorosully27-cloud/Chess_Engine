@@ -310,7 +310,7 @@ int evaluate(const Position& pos) {
 }
 
 // The units and thresholds were picked for nets/engine-6.0.nnue (not redone
-// for 7.0's network; only used by CORR_NET_RATE, which is off) from the
+// for 7.1's network; only used by CORR_NET_RATE, which is off) from the
 // bench positions: of the units that are over their threshold in 35-55% of
 // evaluations, the seven whose output contribution varies most (the same
 // seven on either side). A different network needs its own list.

@@ -5,6 +5,27 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.1: a SCReLU network
+
+7.0's code with the owner's run v12 network (`--hidden 1024 --wdl 0.4
+--epochs 20 --screlu`, the same data as 7.0's net): the clipped hidden
+units are squared before the output layer. Built in as
+`nets/engine-7.1.nnue` (network file version 2). The engine reads the new
+format (and output buckets, `--output-buckets`, not used yet) since commit
+`9294859`; 7.0's network still benches the same with it. About 5% slower
+per node.
+
+**Against 7.0** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 8+0.08 | 1,324 | +227 -175 =922 | **+14 +/- 10** | 99.5% | 3.02, H1 (0/10) |
+| 40+0.4 | 2,298 | +281 -243 =1774 | **+6 +/- 6** | 96.5% | 1.60 (0/5), stopped |
+
+Pentanomial [15, 114, 361, 148, 24] and [8, 170, 756, 206, 9]. The 40+0.4
+SPRT was stopped by the owner, who released on the two together. Bench
+**1382932** (7.0: 1277145).
+
 ## 7.0: a new network (first released as 6.10)
 
 Released on Nov 17 as 6.10 and renamed 7.0 the same day by the owner,
