@@ -202,6 +202,9 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Fail-high softening** (`FH_SOFTEN`, 0 = off): **flat** vs 7.0,
+  -1 +/- 8 over 1,182 games at 40+0.4 and -3 +/- 12 over 922 at
+  8+0.08 (`FAILED_EXPERIMENTS.md`).
 - **Was-PV reductions** (`TT_PV_LMR`, 0 = off; 1-bit flag in the TT
   entry): **flat** vs 6.9, 0 +/- 9 over 778 games at 40+0.4 and
   0 +/- 9 over 1,340 at 8+0.08; at 2 vs 7.0, -4 +/- 11 over 562 at

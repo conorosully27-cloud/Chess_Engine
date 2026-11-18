@@ -260,6 +260,11 @@ TUNE_PARAM(CUTOFF_LMR_MIN, 3, 0, 10);
 // control gets longer, so at non-PV nodes their late moves get TT_PV_LMR
 // plies less reduction (PV nodes already get one less). 0 = off.
 TUNE_PARAM(TT_PV_LMR, 0, 0, 2);
+// Fail-high softening: a score above beta at depth d comes back as
+// (score * d + beta) / (d + 1), so shallow cutoffs claim less than they
+// found and parents do not over-trust lucky margins (as Stockfish). 0 = off.
+TUNE_PARAM(FH_SOFTEN, 0, 0, 1);
+
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -937,6 +942,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   // Checkmate or stalemate; with a move left out, the only move was that one.
   if (legal == 0) return excluding ? alpha : in_check ? -MATE + ply : 0;
 
+  if (FH_SOFTEN && !excluding && best_score >= beta && !is_mate_score(best_score) && !is_mate_score(beta))
+    best_score = (best_score * depth + beta) / (depth + 1);
   const Bound bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
   // Correction history learns from quiet results that say something about
   // the evaluation: not a lower bound below it or an upper bound above it.

@@ -5,6 +5,31 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Fail-high softening, on 7.0 (Nov 2026)
+
+**Change** (`FH_SOFTEN` 1; in the code, 0 = off): at the end of the main
+search (not quiescence), a non-mate score at or above beta at depth d
+comes back as `(score * d + beta) / (d + 1)`, before the table store and
+the correction-history update (as Stockfish). Bench 1277145 -> 1225070
+(4% fewer nodes); with it off, bench is identical to 7.0.
+
+**Result:** vs 7.0 (cloud, 4 at a time, SPRT 0 / 5), stopped as flat by
+the owner at both time controls:
+- **40+0.4: 1182 games**, +113 -116 =953 (49.9%), **-1 +/- 8**,
+  pentanomial [1, 93, 407, 88, 2], LLR -1.01; it led by +6 at 340
+  games and faded (`~/matches/fhsoft-70.log`).
+- **8+0.08: 922 games**, +132 -139 =651 (49.6%), **-3 +/- 12**,
+  pentanomial [10, 92, 261, 91, 7], LLR -0.72
+  (`~/matches/fhsoft-70-8.log`).
+
+**Prior:** 5/10 (Stockfish's; untried here).
+
+**Why it failed (likely):** the cutoffs it softens are already lower
+bounds that parents only compare against their own windows, so a
+smaller margin seldom changes a decision; where it does (RFP, null move,
+table cutoffs on the stored score), engine-2's margins were tuned on the
+unsoftened scores.
+
 ## Was-PV reductions, on 6.9 (Nov 2026)
 
 **Change** (`TT_PV_LMR` 1; in the code, 0 = off): each TT entry keeps a
