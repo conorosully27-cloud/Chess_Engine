@@ -78,9 +78,48 @@ time losses: about 3565 by this pairing. **All three at 40+0.4: about
 =62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
 losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
 100 Elo of swing), as Berserk did the other way. Short-TC results against
-outside engines say little about CCRL Blitz (2+1). Note: the current CCRL page shows only
+outside engines say little about CCRL Blitz (2+1). **7.0 vs Renegade 1.1.0 at
+8+0.08** (`~/matches/70-renegade-stc.log`): **H0 after 126 games**, +18
+-39 =69 (41.7%), **-58 +/- 40**, pentanomial [7, 19, 25, 12, 0], no time
+losses (Nov 15's -54 +/- 39 at the same time control agrees). From the
+PGNs: we spend about 0.31 s a move on moves 9-20 against Renegade's
+0.26, then less from move 20 (0.15 vs 0.16; same shape at 40+0.4), and
+Renegade reaches 1.5-3 plies more (17.9 vs 21.2 in endgames). Next idea:
+flatter time use (less in the opening, more from move 20), then more
+endgame reduction. Note: the current CCRL page shows only
 the best version per engine (Berserk 20250606 3759, Renegade 1.3.0
 3693), so the 3553 / 3550 figures are from older list pages.
+
+**Time by material** (Nov 17, on 7.0; `TM_MOVES_FULL` / `TM_MOVES_FEW` /
+`TM_FEW_MEN`, off = 25 / 25 / 12): the moves planned for (`TM_MOVES`)
+slide with the men on the board, from `TM_MOVES_FULL` at 32 to
+`TM_MOVES_FEW` at `TM_FEW_MEN` or fewer, so less time in the opening and
+more from the middlegame on (from the Renegade PGNs: 7.0 spent 0.31 s a
+move on moves 9-20 at 8+0.08 against Renegade's 0.26, less from move 20).
+**At 32 / 20 / 12 vs 7.0, 8+0.08, bounds 0 / 5** (both sides the tuning
+build, `~/matches/tm-men-stc.log`): **H1 after 2,012 games**, +272 -214
+=1526 (51.4%), **+10 +/- 7**, pentanomial [7, 149, 644, 191, 15], LLR
+2.97, no time losses. **At 40+0.4: stopped by the owner at 402 games**,
++25 -39 =338 (48.3%), **-12 +/- 13**, pentanomial [1, 33, 146, 21, 0],
+LLR -1.70 (`~/matches/tm-men-ltc.log`): helps at 8+0.08, likely hurts at
+40+0.4. **Milder 28 / 22 at 8+0.08: stopped at 3,082 games, +405 -405
+=2272, 0 +/- 6**, pentanomial [15, 264, 987, 256, 19], LLR -1.49
+(`~/matches/tm-men28-stc.log`): flat. Untried: the 32 / 20 shift scaled
+by the clock (full at short clocks, none at long ones). All stay off.
+
+**SCReLU network (Nov 18):** the owner's run v12 (`--hidden 1024 --wdl
+0.4 --epochs 20 --screlu`, same data as 7.0's net), net-20 as
+`nets/candidate-v12-screlu.nnue` (network file version 2, screlu 1,
+buckets 1). Needs the loader from commit `9294859` (train.py
+`--screlu` / `--output-buckets` and the engine reading version 2; from
+`claude/affectionate-sagan-wacmlh`), now on this branch: 7.0's own net
+still benches 1277145 with it. Candidate bench **1382932**. vs 7.0 at
+8+0.08, bounds 0 / 10 (`~/matches/scr-stc.log`; resumed after two
+container restarts): **H1 after 1,324 games**, +227 -175 =922 (52.0%),
+**+14 +/- 10**, pentanomial [15, 114, 361, 148, 24], LLR 3.02, no time
+losses. Then 40+0.4, bounds 0 / 5
+(`~/matches/scr-ltc.log`). Next run planned by the owner: the same with
+`--output-buckets 8`.
 
 **Before 7.0: ChessMcEngineFace 6.9** (Nov 16; on `main`) = 6.8 with the re-search depth set by the reduced search's
 result (`RESEARCH_DEEPER_CP` 40, `RESEARCH_SHALLOWER_CP` 8): **+12 +/- 9

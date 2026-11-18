@@ -222,6 +222,16 @@ TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
 // TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
 TUNE_PARAM(TM_MOVES, 25, 10, 80);
+// Time by material: the moves planned for (TM_MOVES above) slide with the
+// men on the board (pawns and pieces, kings included): TM_MOVES_FULL at 32,
+// TM_MOVES_FEW at TM_FEW_MEN or fewer, linear in between. More moves
+// planned with a full board spends less in the opening and keeps it for
+// the middlegame, where most games are decided. 7.0 spends about 0.31 s a
+// move on moves 9-20 at 8+0.08 against Renegade's 0.26, then less than it
+// from move 20. Off = both equal to TM_MOVES (25 / 25).
+TUNE_PARAM(TM_MOVES_FULL, 25, 10, 80);
+TUNE_PARAM(TM_MOVES_FEW, 25, 10, 80);
+TUNE_PARAM(TM_FEW_MEN, 12, 2, 30);
 // PARTIAL_ITER: when the clock stops a depth part-way, a root move that
 // already beat the previous depth's best move in it is played. On since
 // 6.4 (flat alone on 6.2.1; +11 +/- 7 together with QS_TT and ASP_DELTA).
@@ -335,7 +345,7 @@ void search_params_changed() {
   LMR100 = make_lmr100();
 }
 
-TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms) {
+TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms, int men) {
   TimeBudget b;
   if (limits.infinite) return b;
   if (limits.movetime >= 0) {
@@ -349,7 +359,13 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   if (time < 0) return b;  // no clock given: depth or node limited, or unlimited
   const int inc = us == WHITE ? limits.winc : limits.binc;
   const std::int64_t remaining = std::max<std::int64_t>(1, time - move_overhead_ms);
-  const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, int(TM_MOVES)) : int(TM_MOVES);
+  int planned = TM_MOVES;
+  if (men > 0 && (TM_MOVES_FULL != TM_MOVES || TM_MOVES_FEW != TM_MOVES)) {
+    const int span = std::max(1, 32 - int(TM_FEW_MEN));
+    const int above = std::clamp(men - int(TM_FEW_MEN), 0, span);
+    planned = TM_MOVES_FEW + (TM_MOVES_FULL - TM_MOVES_FEW) * above / span;
+  }
+  const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, planned) : planned;
   // Plan a share of the clock plus most of the increment, but never more
   // than a fifth of what is left (half before the last move of a time
   // control), and abort at three times the plan or half the clock. Searches
@@ -1090,7 +1106,7 @@ void Searcher::new_game() {
 void Searcher::start(const Position& pos, const SearchLimits& limits, int move_overhead_ms) {
   stop();
   wait();
-  budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms);  // starts the clock
+  budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms, popcount(pos.pieces()));  // starts the clock
   if (budget_.adaptive && has_prediction_) {
     const int pct = pos.key() == predicted_key_ ? TM_EXPECTED_PCT : TM_SURPRISE_PCT;
     budget_.soft_ms = std::clamp<std::int64_t>(budget_.soft_ms * pct / 100, 1, budget_.hard_ms);

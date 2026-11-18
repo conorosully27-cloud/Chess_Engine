@@ -25,17 +25,20 @@ def main():
     idx = np.random.default_rng(7).choice(len(records), count, replace=False)
     records = records[np.sort(idx)]
 
-    state = torch.load(checkpoint, map_location="cpu")["model"]
-    model = NNUE(state["ft.weight"].shape[0])  # hidden units, from the checkpoint
+    saved = torch.load(checkpoint, map_location="cpu")
+    state = saved["model"]
+    # Hidden units, activation and output layers, from the checkpoint.
+    model = NNUE(state["ft.weight"].shape[0], saved.get("screlu", False), state["out.weight"].shape[0])
     model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
     xw, xb = features(pieces, "cpu")
     with torch.no_grad():
-        float_eval = (model(xw, xb, torch.from_numpy(stm)) * SCALE).numpy()
+        piece_count = torch.from_numpy((pieces >= 0).sum(axis=1))
+        float_eval = (model(xw, xb, torch.from_numpy(stm), piece_count) * SCALE).numpy()
 
     fens = "\n".join(data.fen(r) for r in records) + "\n"
-    out = subprocess.run([engine, "eval", net], input=fens, capture_output=True, text=True, check=True).stdout.split()
+    out = subprocess.run([engine, "evalnet", net], input=fens, capture_output=True, text=True, check=True).stdout.split()
     engine_eval = np.array([int(x) for x in out], dtype=np.float64)
     diff = np.abs(engine_eval - float_eval)
     print(f"{count} positions: engine vs trainer, mean |diff| {diff.mean():.2f} cp, max {diff.max():.1f} cp, "

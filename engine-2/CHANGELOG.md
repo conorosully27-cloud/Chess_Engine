@@ -22,7 +22,8 @@ SPRT -10 / +10; CCRL Blitz ratings from older list pages):
 | Thrawn 3.2 (3591) | 230 | +27 -44 =159 | -26 +/- 24 | H0 |
 
 About 3555 weighted by games. At 8+0.08 the picture differs a lot by
-opponent (Berserk -1 +/- 12, Thrawn +82 +/- 43), so the longer matches
+opponent (Berserk -1 +/- 12 over 1,160 games; Renegade -58 +/- 40, H0
+after 126 games, +18 -39 =69; Thrawn +82 +/- 43), so the longer matches
 are the ones that count; none was run at CCRL's own 2+1.
 
 6.9's code with the owner's new network, a run's `net-20` (1,024 hidden
