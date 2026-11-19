@@ -5,6 +5,39 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Early table evaluations without the eval cache, on the 7.1 candidate (Nov 2026)
+
+**Change** (`TT_EVAL_EARLY` 1 in `search.cpp`, `EVAL_CACHE` 0 in
+`evaluate.cpp`; the old behaviour is 0 / 1; commit `529b53f`; idea from
+another session): the static evaluation was kept twice (the table and a
+64K-entry per-thread eval cache) and reached the table only with the
+node's result, so nodes that returned early (reverse futility, null
+move, stand pat) never stored it. Now it is written to the table as soon
+as it is computed, in the main search and quiescence: over the same
+position, an empty slot or a quiescence entry (depth 0 or less), never
+over a deeper entry; and read back whenever the key matches, whatever
+the bound (quiescence now reads it too). The eval cache is switched off.
+On the 7.1 candidate (SCReLU net): bench 1382932 -> 1502285; speed the
+same within noise.
+
+**Result:** vs the 7.1 candidate (cloud, 4 at a time, SPRT 0 / 5),
+stopped by the owner at both time controls:
+- **8+0.08: 1118 games**, +121 -149 =848 (48.75%), **-9 +/- 9**,
+  pentanomial [4, 118, 342, 92, 3], LLR -2.42, close to H0
+  (`~/matches/tteval-71-8.log`).
+- **40+0.4: 680 games**, +55 -62 =563 (49.5%), **-4 +/- 10**,
+  pentanomial [1, 48, 249, 41, 1], LLR -1.19; it led by +10 at 200-280
+  games and faded (`~/matches/tteval-71-40.log`).
+
+**Prior:** 5/10 (a tidy-up; expected neutral, possibly faster).
+
+**Why it failed (likely):** the evaluation-only entries take the slots
+of quiescence results the table could have cut off with (9% more nodes
+in bench), and without the eval cache an evaluation lost from the table
+must be computed again. **Untried:** the gentler half, early evaluations
+written only over the same position or an empty slot, with the eval
+cache kept.
+
 ## Hindsight depth, on the 7.1 candidate (Nov 2026)
 
 **Change** (`HINDSIGHT` 1, `HINDSIGHT_EXT_RED` 3, `HINDSIGHT_CP` 175;

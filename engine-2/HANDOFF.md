@@ -241,6 +241,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Early table evaluations, eval cache dropped** (`TT_EVAL_EARLY` 1,
+  `EVAL_CACHE` 0; committed as 0 / 1, the old behaviour): **rejected** vs
+  the 7.1 candidate, -9 +/- 9 over 1,118 games at 8+0.08 and -4 +/- 10
+  over 680 at 40+0.4 (`FAILED_EXPERIMENTS.md`). The gentler half (cache
+  kept, no overwriting of quiescence entries) is untried.
 - **Hindsight depth** (`HINDSIGHT`, 0 = off): **flat** vs the 7.1
   candidate, 0 +/- 9 over 738 games at 40+0.4 (`FAILED_EXPERIMENTS.md`).
 - **Fail-high softening** (`FH_SOFTEN`, 0 = off): **flat** vs 7.0,
