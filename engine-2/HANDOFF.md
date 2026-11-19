@@ -41,6 +41,13 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
 
+**Buckets network (Nov 19):** the owner's run v13 (`--hidden 1024 --wdl 0.4
+--epochs 20 --screlu --output-buckets 8`, same data as 7.1's), net-20 as
+`nets/candidate-v13-buckets.nnue` (version 2, screlu 1, buckets 8;
+branch `claude/candidate-v13-buckets`). Bench **1224793**. vs 7.1.1 at
+8+0.08, bounds 0 / 10 (`~/matches/v13-stc.log`), then 40+0.4, bounds 0 / 5
+(`~/matches/v13-ltc.log`).
+
 **Current best: ChessMcEngineFace 7.1.1** (Nov 19; on `main`) = 7.1 with
 dead experiment code removed, same moves (bench **1382932**, as 7.1).
 Baseline for SPRTs: build it, copy to `~/matches/engine2-7.1.1` (7.1
