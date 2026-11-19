@@ -41,6 +41,15 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
 
+**Candidate: hindsight depth + LMR surprises capped at depth 8** (Nov 19,
+branch `claude/candidate-hind-dcap`, on 7.1): `HINDSIGHT` 1 (from
+`claude/clever-hamilton-9d52iy`, 44e47e3), `LMR_SURPRISES` 1 with
+`LMR_SURPRISE_MAX_DEPTH` 8 (from `claude/cool-bardeen-9xe4gd`). Bench
+1314588 (all off: 1382932, as 7.1). **vs 7.1 at 8+0.08, bounds 0 / 5:
+stopped by the owner at 6,280 games**, +813 -773 =4694, **+2 +/- 4**,
+pentanomial [29, 555, 1931, 597, 28], LOS 86%, LLR -0.34 (`~/matches/hd-stc.log`;
+read +20 at 260 games): flat. Then 40+0.4, bounds 0 / 5 (`~/matches/hd-ltc.log`).
+
 **Before 7.1: ChessMcEngineFace 7.0** (Nov 17; first
 released as 6.10 the same day and renamed by the owner after the outside
 matches below put it at about 3550 on CCRL Blitz) = 6.9's code with the
