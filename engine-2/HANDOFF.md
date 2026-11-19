@@ -41,6 +41,23 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
 
+**Cleanup candidate (Nov 19, branch `claude/cleanup-dead-switches`, on
+7.1):** removes the code of switched-off failed experiments (all in
+`FAILED_EXPERIMENTS.md` with their commits): singular memo
+(`SING_MEMO_*`, its 64K table was still read and written on every
+singular test), recapture extension, history extension, corrected-eval
+reductions (`CORR_LMR_CP`), near/far-miss reductions, network correction
+history (`CORR_NET_RATE`, and `nnue::signature`), TT eval refinement
+(`TT_EVAL_REFINE`), volatility history (`VOL_*`, its table was still
+updated at every node). `LMR_SURPRISES` was never on `main`. Bench
+unchanged, **1382932**. vs 7.1 at 8+0.08 then 40+0.4, bounds 0 / 5
+(`~/matches/clean-stc.log`, `~/matches/clean-ltc.log`).
+
+**Hindsight + LMR surprises capped at 8, together** (branch
+`claude/candidate-hind-dcap`): flat at 8+0.08 (+2 +/- 4, 6,280 games);
+at 40+0.4 stopped at 200 games, +14 -23 =163, **-16 +/- 17**, LOS 3.9%.
+Not taken. The owner found hindsight alone flat too.
+
 **Before 7.1: ChessMcEngineFace 7.0** (Nov 17; first
 released as 6.10 the same day and renamed by the owner after the outside
 matches below put it at about 3550 on CCRL Blitz) = 6.9's code with the
