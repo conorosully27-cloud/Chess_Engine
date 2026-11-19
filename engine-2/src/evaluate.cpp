@@ -404,19 +404,26 @@ int scale_endgame(const Position& pos, int score) {
 }
 }  // namespace
 
+// Eval cache: a 64K-entry per-thread cache of the network's score. With
+// TT_EVAL_EARLY on, the search's table keeps every evaluation as soon as it
+// is computed, so this second cache can go. 0 = off (the table only).
+TUNE_PARAM(EVAL_CACHE, 1, 0, 1);
+
 int evaluate(const Position& pos) {
   EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
   // The cache is by position, and the fifty-move counter isn't part of the
   // key: the scaling is applied on the way out.
-  if (e.key == pos.key()) return scale_endgame(pos, e.score);
+  if (EVAL_CACHE && e.key == pos.key()) return scale_endgame(pos, e.score);
   int raw;
   if (nnue::loaded())
     raw = !pos.pieces(PAWN) && pos.insufficient_material() ? 0 : nnue::evaluate(pos);
   else
     raw = evaluate_uncached(pos);
   const int score = std::clamp(raw, -EVAL_LIMIT, EVAL_LIMIT);
-  e.key = pos.key();
-  e.score = score;
+  if (EVAL_CACHE) {
+    e.key = pos.key();
+    e.score = score;
+  }
   return scale_endgame(pos, score);
 }
 
@@ -433,7 +440,7 @@ constexpr int LAZY_MARGIN = 300;
 
 int evaluate_lazy(const Position& pos, int alpha, int beta) {
   const EvalCacheEntry& e = eval_cache[pos.key() & (CACHE_SIZE - 1)];
-  if (e.key == pos.key()) return scale_endgame(pos, e.score);
+  if (EVAL_CACHE && e.key == pos.key()) return scale_endgame(pos, e.score);
   // The shortcut uses the hand-written material values, not the network's scale.
   if (nnue::loaded()) return evaluate(pos);
   const int quick = evaluate_material(pos);

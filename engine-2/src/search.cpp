@@ -284,6 +284,15 @@ TUNE_PARAM(HINDSIGHT, 0, 0, 1);
 TUNE_PARAM(HINDSIGHT_EXT_RED, 3, 2, 6);
 TUNE_PARAM(HINDSIGHT_CP, 175, 50, 400);
 
+// Early table evaluations: a static evaluation goes into the table as soon
+// as it is computed, not only with the node's result, so nodes that return
+// early (reverse futility, null move, stand pat) keep theirs too. Written
+// over the same position, an empty slot or a quiescence entry (depth 0 or
+// less), never over a deeper search's entry; read back whenever the key
+// matches, whatever the bound. Lets the separate eval cache go (EVAL_CACHE
+// in evaluate.cpp). 0 = off.
+TUNE_PARAM(TT_EVAL_EARLY, 0, 0, 1);
+
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -571,6 +580,25 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   return result;
 }
 
+namespace {
+// Keeps a freshly computed static evaluation in the table (TT_EVAL_EARLY):
+// over the same position, or over a slot holding no search worth keeping
+// (empty, evaluation-only or a quiescence result).
+void store_eval_early(TTEntry& e, std::uint32_t check, int raw_eval) {
+  if (e.key == check) {
+    e.eval = std::int16_t(raw_eval);
+  } else if (e.bound == BOUND_NONE || e.depth <= 0) {
+    e.key = check;
+    e.move = 0;
+    e.score = 0;
+    e.depth = 0;
+    e.bound = BOUND_NONE;
+    e.pv = 0;
+    e.eval = std::int16_t(raw_eval);
+  }
+}
+}  // namespace
+
 int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node, bool after_null, Move excluded) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
@@ -605,6 +633,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   int tt_eval = EVAL_NONE, tt_score = 0, tt_depth = 0;
   Bound tt_bound = BOUND_NONE;
   bool tt_was_pv = false;
+  if (TT_EVAL_EARLY && tte.bound == BOUND_NONE && tte.key == check) tt_eval = tte.eval;  // an evaluation-only entry
   if (tte.bound != BOUND_NONE && tte.key == check) {
     tt_was_pv = tte.pv;
     tt_move = Move::from_raw(tte.move);
@@ -648,6 +677,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   if (!in_check) {
     // The table keeps the static evaluation: reuse it rather than evaluate again.
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
+    if (TT_EVAL_EARLY && tt_eval == EVAL_NONE) store_eval_early(tte, check, raw_eval);
     // Corrected by what searches of this pawn structure have found.
     static_eval = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
   }
@@ -1044,7 +1074,12 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (in_check) {
     best_score = -MATE + ply;
   } else {
-    raw_eval = evaluate_lazy(pos, alpha, beta);
+    if (TT_EVAL_EARLY && tte && tte->key == check && tte->eval != EVAL_NONE) {
+      raw_eval = tte->eval;
+    } else {
+      raw_eval = evaluate_lazy(pos, alpha, beta);
+      if (TT_EVAL_EARLY && tte) store_eval_early(*tte, check, raw_eval);
+    }
     best_score = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
     if (best_score >= beta) return best_score;
     if (best_score > alpha) alpha = best_score;
