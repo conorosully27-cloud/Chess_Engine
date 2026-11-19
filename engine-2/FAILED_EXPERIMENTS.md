@@ -5,6 +5,12 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+**7.1.1 removed the switched-off code** of the singular memo, recapture
+extension, history extension, corrected-eval reductions (`CORR_LMR_CP`),
+near/far-miss reductions, network correction history (`CORR_NET_RATE`),
+TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
+Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
+
 ## Near-miss reductions, on 6.7 (Nov 2026)
 
 **Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):
