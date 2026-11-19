@@ -164,7 +164,7 @@ bool Position::set(const std::string& fen) {
   if (ok && (is_attacked(king_square(~side_), side_) || (pieces(PAWN) & 0xFF000000000000FFULL))) ok = false;
   states_.push_back(s);
   accumulators_.resize(std::max<std::size_t>(accumulators_.size(), 1));
-  accumulators_[0].net = 0;
+  accumulators_[0].net[WHITE] = accumulators_[0].net[BLACK] = 0;
   accumulators_[0].dirty = {};
   if (!ok) {
     // Leave a valid position behind rather than a half-parsed one.
@@ -319,7 +319,7 @@ nnue::DirtyPieces& Position::next_dirty_pieces() {
   const std::size_t next = states_.size();
   if (accumulators_.size() <= next) accumulators_.resize(next + 1);
   nnue::Accumulator& a = accumulators_[next];
-  a.net = 0;
+  a.net[WHITE] = a.net[BLACK] = 0;
   a.dirty.added = a.dirty.removed = 0;
   return a.dirty;
 }
