@@ -5,6 +5,40 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Reductions that learn within a node, on 6.9 and 7.0 (Nov 2026)
+
+**Change** (`LMR_SURPRISES`, commit 9b60145; `LMR_SURPRISE_MAX_DEPTH`,
+commit 2702a60; in the code, 0 = off): when a late move was reduced,
+beat alpha, and the full-depth re-search confirmed it, the move ordering
+at that node is taken to be unreliable, so every later move at the node
+is reduced a ply less. `LMR_SURPRISES` is how many such surprises it
+takes (1 or 2); `LMR_SURPRISE_MAX_DEPTH` limits it to depth <= that
+value. Bench on 7.0: 1277145 -> 1199743 (=1), 1259794 (=2), 1198961
+(=1, depth <= 8).
+
+**Result** (cloud, 4 at a time; 8+0.08 SPRT 0/10, 40+0.4 SPRT 0/5):
+
+| Version | 8+0.08 | 40+0.4 |
+|---|---|---|
+| =1 on 6.9 | **H1 accepted**, 1810 games, +9.8 +/- 7.8 | no result: 3 runs stopped by restarts, 1756 games together about +4.6 |
+| =1 on 7.0 | stopped at 1138 games, +7.9 +/- 10.1, LOS 95.6% | stopped at 960 games, **-7.6 +/- 8.7**, LLR -2.54 |
+| =2 on 7.0 | **H0 accepted**, 904 games, -3.5 +/- 10.4 | not run |
+| =1, depth <= 8, on 7.0 | 2 runs stopped by restarts, 1542 games together about -0.5 | stopped by a restart at 2160 games, +2.4 +/- 5.8, LLR -0.05 |
+
+Logs: `~/sprt-surprise-*.log`, `~/sprt-610-surprise-*.log`,
+`~/sprt-610-s2-stc.log`, `~/sprt-610-d8-*.log`.
+
+**Prior:** not scored beforehand (the owner's idea).
+
+**Commentary:** the plain version gains at 8+0.08 but loses at 40+0.4
+on 7.0: longer games search deeper, so it triggers at many more nodes
+and the widened search costs depth. Needing 2 surprises lost the short
+time control gain. Capping it at depth 8 fixed the long time control
+loss but also removed the short one, leaving both about level. Not
+tried: a cap between 8 and none (10 or 12), applying it to quiet moves
+only, or triggering on the share of reduced moves that were surprises
+instead of a count.
+
 ## Near-miss reductions, on 6.7 (Nov 2026)
 
 **Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):
