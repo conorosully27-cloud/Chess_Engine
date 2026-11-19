@@ -45,7 +45,9 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 --epochs 20 --screlu --output-buckets 8`, same data as 7.1's), net-20 as
 `nets/candidate-v13-buckets.nnue` (version 2, screlu 1, buckets 8;
 branch `claude/candidate-v13-buckets`). Bench **1224793**. vs 7.1.1 at
-8+0.08, bounds 0 / 10 (`~/matches/v13-stc.log`), then 40+0.4, bounds 0 / 5
+8+0.08, bounds 0 / 10 (`~/matches/v13-stc.log`): **H1 after 412 games**,
++76 -44 =292 (53.9%), **+27 +/- 17**, pentanomial [1, 29, 119, 51, 6],
+LOS 99.9%, LLR 2.96, no time losses. Then 40+0.4, bounds 0 / 5
 (`~/matches/v13-ltc.log`).
 
 **Current best: ChessMcEngineFace 7.1.1** (Nov 19; on `main`) = 7.1 with
