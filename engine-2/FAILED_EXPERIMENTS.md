@@ -5,6 +5,31 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Hindsight depth, on the 7.1 candidate (Nov 2026)
+
+**Change** (`HINDSIGHT` 1, `HINDSIGHT_EXT_RED` 3, `HINDSIGHT_CP` 175;
+in the code, 0 = off; commit `44e47e3`): each ply records the LMR
+reduction it gave the move being searched. At a non-PV node not in
+check, a move reduced by 3+ plies where the side to move is no worse
+off than the parent thought (static eval <= minus the parent's) gets a
+ply more; one reduced by 2+ where the two static evals sum above
+175 cp gets a ply less (as Stockfish). On the 7.1 candidate
+(`claude/loving-lamport-ovy1fs` 7ffab6a, SCReLU net): bench 1382932 ->
+1236749 (11% fewer nodes); with it off, bench unchanged.
+
+**Result:** vs the 7.1 candidate (cloud, 4 at a time, SPRT 0 / 5),
+stopped as flat by the owner at **40+0.4 after 738 games**, +65 -64
+=609 (50.1%), **0 +/- 9**, pentanomial [2, 46, 270, 51, 0], LLR -0.44;
+it sat between +6 and 0 throughout (`~/matches/hind-71.log`). Not run at
+8+0.08.
+
+**Prior:** 5/10 (Stockfish's; untried here).
+
+**Why it failed (likely):** the two adjustments pull in opposite
+directions and most of the nodes it touches are already steered by the
+improving flag, cut-node and history terms in the same reductions; the
+11% node saving bought no strength, as with cutoff-count reductions.
+
 ## Fail-high softening, on 7.0 (Nov 2026)
 
 **Change** (`FH_SOFTEN` 1; in the code, 0 = off): at the end of the main

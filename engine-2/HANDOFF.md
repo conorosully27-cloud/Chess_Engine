@@ -241,15 +241,8 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
-- **Hindsight depth** (`HINDSIGHT`, 0 = off; `HINDSIGHT_EXT_RED` 3,
-  `HINDSIGHT_CP` 175): **under test** on the 7.1 candidate
-  (`claude/loving-lamport-ovy1fs` 7ffab6a, SCReLU net, bench 1382932).
-  At a non-PV node, a move LMR reduced by 3+ plies where the side to move
-  is no worse off than the parent thought gets a ply more; one reduced by
-  2+ where the two static evals sum above 175 cp gets a ply less (as
-  Stockfish). Bench with it on 1236749. SPRT 0 / 5 at 40+0.4 running
-  (`~/matches/hind-71.log`), 8+0.08 to follow. To test it, set
-  `HINDSIGHT` to 1.
+- **Hindsight depth** (`HINDSIGHT`, 0 = off): **flat** vs the 7.1
+  candidate, 0 +/- 9 over 738 games at 40+0.4 (`FAILED_EXPERIMENTS.md`).
 - **Fail-high softening** (`FH_SOFTEN`, 0 = off): **flat** vs 7.0,
   -1 +/- 8 over 1,182 games at 40+0.4 and -3 +/- 12 over 922 at
   8+0.08 (`FAILED_EXPERIMENTS.md`).

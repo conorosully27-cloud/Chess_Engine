@@ -280,7 +280,7 @@ TUNE_PARAM(FH_SOFTEN, 0, 0, 1);
 // mistake). Reduced by 2+ and both sides think they stand well (the sum of
 // the two static evals above HINDSIGHT_CP): one ply less (a quiet
 // position). Non-PV nodes, as Stockfish. 0 = off.
-TUNE_PARAM(HINDSIGHT, 0, 0, 1);  // under test vs the 7.1 candidate (Nov 2026)
+TUNE_PARAM(HINDSIGHT, 0, 0, 1);
 TUNE_PARAM(HINDSIGHT_EXT_RED, 3, 2, 6);
 TUNE_PARAM(HINDSIGHT_CP, 175, 50, 400);
 
