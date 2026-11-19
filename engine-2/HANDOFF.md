@@ -53,7 +53,7 @@ waits until the network settles, so the margins are tuned once.
 | Run | Change | Engine work | Why this order |
 |---|---|---|---|
 | v12 (7.1) | SCReLU | loader (done) | +14 at 8+0.08, +6 at 40+0.4 |
-| v13 (7.2 candidate) | + 8 output buckets by piece count | none | +27 at 8+0.08; 40+0.4 running |
+| v13 (7.2) | + 8 output buckets by piece count | none | +27 at 8+0.08, +8 at 40+0.4 |
 | **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares)** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
 | v15 | training schedule: more epochs, learning rate falling 100x (now 10x), maybe a `--wdl` schedule | none | cheap, works with any architecture; can ride on v14's architecture |
 | v16 | more king zones (8-16) and/or a bigger hidden layer (1536-2048), with more data | small (file format) | only once 4 zones is proven; both want more data |
@@ -67,16 +67,26 @@ of the hidden layer uses weights for its own king's zone and sees all 32
 pieces, so the opponent's king safety (our attackers near their king) is
 learned in their half, not only our own.
 
-**Buckets network (Nov 19):** the owner's run v13 (`--hidden 1024 --wdl 0.4
+**Current best: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
+the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
++27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
+LOS 96.6%, stopped by the owner and released on both). Bench **1224793**.
+Baseline for SPRTs: build it, copy to `~/matches/engine2-7.2`. Next: the
+network roadmap above (v14 king buckets), then the SPSA at 20+0.2 on the
+owner's laptop.
+
+**The buckets network (Nov 19):** the owner's run v13 (`--hidden 1024 --wdl 0.4
 --epochs 20 --screlu --output-buckets 8`, same data as 7.1's), net-20 as
-`nets/candidate-v13-buckets.nnue` (version 2, screlu 1, buckets 8;
+`nets/candidate-v13-buckets.nnue`, now `nets/engine-7.2.nnue` (version 2, screlu 1, buckets 8;
 branch `claude/candidate-v13-buckets`). Bench **1224793**. vs 7.1.1 at
 8+0.08, bounds 0 / 10 (`~/matches/v13-stc.log`): **H1 after 412 games**,
 +76 -44 =292 (53.9%), **+27 +/- 17**, pentanomial [1, 29, 119, 51, 6],
 LOS 99.9%, LLR 2.96, no time losses. Then 40+0.4, bounds 0 / 5
-(`~/matches/v13-ltc.log`).
+(`~/matches/v13-ltc.log`): stopped by the owner at 1,500 games, +201 -168
+=1131, **+8 +/- 8**, pentanomial [5, 120, 475, 137, 13], LOS 96.6%, LLR
+1.47; released as **7.2**.
 
-**Current best: ChessMcEngineFace 7.1.1** (Nov 19; on `main`) = 7.1 with
+**Before 7.2: ChessMcEngineFace 7.1.1** (Nov 19) = 7.1 with
 dead experiment code removed, same moves (bench **1382932**, as 7.1).
 Baseline for SPRTs: build it, copy to `~/matches/engine2-7.1.1` (7.1
 plays identically). The cleanup: removes the code of switched-off failed experiments (all in
