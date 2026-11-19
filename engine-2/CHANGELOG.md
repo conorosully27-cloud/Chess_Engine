@@ -5,6 +5,22 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.1.1: dead experiment code removed
+
+7.1 with the code of nine switched-off failed experiments removed (each
+is in `FAILED_EXPERIMENTS.md` with the commit that has its code): singular
+memo, recapture extension, history extension, corrected-evaluation
+reductions, near/far-miss reductions, network correction history (and
+`nnue::signature`), TT eval refinement and volatility history. Two of
+them still cost something while off: the volatility table was updated at
+every node, and the 64K-entry singular-memo table was read and written on
+every singular test. About 640 KB less memory per search thread.
+
+Plays the same moves: bench **1382932**, as 7.1. 0.31% fewer instructions
+for the bench (valgrind: 4,817,616,117 against 4,832,839,556). vs 7.1 at
+8+0.08 (stopped by the owner, a check only): 700 games, +79 -76 =545,
++1 +/- 11, pentanomial [1, 57, 236, 50, 6].
+
 ## 7.1: a SCReLU network
 
 7.0's code with the owner's run v12 network (`--hidden 1024 --wdl 0.4
