@@ -41,6 +41,32 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
 
+### Network roadmap (owner, Nov 19)
+
+One unproven network change per training run, so a flat or worse net
+points at one cause; once a change is proven, low-risk training tweaks
+can ride along with it. Each run compared against the release before it
+on the same data unless the step says otherwise (SPRT 8+0.08 0 / 10,
+then 40+0.4 0 / 5). The SPSA on the owner's laptop (16 cores, 20+0.2)
+waits until the network settles, so the margins are tuned once.
+
+| Run | Change | Engine work | Why this order |
+|---|---|---|---|
+| v12 (7.1) | SCReLU | loader (done) | +14 at 8+0.08, +6 at 40+0.4 |
+| v13 (7.2 candidate) | + 8 output buckets by piece count | none | +27 at 8+0.08; 40+0.4 running |
+| **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares)** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
+| v15 | training schedule: more epochs, learning rate falling 100x (now 10x), maybe a `--wdl` schedule | none | cheap, works with any architecture; can ride on v14's architecture |
+| v16 | more king zones (8-16) and/or a bigger hidden layer (1536-2048), with more data | small (file format) | only once 4 zones is proven; both want more data |
+| later | small extra hidden layers after the first (int8, SIMD), pairwise multiplication, threat inputs | large | biggest engine projects; after the simpler gains run out |
+
+Data generation already skips positions in check, captures or promotions
+as best move, and mate scores (`src/datagen.cpp`), so the gaps against
+top engines are in the architecture. King buckets were listed as a next
+step in the 2.x days and never tried. With king buckets each side's half
+of the hidden layer uses weights for its own king's zone and sees all 32
+pieces, so the opponent's king safety (our attackers near their king) is
+learned in their half, not only our own.
+
 **Buckets network (Nov 19):** the owner's run v13 (`--hidden 1024 --wdl 0.4
 --epochs 20 --screlu --output-buckets 8`, same data as 7.1's), net-20 as
 `nets/candidate-v13-buckets.nnue` (version 2, screlu 1, buckets 8;
