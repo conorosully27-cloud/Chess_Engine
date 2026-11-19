@@ -430,6 +430,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
                                   const std::atomic<bool>* stop,
                                   const std::function<void(const std::string&)>& on_info) {
   pos_ = &pos;
+  tt_.new_search();
   nodes_ = 0;
   tbhits_ = 0;
   root_move_nodes_.fill(0);
@@ -608,6 +609,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       const Bound bound = wdl == tb::WIN ? BOUND_LOWER : wdl == tb::LOSS ? BOUND_UPPER : BOUND_EXACT;
       if (bound == BOUND_EXACT || (bound == BOUND_LOWER && score >= beta) || (bound == BOUND_UPPER && score <= alpha)) {
         tte.key = check;
+        tte.gen = tt_.generation();
         tte.move = 0;
         tte.score = std::int16_t(to_tt(score, ply));
         tte.depth = std::int8_t(std::min(depth + 6, MAX_PLY - 1));
@@ -702,6 +704,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           if (score >= probcut_beta) {
             if (tte.key != check || tte.depth <= probcut_depth + 1) {
               tte.key = check;
+              tte.gen = tt_.generation();
               tte.move = move.raw();
               tte.score = std::int16_t(to_tt(score, ply));
               tte.depth = std::int8_t(probcut_depth + 1);
@@ -979,6 +982,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (bound != BOUND_UPPER) tte.move = best_move.raw();
     else if (tte.key != check) tte.move = 0;
     tte.key = check;
+    tte.gen = tt_.generation();
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
@@ -1065,6 +1069,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (tte && (tte->bound == BOUND_NONE || tte->depth <= 0)) {
     if (tte->key != check) tte->move = 0;
     tte->key = check;
+    tte->gen = tt_.generation();
     tte->score = std::int16_t(to_tt(best_score, ply));
     tte->depth = 0;
     tte->bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
