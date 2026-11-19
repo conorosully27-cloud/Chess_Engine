@@ -65,7 +65,7 @@ EMSCRIPTEN_KEEPALIVE const char* engine_go(const char* moves, int movetime_ms, i
   SearchLimits limits;
   limits.movetime = movetime_ms;
   limits.depth = depth;
-  const TimeBudget budget = allocate_time(limits, pos.side_to_move(), 0);
+  const TimeBudget budget = allocate_time(limits, pos.side_to_move(), 0, popcount(pos.pieces()));
   const SearchResult r = worker->search(pos, limits, budget, nullptr,
                                         [](const std::string& line) { post_info(line.c_str()); });
   reply = "bestmove " + r.best.uci();

@@ -230,6 +230,16 @@ TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
 // TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
 TUNE_PARAM(TM_MOVES, 25, 10, 80);
+// Time by material: the moves planned for (TM_MOVES above) slide with the
+// men on the board (pawns and pieces, kings included): TM_MOVES_FULL at 32,
+// TM_MOVES_FEW at TM_FEW_MEN or fewer, linear in between. More moves
+// planned with a full board spends less in the opening and keeps it for
+// the middlegame, where most games are decided. 7.0 spends about 0.31 s a
+// move on moves 9-20 at 8+0.08 against Renegade's 0.26, then less than it
+// from move 20. Off = both equal to TM_MOVES (25 / 25).
+TUNE_PARAM(TM_MOVES_FULL, 25, 10, 80);
+TUNE_PARAM(TM_MOVES_FEW, 25, 10, 80);
+TUNE_PARAM(TM_FEW_MEN, 12, 2, 30);
 // PARTIAL_ITER: when the clock stops a depth part-way, a root move that
 // already beat the previous depth's best move in it is played. On since
 // 6.4 (flat alone on 6.2.1; +11 +/- 7 together with QS_TT and ASP_DELTA).
@@ -326,7 +336,7 @@ void search_params_changed() {
   LMR100 = make_lmr100();
 }
 
-TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms) {
+TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead_ms, int men) {
   TimeBudget b;
   if (limits.infinite) return b;
   if (limits.movetime >= 0) {
@@ -340,7 +350,13 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   if (time < 0) return b;  // no clock given: depth or node limited, or unlimited
   const int inc = us == WHITE ? limits.winc : limits.binc;
   const std::int64_t remaining = std::max<std::int64_t>(1, time - move_overhead_ms);
-  const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, int(TM_MOVES)) : int(TM_MOVES);
+  int planned = TM_MOVES;
+  if (men > 0 && (TM_MOVES_FULL != TM_MOVES || TM_MOVES_FEW != TM_MOVES)) {
+    const int span = std::max(1, 32 - int(TM_FEW_MEN));
+    const int above = std::clamp(men - int(TM_FEW_MEN), 0, span);
+    planned = TM_MOVES_FEW + (TM_MOVES_FULL - TM_MOVES_FEW) * above / span;
+  }
+  const int moves_to_go = limits.movestogo > 0 ? std::min(limits.movestogo, planned) : planned;
   // Plan a share of the clock plus most of the increment, but never more
   // than a fifth of what is left (half before the last move of a time
   // control), and abort at three times the plan or half the clock. Searches
@@ -397,6 +413,17 @@ void SearchWorker::check_limits() {
   if ((stop_flag_ && stop_flag_->load(std::memory_order_relaxed)) ||
       (hard_ms_ >= 0 && elapsed_ms() >= hard_ms_) || (max_nodes_ && nodes_ >= max_nodes_))
     stopped_ = true;
+}
+
+std::string SearchWorker::info_line(int depth, int score, bool lowerbound, const std::vector<Move>& pv,
+                                    std::int64_t elapsed) const {
+  if (elapsed < 0) elapsed = elapsed_ms();
+  std::string line = "info depth " + std::to_string(depth) + " score " + score_to_uci(score) +
+                     (lowerbound ? " lowerbound" : "") + " nodes " + std::to_string(nodes_) + " nps " +
+                     std::to_string(nodes_ * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
+                     std::to_string(elapsed) + (tbhits_ ? " tbhits " + std::to_string(tbhits_) : "") + " pv";
+  for (Move m : pv) line += " " + m.uci();
+  return line;
 }
 
 SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, const TimeBudget& budget,
@@ -477,6 +504,9 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
       if (PARTIAL_ITER && depth > 1 && root_prev_searched_ && pv_length_[0] > 0 && pv_table_[0][0] != result.best) {
         result.pv.assign(pv_table_[0], pv_table_[0] + pv_length_[0]);
         result.best = result.pv[0];
+        // Tell the GUI, so the last PV it saw starts with the move played.
+        // The depth is unfinished, so the score is the new move's so far.
+        if (on_info) on_info(info_line(depth, root_pv_score_, root_pv_lower_, result.pv));
       }
       break;
     }
@@ -494,14 +524,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
     result.depth = depth;
 
     const std::int64_t elapsed = elapsed_ms();
-    if (on_info) {
-      std::string line = "info depth " + std::to_string(depth) + " score " + score_to_uci(score) +
-                         " nodes " + std::to_string(nodes_) + " nps " +
-                         std::to_string(nodes_ * 1000 / std::max<std::int64_t>(elapsed, 1)) + " time " +
-                         std::to_string(elapsed) + (tbhits_ ? " tbhits " + std::to_string(tbhits_) : "") + " pv";
-      for (Move m : result.pv) line += " " + m.uci();
-      on_info(line);
-    }
+    if (on_info) on_info(info_line(depth, score, false, result.pv, elapsed));
 
     if (legal.size() == 1 && depth >= 4) break;  // only one move: no need to think
     if (is_mate_score(score) && MATE - std::abs(score) <= depth) break;  // forced mate found
@@ -880,6 +903,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       if (score > alpha) {
         alpha = score;
         update_pv(ply, move);
+        if (ply == 0) {
+          root_pv_score_ = score;
+          root_pv_lower_ = score >= beta;
+        }
         if (score >= beta) {
           // History gravity: each update moves an entry toward +/-the
           // limit by a share of the bonus that shrinks as it nears it, so
@@ -1069,7 +1096,7 @@ void Searcher::new_game() {
 void Searcher::start(const Position& pos, const SearchLimits& limits, int move_overhead_ms) {
   stop();
   wait();
-  budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms);  // starts the clock
+  budget_ = allocate_time(limits, pos.side_to_move(), move_overhead_ms, popcount(pos.pieces()));  // starts the clock
   if (budget_.adaptive && has_prediction_) {
     const int pct = pos.key() == predicted_key_ ? TM_EXPECTED_PCT : TM_SURPRISE_PCT;
     budget_.soft_ms = std::clamp<std::int64_t>(budget_.soft_ms * pct / 100, 1, budget_.hard_ms);
