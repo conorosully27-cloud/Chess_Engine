@@ -169,7 +169,7 @@ integer evaluation against the trainer's, to catch export bugs).
 | 7.1 | `--screlu`; network file version 2 | +14 STC |
 | 7.2 | `--output-buckets N` | +27 STC |
 | v14 | `--king-buckets 4/8`, `--init-from` (start from another run, its input weights copied into every bucket); input-major first layer; sparse first layer (embedding_bag) for king-bucket nets; old checkpoints upgraded on load | A 4-bucket epoch costs about what a plain one did; network file version 3 |
-| Nov 20 | **Faster trainer, same results** (below) | About 1.7x faster per epoch on CPU |
+| Nov 20 | **Faster trainer, same results** (below) | **84k -> 215k positions/s** on the laptop GPU (king buckets); 1.7x on CPU |
 | Nov 20 | `--lr-end F` | The learning rate ends at F x `--lr` (0.1 as before, 0.01 for v15) |
 
 ### The Nov 20 speedups in detail
@@ -195,9 +195,11 @@ integer evaluation against the trainer's, to catch export bugs).
   3 of 3.16M weights differ by one rounding step (floating-point sums in
   a different order).
 
-The GPU gain has not been measured yet: compare the `pos/s` lines of a
-run against the 220-280k plain and about 80k king-bucket figures from
-before.
+**On the owner's laptop GPU (RTX A2000, Nov 20):** the v14 king-bucket
+run went from **about 84k to about 215k positions/s (2.6x)** after it was
+paused and resumed with the new trainer. That is about 30 minutes an epoch
+on ~400M positions instead of about 80. The GPU gains more than the CPU
+because the removed tensor shuffling was limited by memory traffic.
 
 ## 6. Engine-side network speed
 
