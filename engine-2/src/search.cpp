@@ -229,9 +229,18 @@ TUNE_PARAM(QS_TT, 1, 0, 1);
 // 15 alone was 0 +/- 12 on 6.3).
 TUNE_PARAM(ASP_DELTA, 16, 5, 100);
 
-// Late move reductions in hundredths of a ply. Quiet moves use whole plies
-// (/ 100, rounded toward zero); captures subtract CAPT_LMR_BASE first,
-// which is in hundredths too, so values between whole plies count.
+using LmrTable = std::array<std::array<std::int8_t, 64>, 64>;
+LmrTable make_lmr() {
+  LmrTable t{};
+  for (int d = 1; d < 64; d++)
+    for (int m = 1; m < 64; m++)
+      t[d][m] = std::int8_t(LMR_BASE / 100.0 + std::log(d) * std::log(m) / (LMR_DIV / 100.0));
+  return t;
+}
+LmrTable LMR = make_lmr();
+
+// The same reductions in hundredths of a ply (for captures, whose offset
+// CAPT_LMR_BASE is in hundredths too, so values between whole plies count).
 using Lmr100Table = std::array<std::array<std::int16_t, 64>, 64>;
 Lmr100Table make_lmr100() {
   Lmr100Table t{};
@@ -279,6 +288,7 @@ std::string score_to_uci(int score) {
 }  // namespace
 
 void search_params_changed() {
+  LMR = make_lmr();
   LMR100 = make_lmr100();
 }
 
@@ -670,7 +680,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // History pruning: quiet moves that have kept failing in similar
       // positions, near the leaves, once something has been searched.
       if (!pv_node && !in_check && quiet && depth <= HIST_PRUNE_DEPTH && best_score > -(TB_WIN - MAX_PLY)) {
-        const int history = quiet_history(history_, cont1, cont2, piece * 64 + move.to());
+        const int index = piece * 64 + move.to();
+        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         if (history < -HIST_PRUNE_MARGIN * depth && !gives_check()) continue;
       }
       // SEE pruning: the move loses too much material to be worth a look this close to the leaves.
@@ -716,13 +727,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       // Not at the root: reducing there can miss a quicker mate.
       int reduction = 0;
       if (depth >= 3 && legal > 2 && quiet && !in_check && !pos.in_check() && ply > 0) {  // pos: after the move
-        reduction = LMR100[std::min(depth, 63)][std::min(legal, 63)] / 100;
+        reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
         if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
         if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
         if (!improving && !pv_node && legal >= IMPROVING_LMR_MOVE) reduction += IMPROVING_LMR;  // getting worse: late quiets matter less
-        const int history = quiet_history(history_, cont1, cont2, piece * 64 + move.to());
+        const int index = piece * 64 + move.to();
+        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
