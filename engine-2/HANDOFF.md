@@ -32,7 +32,7 @@ Not yet settled by the owner: the confidence needed to release (it was
 LOS 96% or more at 8+0.08), and whether engine-vs-engine checks
 (Berserk 8, Renegade; so far 10+0.1) move to 120+1 too.
 
-**Current best: ChessMcEngineFace 7.1** (Nov 19; on `main`) = 7.0 with
+**Before 7.1.1: ChessMcEngineFace 7.1** (Nov 19) = 7.0 with
 the owner's SCReLU network (run v12, `--screlu`, same data;
 `nets/engine-7.1.nnue`): **+14 +/- 10 over 7.0 at 8+0.08** (H1, 1,324
 games, LOS 99.5%) and **+6 +/- 6 at 40+0.4** (2,298 games, LOS 96.5%,
@@ -40,6 +40,73 @@ LLR 1.60 of 2.94, stopped by the owner, released on both together).
 Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
+
+### Network roadmap (owner, Nov 19)
+
+One unproven network change per training run, so a flat or worse net
+points at one cause; once a change is proven, low-risk training tweaks
+can ride along with it. Each run compared against the release before it
+on the same data unless the step says otherwise (SPRT 8+0.08 0 / 10,
+then 40+0.4 0 / 5). The SPSA on the owner's laptop (16 cores, 20+0.2)
+waits until the network settles, so the margins are tuned once.
+
+| Run | Change | Engine work | Why this order |
+|---|---|---|---|
+| v12 (7.1) | SCReLU | loader (done) | +14 at 8+0.08, +6 at 40+0.4 |
+| v13 (7.2) | + 8 output buckets by piece count | none | +27 at 8+0.08, +8 at 40+0.4 |
+| **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares)** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
+| v15 | training schedule: more epochs, learning rate falling 100x (now 10x), maybe a `--wdl` schedule | none | cheap, works with any architecture; can ride on v14's architecture |
+| v16 | more king zones (8-16) and/or a bigger hidden layer (1536-2048), with more data | small (file format) | only once 4 zones is proven; both want more data |
+| later | small extra hidden layers after the first (int8, SIMD), pairwise multiplication, threat inputs | large | biggest engine projects; after the simpler gains run out |
+
+Data generation already skips positions in check, captures or promotions
+as best move, and mate scores (`src/datagen.cpp`), so the gaps against
+top engines are in the architecture. King buckets were listed as a next
+step in the 2.x days and never tried. With king buckets each side's half
+of the hidden layer uses weights for its own king's zone and sees all 32
+pieces, so the opponent's king safety (our attackers near their king) is
+learned in their half, not only our own.
+
+**Current best: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
+the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
++27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
+LOS 96.6%, stopped by the owner and released on both). Bench **1224793**.
+Baseline for SPRTs: build it, copy to `~/matches/engine2-7.2`. Next: the
+network roadmap above (v14 king buckets), then the SPSA at 20+0.2 on the
+owner's laptop.
+
+**The buckets network (Nov 19):** the owner's run v13 (`--hidden 1024 --wdl 0.4
+--epochs 20 --screlu --output-buckets 8`, same data as 7.1's), net-20 as
+`nets/candidate-v13-buckets.nnue`, now `nets/engine-7.2.nnue` (version 2, screlu 1, buckets 8;
+branch `claude/candidate-v13-buckets`). Bench **1224793**. vs 7.1.1 at
+8+0.08, bounds 0 / 10 (`~/matches/v13-stc.log`): **H1 after 412 games**,
++76 -44 =292 (53.9%), **+27 +/- 17**, pentanomial [1, 29, 119, 51, 6],
+LOS 99.9%, LLR 2.96, no time losses. Then 40+0.4, bounds 0 / 5
+(`~/matches/v13-ltc.log`): stopped by the owner at 1,500 games, +201 -168
+=1131, **+8 +/- 8**, pentanomial [5, 120, 475, 137, 13], LOS 96.6%, LLR
+1.47; released as **7.2**.
+
+**Before 7.2: ChessMcEngineFace 7.1.1** (Nov 19) = 7.1 with
+dead experiment code removed, same moves (bench **1382932**, as 7.1).
+Baseline for SPRTs: build it, copy to `~/matches/engine2-7.1.1` (7.1
+plays identically). The cleanup: removes the code of switched-off failed experiments (all in
+`FAILED_EXPERIMENTS.md` with their commits): singular memo
+(`SING_MEMO_*`, its 64K table was still read and written on every
+singular test), recapture extension, history extension, corrected-eval
+reductions (`CORR_LMR_CP`), near/far-miss reductions, network correction
+history (`CORR_NET_RATE`, and `nnue::signature`), TT eval refinement
+(`TT_EVAL_REFINE`), volatility history (`VOL_*`, its table was still
+updated at every node). `LMR_SURPRISES` was never on `main`. Bench
+unchanged, **1382932**; 0.31% fewer instructions for the bench. vs 7.1 at
+8+0.08 (`~/matches/clean-stc.log`): stopped by the owner at 700 games,
++1 +/- 11; released as **7.1.1** without the 40+0.4 test (same moves). To
+try one of those experiments again, take its code from the commit named
+in `FAILED_EXPERIMENTS.md`.
+
+**Hindsight + LMR surprises capped at 8, together** (branch
+`claude/candidate-hind-dcap`): flat at 8+0.08 (+2 +/- 4, 6,280 games);
+at 40+0.4 stopped at 200 games, +14 -23 =163, **-16 +/- 17**, LOS 3.9%.
+Not taken. The owner found hindsight alone flat too.
 
 **Before 7.1: ChessMcEngineFace 7.0** (Nov 17; first
 released as 6.10 the same day and renamed by the owner after the outside

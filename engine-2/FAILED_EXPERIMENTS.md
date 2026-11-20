@@ -5,9 +5,15 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+**7.1.1 removed the switched-off code** of the singular memo, recapture
+extension, history extension, corrected-eval reductions (`CORR_LMR_CP`),
+near/far-miss reductions, network correction history (`CORR_NET_RATE`),
+TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
+Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
+
 ## Hash table buckets, on 7.1 (Nov 2026)
 
-**Change** (commit 299804c, reverted in 6c118da): the hash table went
+**Change** (commit 299804c, reverted in ecdfe8e): the hash table went
 from one always-replace slot per index to buckets of five 12-byte
 entries per 64-byte cache line. Each entry gets a 6-bit search
 generation, and the slot replaced is the one with the lowest depth
@@ -65,7 +71,7 @@ time control gain. Capping it at depth 8 fixed the long time control
 loss but also removed the short one, leaving both about level. Not
 tried: a cap between 8 and none (10 or 12), applying it to quiet moves
 only, or triggering on the share of reduced moves that were surprises
-instead of a count.
+instead of a count. Its code is not in 7.2; the commits above have it.
 
 ## Near-miss reductions, on 6.7 (Nov 2026)
 
