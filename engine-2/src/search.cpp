@@ -103,7 +103,7 @@ TUNE_PARAM(PAWN_HIST, 1, 0, 1);
 // Pawn history v2: also counted in the history that scales late move
 // reductions (1 = on), and held to its own lower gravity, as its entries
 // are updated far more often than a continuation entry.
-TUNE_PARAM(PAWN_HIST_LMR, 1, 0, 1);
+TUNE_PARAM(PAWN_HIST_LMR, 0, 0, 1);
 TUNE_PARAM(PAWN_HIST_GRAVITY, 8000, 2000, 30000);
 // Capture history (src/movepick.h): the same bonus, gravity toward
 // +/-CAPT_HIST_GRAVITY.

@@ -319,9 +319,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
 - **Pawn history, ordering only** (`PAWN_HIST` 1, commit `d4f5f9e`):
-  **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games; stopped to test
-  v2 (`PAWN_HIST_LMR` 1: also in the LMR history; `PAWN_HIST_GRAVITY`
-  8000, its own ceiling) vs 7.2 at 40+0.4 (`~/matches/pawnhist2-72.log`).
+  **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games. v2
+  (`PAWN_HIST_LMR` 1: also in the LMR history; `PAWN_HIST_GRAVITY` 8000)
+  **rejected**, -20 +/- 19 over 240 games. Testing gravity only
+  (`PAWN_HIST_LMR` 0, gravity 8000) vs 7.2 at 40+0.4
+  (`~/matches/pawnhist3-72.log`).
 - **Early table evaluations, eval cache dropped** (`TT_EVAL_EARLY` 1,
   `EVAL_CACHE` 0; committed as 0 / 1, the old behaviour): **rejected** vs
   the 7.1 candidate, -9 +/- 9 over 1,118 games at 8+0.08 and -4 +/- 10

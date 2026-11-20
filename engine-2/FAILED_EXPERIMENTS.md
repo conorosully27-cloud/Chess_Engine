@@ -11,6 +11,25 @@ code can be recovered), the results, how promising it looked beforehand
 (`122591c`), was-PV reductions (`ebcc4b0`) and cutoff-count reductions
 (`21faed9`) each have their switched-off code at that commit.
 
+## Pawn history v2 (also in LMR, own gravity), on 7.2 (Nov 2026)
+
+**Change** (`PAWN_HIST_LMR` 1 and `PAWN_HIST_GRAVITY` 8000 in
+`search.cpp`, on top of `PAWN_HIST` 1; commit `ff9f111`): the pawn
+history entry is also added to the history sum that scales late move
+reductions (not history pruning), and its updates use their own gravity
+(8000 instead of the continuation tables' 14859). Bench 1254250.
+
+**Result:** vs 7.2 at 40+0.4 (cloud, 4 at a time, SPRT 0 / 5): **240
+games**, +22 -36 =182, **-20 +/- 19**, LLR -1.10; stopped by the owner
+(`~/matches/pawnhist2-72.log`). The gravity-only version
+(`PAWN_HIST_LMR` 0) is tested next (`~/matches/pawnhist3-72.log`).
+
+**Prior:** 6/10.
+
+**Why it failed (likely):** a fourth table in the LMR sum moves
+reductions too far (the divisor `LMR_HISTORY` was tuned for three); if
+retried, scale it down (e.g. half weight) or retune `LMR_HISTORY`.
+
 ## Pawn history (ordering only), on 7.2 (Nov 2026)
 
 **Change** (`PAWN_HIST` 1 in `search.cpp`; commit `d4f5f9e`, committed
