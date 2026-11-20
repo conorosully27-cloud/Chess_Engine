@@ -67,6 +67,32 @@ of the hidden layer uses weights for its own king's zone and sees all 32
 pieces, so the opponent's king safety (our attackers near their king) is
 learned in their half, not only our own.
 
+**Network speed and trainer review (Nov 20, cloud):**
+- **train.py is faster, same results.** The first layer sums the 32 rows
+  of the pieces on the board (`embedding_bag`) instead of multiplying a
+  (B, 768) one-hot matrix, and the side to move is put first by swapping
+  the (B, 32) inputs rather than the (B, 2048) hidden units (that
+  `where` + `cat` was a third of a step). Decoding runs a few batches
+  ahead in a thread; TF32 is on for CUDA matrix products. 2 epochs on
+  600k test positions (1024, SCReLU, 8 buckets, CPU): **identical losses
+  and byte-identical net files** to the old trainer, **31 s vs 52 s**.
+  Not yet timed on the laptop GPU: compare the `pos/s` lines of a short
+  `--limit` run against the old ~220-280k. Checkpoints are compatible.
+  New `--lr-end F` (default 0.1 = as before; 0.01 for v15's 100x fall).
+- **`-DENGINE_AVX512=ON`**: AVX-512 network code, same bench (1224793),
+  all tests pass; on this cloud Xeon roughly +5-15% nodes/s (noisy VM,
+  medians 1.78M vs 1.55M). Off by default (CPUs without AVX-512 crash).
+- **Profile (callgrind, bench):** network ~37% of instructions (updates
+  24%, output layer 12%), so a further network speedup of x% gives about
+  0.4x% nodes/s.
+- **Overflow headroom for v16:** the SCReLU output sum is int32. With
+  7.2's weights the worst case is 0.90 of the int32 range (bucket 0), so
+  1024 units are safe, but **2048 units could overflow**: sum each half
+  separately and divide by QA before adding, or clamp, before v16.
+- **Output-weight clip:** 23 of bucket 0's 2048 weights (2-5 pieces) sit
+  at the +/-127 limit SCReLU's 16-bit multiply needs; other buckets 0-7.
+  Mildly limiting in bare endgames only.
+
 **Current best: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
 the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
 +27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
