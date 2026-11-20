@@ -33,7 +33,11 @@ struct DirtyPieces {
 struct Accumulator {
   alignas(64) std::int16_t values[COLOR_NB][HIDDEN];  // the hidden units, seen from White's and Black's side
   DirtyPieces dirty;                                  // how this position differs from the one before
-  std::uint32_t net = 0;  // id of the network `values` hold sums for; 0 = not computed
+  // Per side: id of the network values[side] hold sums for; 0 = not computed.
+  // The sides are kept apart because with king buckets a king move into
+  // another zone changes that side's inputs entirely (refreshed) while the
+  // other side's are still updated move by move.
+  std::uint32_t net[COLOR_NB] = {0, 0};
 };
 
 }  // namespace chess::nnue
