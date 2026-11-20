@@ -25,6 +25,21 @@ SPRT was stopped by the owner (it read +16 at 518 games, +3 at 1,200,
 then +8), who released on both together, as with 7.1. Bench **1224793**
 (7.1.1: 1382932).
 
+**Against outside engines at 8+0.08** (Nov 20; Hash 64, 1 thread, 4 at a
+time, as 7.0's runs):
+
+| opponent | games | result | Elo | notes |
+|---|---|---|---|---|
+| Renegade 1.1.0 | 850 | +176 -157 =517 | +8 +/- 14 | H1 (-10/+10); 13 wins on Renegade time losses, about +2.5 without them |
+| Thrawn 3.2 | 100 | +29 -19 =52 | +35 +/- 47 | stopped by the owner |
+
+7.0 had -58 +/- 40 against Renegade at the same settings (H0 after 126
+games), so 7.2 is roughly level with it where 7.0 was well behind.
+
+**In the app** (Nov 20): WebAssembly rebuilt from 7.2 (wasm bench
+1224793, the native bench), Android `versionCode` 10 / `versionName`
+"7.2".
+
 ## 7.1.1: dead experiment code removed
 
 7.1 with the code of nine switched-off failed experiments removed (each

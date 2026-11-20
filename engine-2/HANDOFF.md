@@ -150,7 +150,15 @@ time losses: about 3565 by this pairing. **All three at 40+0.4: about
 =62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
 losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
 100 Elo of swing), as Berserk did the other way. Short-TC results against
-outside engines say little about CCRL Blitz (2+1). **7.0 vs Renegade 1.1.0 at
+outside engines say little about CCRL Blitz (2+1). **7.2 vs Renegade 1.1.0 at 8+0.08** (Nov 20, SPRT -10/+10, Hash 64,
+1 thread, 4 at a time): **H1 after 850 games**, +176 -157 =517 (51.1%),
+**+8 +/- 14**, pentanomial [14, 88, 203, 105, 15], but **13 of the 176
+wins were Renegade losing on time** (100 ms overruns at its default Move
+Overhead 50); scored as draws, about **+2.5** and LLR about 1.0 (no
+verdict): level with Renegade at 8+0.08, about 60 above 7.0's -58 below.
+Next time give Renegade `option.Move Overhead=100`. 7.2 vs Thrawn 3.2 at
+8+0.08 was stopped by the owner at 100 games: +29 -19 =52, +35 +/- 47.
+**7.0 vs Renegade 1.1.0 at
 8+0.08** (`~/matches/70-renegade-stc.log`): **H0 after 126 games**, +18
 -39 =69 (41.7%), **-58 +/- 40**, pentanomial [7, 19, 25, 12, 0], no time
 losses (Nov 15's -54 +/- 39 at the same time control agrees). From the
@@ -997,7 +1005,15 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
+- **Phone app: ChessMcEngineFace 7.2** (Nov 20; WebAssembly rebuilt from
+  7.2, Android `versionCode` 10 / `versionName` "7.2"). `node
+  scripts/wasm_bench.mjs`: 1224793, the native bench. APK built with
+  `npm run apk` (one Maven Central 429 on the first try, then fine with
+  `./gradlew --max-workers=1 assembleDebug`), 5.6 MB, signed with
+  `keys/debug.keystore` (SHA-256 `45c53a1f...a36bb`); checked in Chromium
+  at phone size (labels "ChessMcEngineFace 7.2", engine opened 1. c4, no
+  console errors) and sent to the owner.
+- Before: **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
   6.0, Android `versionCode` 9 / `versionName` "6.0"). `node
   scripts/wasm_bench.mjs`: 2285231, the native bench. APK built with
   `npm run apk` (`--max-workers=1`), 5.6 MB, signed with the repo's
