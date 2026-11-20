@@ -5,6 +5,34 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+## Hash table buckets, on 7.1 (Nov 2026)
+
+**Change** (commit 299804c, reverted in 6c118da): the hash table went
+from one always-replace slot per index to buckets of five 12-byte
+entries per 64-byte cache line. Each entry gets a 6-bit search
+generation, and the slot replaced is the one with the lowest depth
+minus 8 x age, using empty slots first. The bucket index is a
+multiply-shift, so any table size is used in full (the power-of-two
+size had wasted up to 25%). Bench: 1382932 -> 1373504.
+
+**Result** (cloud, 4 at a time; 8+0.08 SPRT 0/10, 40+0.4 SPRT 0/5):
+
+| TC | Result |
+|---|---|
+| 8+0.08 | **H0 accepted**, 572 games, -7.9 +/- 12.8 |
+| 40+0.4 | stopped at 1760 games, -1.2 +/- 5.9, LLR -2.04 |
+
+Logs: `~/sprt-71-tt-stc.log`, `~/sprt-71-tt-ltc.log`.
+
+**Prior:** 6/10 (the biggest item in the codebase review).
+
+**Commentary:** a better hash table mostly pays off when the table is
+full. At these time controls and hash size the old table was probably
+not under much pressure, so keeping deep entries mattered little, and
+scanning 5 entries costs a little on every probe. Worth retrying: at
+longer time controls or a smaller hash, or with fewer entries per
+bucket (2 to 3).
+
 ## Reductions that learn within a node, on 6.9 and 7.0 (Nov 2026)
 
 **Change** (`LMR_SURPRISES`, commit 9b60145; `LMR_SURPRISE_MAX_DEPTH`,
