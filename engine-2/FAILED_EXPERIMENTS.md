@@ -11,6 +11,46 @@ near/far-miss reductions, network correction history (`CORR_NET_RATE`),
 TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
 Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
 
+## Singular memo retried at 40+0.4, on 7.2 (Nov 2026)
+
+**Change** (commit b2aaed9, reverted in f5fd0e1): the singular memo from
+6.6 (below, "Volatility history and singular memo"), ported onto 7.2 at
+its best setting there, `SING_MEMO_PLIES` 1 and `SING_MEMO_MARGIN` 100.
+Picked as the failed experiment most likely to gain at a long time
+control: singular tests start at depth 8, so deeper searches repeat
+more of them. Bench 1224793 -> 1210422.
+
+**Result:** vs 7.2 (cloud, 40+0.4, 4 at a time, SPRT 0/5): **stopped by
+the owner at 400 games**, +23 -32 =345 (48.9%), **-7.8 +/- 10.6**, LOS
+7.4%, LLR -1.72 (`~/sprt-72-memo-ltc.log`).
+
+**Prior:** 4/10 (+7 +/- 12 at 8+0.08 on 6.6, never confirmed).
+
+**Commentary:** the 6.6 gain doesn't carry over to 7.2 or to the longer
+time control. Repeating the extension without a fresh test seems to cost
+more than the saved test searches: a deeper search often sees that the
+move is no longer singular.
+
+## History helper and single LMR table, on 7.2 (Nov 2026)
+
+**Change** (commit 7086161, reverted in 6a08bb1): a clean-up that plays
+the same moves (bench 1224793 unchanged). The main + continuation
+history sum, written out three times, became one helper
+(`quiet_history()`), and quiet late move reductions read `LMR100 / 100`
+instead of their own table (identical values over the whole tuning
+range).
+
+**Result** (vs 7.2, cloud, 4 at a time): 8+0.08 (SPRT 0/10) stopped at
+560 games, +72 -84 =404, -7.5 +/- 14.3, LLR -2.26
+(`~/sprt-72-overlap-stc.log`); 40+0.4 (SPRT 0/5) stopped at 580 games,
++54 -70 =456, -9.6 +/- 11.7, LLR -1.69 (`~/sprt-72-overlap-ltc.log`).
+
+**Prior:** not scored beforehand (from the codebase review).
+
+**Commentary:** with the same moves, only speed can differ, and the
+change should be about neutral there. Both runs leaning negative is most
+likely noise, but it was not kept without a pass.
+
 ## Hash table buckets, on 7.1 (Nov 2026)
 
 **Change** (commit 299804c, reverted in ecdfe8e): the hash table went
