@@ -31,6 +31,12 @@ constexpr int CONT_INDEX = PIECE_NB * 64;
 constexpr int CONT_HISTORY_LIMIT = 30000;
 using ContHistoryRow = const std::int16_t*;
 
+// A quiet move's history: the main table plus both continuation rows
+// (where given). index = piece * 64 + destination square.
+inline int quiet_history(const HistoryTable& history, ContHistoryRow cont1, ContHistoryRow cont2, int index) {
+  return history[index / 64][index % 64] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+}
+
 // Capture history: how well a capture did, by moving piece, destination
 // and captured piece type. Orders captures together with the victim's
 // value: a capture scores CAPTURE_SCORE + 10 x the victim's value, less the

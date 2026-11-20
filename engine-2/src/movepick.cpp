@@ -19,10 +19,7 @@ void score_moves(const Position& pos, const MoveList& list, int* scores, Move tt
     else if (m == killer1) score = KILLER1_SCORE;
     else if (m == killer2) score = KILLER2_SCORE;
     else {
-      const int index = pos.piece_on(m.from()) * 64 + m.to();
-      score = history[index / 64][index % 64];
-      if (cont1) score += cont1[index];
-      if (cont2) score += cont2[index];
+      score = quiet_history(history, cont1, cont2, pos.piece_on(m.from()) * 64 + m.to());
     }
     scores[i] = score;
   }
