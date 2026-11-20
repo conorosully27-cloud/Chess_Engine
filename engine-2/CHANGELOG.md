@@ -5,6 +5,63 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.2: output buckets
+
+7.1.1's code with the owner's run v13 network (`--hidden 1024 --wdl 0.4
+--epochs 20 --screlu --output-buckets 8`, the same data as 7.1's net):
+SCReLU as 7.1, plus 8 output layers chosen by the number of pieces on the
+board. Built in as `nets/engine-7.2.nnue` (network file version 2,
+buckets 8). About 6% slower per node than 7.1.1.
+
+**Against 7.1.1** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 8+0.08 | 412 | +76 -44 =292 | **+27 +/- 17** | 99.9% | 2.96, H1 (0/10) |
+| 40+0.4 | 1,500 | +201 -168 =1131 | **+8 +/- 8** | 96.6% | 1.47 (0/5), stopped |
+
+Pentanomial [1, 29, 119, 51, 6] and [5, 120, 475, 137, 13]. The 40+0.4
+SPRT was stopped by the owner (it read +16 at 518 games, +3 at 1,200,
+then +8), who released on both together, as with 7.1. Bench **1224793**
+(7.1.1: 1382932).
+
+## 7.1.1: dead experiment code removed
+
+7.1 with the code of nine switched-off failed experiments removed (each
+is in `FAILED_EXPERIMENTS.md` with the commit that has its code): singular
+memo, recapture extension, history extension, corrected-evaluation
+reductions, near/far-miss reductions, network correction history (and
+`nnue::signature`), TT eval refinement and volatility history. Two of
+them still cost something while off: the volatility table was updated at
+every node, and the 64K-entry singular-memo table was read and written on
+every singular test. About 640 KB less memory per search thread.
+
+Plays the same moves: bench **1382932**, as 7.1. 0.31% fewer instructions
+for the bench (valgrind: 4,817,616,117 against 4,832,839,556). vs 7.1 at
+8+0.08 (stopped by the owner, a check only): 700 games, +79 -76 =545,
++1 +/- 11, pentanomial [1, 57, 236, 50, 6].
+
+## 7.1: a SCReLU network
+
+7.0's code with the owner's run v12 network (`--hidden 1024 --wdl 0.4
+--epochs 20 --screlu`, the same data as 7.0's net): the clipped hidden
+units are squared before the output layer. Built in as
+`nets/engine-7.1.nnue` (network file version 2). The engine reads the new
+format (and output buckets, `--output-buckets`, not used yet) since commit
+`9294859`; 7.0's network still benches the same with it. About 5% slower
+per node.
+
+**Against 7.0** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 8+0.08 | 1,324 | +227 -175 =922 | **+14 +/- 10** | 99.5% | 3.02, H1 (0/10) |
+| 40+0.4 | 2,298 | +281 -243 =1774 | **+6 +/- 6** | 96.5% | 1.60 (0/5), stopped |
+
+Pentanomial [15, 114, 361, 148, 24] and [8, 170, 756, 206, 9]. The 40+0.4
+SPRT was stopped by the owner, who released on the two together. Bench
+**1382932** (7.0: 1277145).
+
 ## 7.0: a new network (first released as 6.10)
 
 Released on Nov 17 as 6.10 and renamed 7.0 the same day by the owner,

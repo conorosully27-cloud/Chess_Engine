@@ -5,6 +5,12 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+**Code of the newest five (Nov 2026) is not in 7.2's source** (merged as
+7.2 on `claude/clever-hamilton-9d52iy`): early table evaluations
+(`529b53f`), hindsight depth (`44e47e3`), fail-high softening
+(`122591c`), was-PV reductions (`ebcc4b0`) and cutoff-count reductions
+(`21faed9`) each have their switched-off code at that commit.
+
 ## Early table evaluations without the eval cache, on the 7.1 candidate (Nov 2026)
 
 **Change** (`TT_EVAL_EARLY` 1 in `search.cpp`, `EVAL_CACHE` 0 in
@@ -141,6 +147,12 @@ the owner at both time controls:
 strength did not move, so the plies saved went to moves that did not
 need them. History, cut-node and improving terms probably already
 reduce the same late moves at such nodes.
+
+**7.1.1 removed the switched-off code** of the singular memo, recapture
+extension, history extension, corrected-eval reductions (`CORR_LMR_CP`),
+near/far-miss reductions, network correction history (`CORR_NET_RATE`),
+TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
+Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
 
 ## Near-miss reductions, on 6.7 (Nov 2026)
 

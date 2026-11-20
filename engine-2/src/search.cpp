@@ -50,11 +50,6 @@ TUNE_PARAM(IMPROVING_RFP, 53, 0, 150);
 TUNE_PARAM(IMPROVING_LMR, 1, 0, 2);
 TUNE_PARAM(IMPROVING_LMR_MOVE, 10, 3, 20);
 
-// The table's score refines the static evaluation in reverse futility and
-// null move (1 on, 0 off); see negamax.
-TUNE_PARAM(TT_EVAL_REFINE, 0, 0, 1);
-TUNE_PARAM(TT_REFINE_SLACK, 2, 0, 6);
-
 TUNE_PARAM(SEE_PRUNE_DEPTH, 6, 1, 12);
 TUNE_PARAM(SEE_QUIET_MARGIN, 10, 5, 120);
 TUNE_PARAM(SEE_CAPTURE_MARGIN, 67, 20, 300);
@@ -117,23 +112,6 @@ TUNE_PARAM(SINGULAR_MARGIN, 12, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
-// Singular memo: when the alternatives fell short of the singular test by
-// more than SING_MEMO_MARGIN cp, the result is remembered, and while the
-// same hash move comes back at up to SING_MEMO_PLIES plies deeper, the
-// test search (half the depth, and not helped by the table) is skipped and
-// its extension given again. 0 = off; candidates 1 and 2.
-TUNE_PARAM(SING_MEMO_PLIES, 0, 0, 4);
-TUNE_PARAM(SING_MEMO_MARGIN, 60, 20, 300);
-// Recapture extension (Berserk 8): 1 on, 0 off. Off: -10 +/- 13 vs 6.1
-// (FAILED_EXPERIMENTS.md).
-TUNE_PARAM(RECAPTURE_EXT, 0, 0, 1);
-// History extension (Berserk 8): from HIST_EXT_DEPTH, a quiet hash move
-// whose history (main + both continuation rows, each at most 16384) is at
-// least HIST_EXT_MIN gets a ply more, when the singular test gave none.
-// Off (HIST_EXT 0): -15 +/- 16 vs 6.1 (FAILED_EXPERIMENTS.md).
-TUNE_PARAM(HIST_EXT, 0, 0, 1);
-TUNE_PARAM(HIST_EXT_DEPTH, 7, 4, 14);
-TUNE_PARAM(HIST_EXT_MIN, 20000, 8000, 45000);
 // Check extension: a ply more in check, while the remaining depth is below
 // CHECK_EXT_DEPTH (6.1: always, i.e. MAX_PLY).
 TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
@@ -193,17 +171,6 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 20, 5, 100);
 // even with it then; retried on a newer network as the owner suggested).
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
-// Corrected-evaluation reductions: where correction history moves the
-// evaluation by CORR_LMR_CP centipawns or more, the evaluation has been
-// wrong here before, so late quiet moves are reduced a ply less. 0 = off.
-TUNE_PARAM(CORR_LMR_CP, 0, 0, 150);
-// Near-miss reductions: the moves already searched here say how close the
-// node is to alpha. If the best of them failed low by NEAR_LMR_CP
-// centipawns or less, one of the late moves may tip it, so they are
-// reduced a ply less; if it failed low by FAR_LMR_CP or more, a ply more.
-// 0 = off (each).
-TUNE_PARAM(NEAR_LMR_CP, 0, 0, 100);
-TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
 // Re-search depth from the reduced search's own result. A late move that
 // beat alpha in its reduced search is searched again at full depth; how
 // far it beat the best score so far says how much that second search
@@ -215,9 +182,6 @@ TUNE_PARAM(FAR_LMR_CP, 0, 0, 800);
 // +12 +/- 9 at 40+0.4, +9 +/- 10 at 8+0.08, vs 6.8.
 TUNE_PARAM(RESEARCH_DEEPER_CP, 40, 0, 200);
 TUNE_PARAM(RESEARCH_SHALLOWER_CP, 8, 0, 50);
-// Network correction history (search.h): learns at CORR_NET_RATE percent,
-// held within +/-CORR_LIMIT_CP. 0 = off.
-TUNE_PARAM(CORR_NET_RATE, 0, 0, 100);
 
 // TM_MOVES: the share of the clock planned per move is 1 / TM_MOVES
 // (6.3: 25, +27 +/- 17 over 6.2.1's 40; 20 was no better than 25).
@@ -258,41 +222,6 @@ TUNE_PARAM(TM_DRAWISH_PCT, 100, 20, 100);
 TUNE_PARAM(TM_DRAWISH_CP, 20, 5, 60);
 TUNE_PARAM(TM_DRAWISH_PLY, 60, 0, 200);
 TUNE_PARAM(TM_OPEN_PCT, 100, 100, 150);
-// Cutoff-count reductions: counts the children of this node that ended in a
-// beta cutoff (each such child refuted the move that led to it). Once more
-// than CUTOFF_LMR_MIN have, the node is likely to fail low, so the late
-// moves still to come get CUTOFF_LMR plies more reduction. 0 = off.
-TUNE_PARAM(CUTOFF_LMR, 0, 0, 2);
-TUNE_PARAM(CUTOFF_LMR_MIN, 3, 0, 10);
-// Was-PV reductions: the table remembers whether a position was searched
-// on a principal variation (as Stockfish's ttPv). Such positions are where
-// the game is decided, and they come back at greater depth as the time
-// control gets longer, so at non-PV nodes their late moves get TT_PV_LMR
-// plies less reduction (PV nodes already get one less). 0 = off.
-TUNE_PARAM(TT_PV_LMR, 0, 0, 2);
-// Fail-high softening: a score above beta at depth d comes back as
-// (score * d + beta) / (d + 1), so shallow cutoffs claim less than they
-// found and parents do not over-trust lucky margins (as Stockfish). 0 = off.
-TUNE_PARAM(FH_SOFTEN, 0, 0, 1);
-// Hindsight depth: a child of a heavily reduced move looks back at the
-// evaluations. Reduced by HINDSIGHT_EXT_RED+ plies yet the side to move is
-// no worse off than the parent thought: one ply more (the reduction was a
-// mistake). Reduced by 2+ and both sides think they stand well (the sum of
-// the two static evals above HINDSIGHT_CP): one ply less (a quiet
-// position). Non-PV nodes, as Stockfish. 0 = off.
-TUNE_PARAM(HINDSIGHT, 0, 0, 1);
-TUNE_PARAM(HINDSIGHT_EXT_RED, 3, 2, 6);
-TUNE_PARAM(HINDSIGHT_CP, 175, 50, 400);
-
-// Early table evaluations: a static evaluation goes into the table as soon
-// as it is computed, not only with the node's result, so nodes that return
-// early (reverse futility, null move, stand pat) keep theirs too. Written
-// over the same position, an empty slot or a quiescence entry (depth 0 or
-// less), never over a deeper search's entry; read back whenever the key
-// matches, whatever the bound. Lets the separate eval cache go (EVAL_CACHE
-// in evaluate.cpp). 0 = off.
-TUNE_PARAM(TT_EVAL_EARLY, 0, 0, 1);
-
 // QS_TT: quiescence probes the table and stores its results at depth 0.
 // On since 6.4 (+3 +/- 9 alone on 6.3).
 TUNE_PARAM(QS_TT, 1, 0, 1);
@@ -399,24 +328,7 @@ TimeBudget allocate_time(const SearchLimits& limits, Color us, int move_overhead
   return b;
 }
 
-// Volatility history: where searches of a pawn structure have landed far
-// from the (corrected) evaluation, the evaluation is a poor guide, so the
-// reverse futility and futility margins grow; where they land close, the
-// margins shrink. The margins change by VOL_SLOPE percent per VOL_MEAN_CP
-// of average miss above or below the usual (VOL_MEAN_CP, measured on
-// bench), by at most VOL_RANGE percent. VOL_SLOPE 0 = off. Not the size of
-// the correction (that failed on 4.0): the spread that remains after it.
-TUNE_PARAM(VOL_SLOPE, 0, 0, 200);
-TUNE_PARAM(VOL_RANGE, 30, 5, 60);
-constexpr int VOL_MEAN_CP = 80;
-constexpr int VOL_GRAIN = 16;
 // ------------------------------------------------------------- the search
-
-SearchWorker::CorrEntries SearchWorker::corr_entries(const Position& pos, int ply) {
-  CorrEntries e = corr_entries_base(pos, ply);
-  if (CORR_NET_RATE) e.entry[4] = &corr_net_[pos.side_to_move()][nnue::signature(pos)];
-  return e;
-}
 
 void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
@@ -425,9 +337,6 @@ void SearchWorker::new_game() {
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
-  std::fill(&corr_net_[0][0], &corr_net_[0][0] + COLOR_NB * CORR_NET_SIZE, std::int16_t(0));
-  std::fill(sing_memo_.begin(), sing_memo_.end(), SingMemo());
-  std::fill(&vol_history_[0][0], &vol_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -580,25 +489,6 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   return result;
 }
 
-namespace {
-// Keeps a freshly computed static evaluation in the table (TT_EVAL_EARLY):
-// over the same position, or over a slot holding no search worth keeping
-// (empty, evaluation-only or a quiescence result).
-void store_eval_early(TTEntry& e, std::uint32_t check, int raw_eval) {
-  if (e.key == check) {
-    e.eval = std::int16_t(raw_eval);
-  } else if (e.bound == BOUND_NONE || e.depth <= 0) {
-    e.key = check;
-    e.move = 0;
-    e.score = 0;
-    e.depth = 0;
-    e.bound = BOUND_NONE;
-    e.pv = 0;
-    e.eval = std::int16_t(raw_eval);
-  }
-}
-}  // namespace
-
 int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node, bool after_null, Move excluded) {
   Position& pos = *pos_;
   pv_length_[ply] = ply;
@@ -616,7 +506,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (alpha >= beta) return alpha;
   }
 
-  cutoff_cnt_[ply + 1] = 0;  // counted afresh for this node's children
   double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
   if (in_check && depth < CHECK_EXT_DEPTH) depth++;  // look further when in check, near the leaves (Berserk 8)
@@ -632,10 +521,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   Move tt_move;
   int tt_eval = EVAL_NONE, tt_score = 0, tt_depth = 0;
   Bound tt_bound = BOUND_NONE;
-  bool tt_was_pv = false;
-  if (TT_EVAL_EARLY && tte.bound == BOUND_NONE && tte.key == check) tt_eval = tte.eval;  // an evaluation-only entry
   if (tte.bound != BOUND_NONE && tte.key == check) {
-    tt_was_pv = tte.pv;
     tt_move = Move::from_raw(tte.move);
     tt_eval = tte.eval;
     tt_score = from_tt(tte.score, ply);
@@ -677,43 +563,17 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   if (!in_check) {
     // The table keeps the static evaluation: reuse it rather than evaluate again.
     raw_eval = tt_eval != EVAL_NONE ? tt_eval : evaluate(pos);
-    if (TT_EVAL_EARLY && tt_eval == EVAL_NONE) store_eval_early(tte, check, raw_eval);
     // Corrected by what searches of this pawn structure have found.
     static_eval = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
   }
-  // Percent of the usual futility margins here (volatility history).
-  int vol_pct = 100;
-  if (VOL_SLOPE && !in_check) {
-    const int v = vol_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
-    vol_pct += std::clamp(v * int(VOL_SLOPE) / (VOL_MEAN_CP * VOL_GRAIN), -int(VOL_RANGE), int(VOL_RANGE));
-  }
   eval_stack_[ply] = in_check ? EVAL_NONE : static_eval;
   const bool improving = !in_check && (ply < 2 || eval_stack_[ply - 2] == EVAL_NONE || static_eval > eval_stack_[ply - 2]);
-  if (HINDSIGHT && !pv_node && !in_check && !excluding && ply > 0 && eval_stack_[ply - 1] != EVAL_NONE) {
-    const int prior_reduction = red_stack_[ply - 1];
-    if (prior_reduction >= HINDSIGHT_EXT_RED && static_eval <= -eval_stack_[ply - 1]) depth++;
-    else if (prior_reduction >= 2 && depth >= 2 && static_eval + eval_stack_[ply - 1] > HINDSIGHT_CP) depth--;
-  }
-  // The table's score refines the static evaluation for reverse futility
-  // and null move, in the direction its bound allows: an upper bound below
-  // the static eval lowers it (any depth: it only makes those two prunings
-  // more careful), a lower bound above it raises it only from an entry
-  // nearly as deep as this node (TT_REFINE_SLACK plies; a deeper one would
-  // already have cut off above). Futility, "improving" and correction
-  // history keep the static eval.
-  int eval = static_eval;
-  if (TT_EVAL_REFINE && !in_check && !excluding && tt_bound != BOUND_NONE && !is_mate_score(tt_score)) {
-    if (tt_score < static_eval && (tt_bound == BOUND_UPPER || tt_bound == BOUND_EXACT))
-      eval = tt_score;
-    else if (tt_score > static_eval && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) &&
-             tt_depth >= depth - TT_REFINE_SLACK)
-      eval = tt_score;
-  }
+  const int eval = static_eval;
   if (!in_check) {
     if (!pv_node && !excluding && !is_mate_score(beta)) {
       // Reverse futility: so far ahead that a shallow search won't change it
       // (a little sooner when the position is getting better).
-      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth * vol_pct / 100 + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
+      if (depth <= RFP_DEPTH && eval - RFP_MARGIN * depth + (improving ? int(IMPROVING_RFP) : 0) >= beta) return eval;
       // Null move: if passing still leaves us at or above beta, a real move
       // would too. Not without pieces, where passing could be best (zugzwang).
       if (!after_null && depth >= 3 && eval >= beta && has_pieces(pos)) {
@@ -772,7 +632,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   }
 
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
-  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + (FUT_BASE + FUT_MARGIN * depth) * vol_pct / 100 <= alpha;
+  const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + (FUT_BASE + FUT_MARGIN * depth) <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
   const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
@@ -790,8 +650,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   int best_score = -INF;
   Move best_move;
   int legal = 0;
-  // The move that led here, for the recapture extension.
-  const Move prev_move = ply > 0 ? pos.last_move() : Move();
 
   while (const Move move = picker.next()) {
     if (move == excluded || !pos.legal(move)) continue;
@@ -840,22 +698,9 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (move == tt_move && !excluding && ply > 0 && ply < 2 * root_depth_ && depth >= SINGULAR_DEPTH &&
         tt_depth >= depth - 3 && (tt_bound == BOUND_LOWER || tt_bound == BOUND_EXACT) && !is_mate_score(tt_score)) {
       const int singular_beta = tt_score - SINGULAR_MARGIN * depth / 10;
-      SingMemo& memo = sing_memo_[pos.key() & (SING_MEMO_SIZE - 1)];
-      const bool memo_hit = SING_MEMO_PLIES && memo.key == TranspositionTable::check(pos.key()) &&
-                            memo.move == move.raw() && depth > memo.depth && depth <= memo.depth + SING_MEMO_PLIES;
-      int score = singular_beta - SING_MEMO_MARGIN - 1;  // what the remembered test found, at least
-      if (!memo_hit) {
-        score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
-        pv_length_[ply] = ply;  // the test search wrote this node's PV
-        if (stopped_) return 0;
-        if (score < singular_beta - SING_MEMO_MARGIN) {
-          memo.key = TranspositionTable::check(pos.key());
-          memo.move = move.raw();
-          memo.depth = std::int8_t(depth);
-        } else if (memo.key == TranspositionTable::check(pos.key())) {
-          memo.key = 0;
-        }
-      }
+      const int score = negamax((depth - 1) / 2, singular_beta - 1, singular_beta, ply, cut_node, false, move);
+      pv_length_[ply] = ply;  // the test search wrote this node's PV
+      if (stopped_) return 0;
       if (score < singular_beta) {
         extension = 1;
         if (!pv_node && score < singular_beta - DOUBLE_EXT_MARGIN && double_exts_[ply] < DOUBLE_EXT_MAX) extension = 2;
@@ -864,17 +709,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       } else if (tt_score >= beta) {
         extension = -1;  // other moves come close and this one is expected to cut: less effort here
       }
-    }
-    // Recapture extension: on the main line, taking back on the square
-    // where the opponent just captured gets a ply more, so the exchange is
-    // seen to its end.
-    if (RECAPTURE_EXT && extension == 0 && pv_node && prev_move && prev_move.is_capture() && move.is_capture() &&
-        move.to() == prev_move.to() && ply < 2 * root_depth_)
-      extension = 1;
-    if (HIST_EXT && extension == 0 && move == tt_move && quiet && depth >= HIST_EXT_DEPTH && ply > 0 && ply < 2 * root_depth_) {
-      const int index = piece * 64 + move.to();
-      const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
-      if (history >= HIST_EXT_MIN) extension = 1;
     }
     const int new_depth = depth - 1 + extension;
     double_exts_[ply + 1] = double_exts_[ply] + (extension == 2);
@@ -902,13 +736,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         const int index = piece * 64 + move.to();
         const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
-        if (!pv_node && tt_was_pv) reduction -= TT_PV_LMR;  // a former main line
-        if (CORR_LMR_CP && !in_check && std::abs(static_eval - raw_eval) >= CORR_LMR_CP) reduction--;
-        if (best_score < alpha && !is_mate_score(best_score) && !is_mate_score(alpha)) {
-          if (NEAR_LMR_CP && alpha - best_score <= NEAR_LMR_CP) reduction--;
-          if (FAR_LMR_CP && alpha - best_score >= FAR_LMR_CP) reduction++;
-        }
-        if (cutoff_cnt_[ply + 1] > CUTOFF_LMR_MIN) reduction += CUTOFF_LMR;  // the earlier moves were refuted at once
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
@@ -918,16 +745,12 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (pv_node) reduction--;
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
-        if (!pv_node && tt_was_pv) reduction -= TT_PV_LMR;
         if (move.from() == threat_sq) reduction -= THREAT_LMR;
-        if (cutoff_cnt_[ply + 1] > CUTOFF_LMR_MIN) reduction += CUTOFF_LMR;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
       // Principal variation search: prove the move is no better with a null
       // window, and only search it fully if it is.
-      red_stack_[ply] = reduction;
       score = -negamax(new_depth - reduction, -alpha - 1, -alpha, ply + 1, true, false);
-      red_stack_[ply] = 0;
       int full_depth = new_depth;
       if (reduction > 0 && score > alpha) {
         if (!is_mate_score(best_score) && !is_mate_score(score)) {
@@ -960,7 +783,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           root_pv_lower_ = score >= beta;
         }
         if (score >= beta) {
-          cutoff_cnt_[ply]++;  // seen by the parent's later moves (CUTOFF_LMR)
           // History gravity: each update moves an entry toward +/-the
           // limit by a share of the bonus that shrinks as it nears it, so
           // entries saturate smoothly and recent results still count.
@@ -1004,24 +826,18 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   // Checkmate or stalemate; with a move left out, the only move was that one.
   if (legal == 0) return excluding ? alpha : in_check ? -MATE + ply : 0;
 
-  if (FH_SOFTEN && !excluding && best_score >= beta && !is_mate_score(best_score) && !is_mate_score(beta))
-    best_score = (best_score * depth + beta) / (depth + 1);
   const Bound bound = best_score >= beta ? BOUND_LOWER : best_score > alpha_at_start ? BOUND_EXACT : BOUND_UPPER;
   // Correction history learns from quiet results that say something about
   // the evaluation: not a lower bound below it or an upper bound above it.
   if (!in_check && !excluding && !best_move.is_capture() && !best_move.is_promotion() && !is_mate_score(best_score) &&
       !(bound == BOUND_LOWER && best_score <= static_eval) && !(bound == BOUND_UPPER && best_score >= static_eval)) {
-    // Volatility history: the miss that remained after the correction.
-    std::int16_t& vol = vol_history_[pos.side_to_move()][pos.pawn_key() & (CORR_SIZE - 1)];
-    const int miss = std::min(std::abs(best_score - static_eval), 400) - VOL_MEAN_CP;
-    vol = std::int16_t(vol + (miss * VOL_GRAIN - vol) / 32);
     const CorrEntries corr = corr_entries(pos, ply);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
       if (!corr.entry[i]) continue;
       std::int16_t& c = *corr.entry[i];
-      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : i == 3 ? CORR_CONT_RATE : CORR_NET_RATE;  // percent
+      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : CORR_CONT_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
       const int limit = (i != 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
       c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));
@@ -1037,7 +853,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     tte.score = std::int16_t(to_tt(best_score, ply));
     tte.depth = std::int8_t(depth);
     tte.bound = bound;
-    tte.pv = pv_node || tt_was_pv;
     tte.eval = std::int16_t(in_check ? EVAL_NONE : raw_eval);
   }
   return best_score;
@@ -1074,12 +889,7 @@ int SearchWorker::quiesce(int alpha, int beta, int ply) {
   if (in_check) {
     best_score = -MATE + ply;
   } else {
-    if (TT_EVAL_EARLY && tte && tte->key == check && tte->eval != EVAL_NONE) {
-      raw_eval = tte->eval;
-    } else {
-      raw_eval = evaluate_lazy(pos, alpha, beta);
-      if (TT_EVAL_EARLY && tte) store_eval_early(*tte, check, raw_eval);
-    }
+    raw_eval = evaluate_lazy(pos, alpha, beta);
     best_score = raw_eval + corr_entries(pos, ply).total() / CORR_GRAIN;
     if (best_score >= beta) return best_score;
     if (best_score > alpha) alpha = best_score;

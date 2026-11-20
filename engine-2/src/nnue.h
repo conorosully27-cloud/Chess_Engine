@@ -10,7 +10,7 @@
 // updated from the position before rather than recomputed: each move only
 // adds and removes a few pieces.
 //
-// The engine carries a default network (nets/engine-7.0.nnue, built in by
+// The engine carries a default network (nets/engine-7.2.nnue, built in by
 // cmake/embed_net.cmake). The engine program loads it at startup; library
 // users (tests, tools) start with none, i.e. the hand-written evaluation.
 #pragma once
@@ -34,9 +34,5 @@ bool loaded();
 // Centipawns from the side to move's point of view.
 int evaluate(const Position& pos);
 
-// A 14-bit summary of what the network sees in the position: for seven of
-// its most telling hidden units, whether each is over its threshold, from
-// the side to move's side and from the other's. 0 with no network loaded.
-int signature(const Position& pos);
 
 }  // namespace chess::nnue
