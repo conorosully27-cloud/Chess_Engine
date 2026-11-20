@@ -95,6 +95,11 @@ TUNE_PARAM(HIST_BONUS_SUB, 29, 0, 600);
 TUNE_PARAM(HIST_BONUS_MAX, 2461, 300, 4000);
 TUNE_PARAM(HIST_GRAVITY, 12573, 4000, 30000);
 TUNE_PARAM(CONT_HIST_GRAVITY, 14859, 4000, 30000);
+// Pawn history: a third continuation-style table for quiet moves, indexed
+// by the pawn structure (as Stockfish's pawnHistory), so a plan that works
+// with these pawns is tried early in other positions with them. Used in
+// move ordering only. 0 = off.
+TUNE_PARAM(PAWN_HIST, 0, 0, 1);
 // Capture history (src/movepick.h): the same bonus, gravity toward
 // +/-CAPT_HIST_GRAVITY.
 TUNE_PARAM(CAPT_HIST_GRAVITY, 26137, 4000, 30000);
@@ -334,6 +339,7 @@ void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
   std::fill(&capt_history_[0][0][0], &capt_history_[0][0][0] + PIECE_NB * 64 * 6, std::int16_t(0));
   std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
+  std::fill(pawn_history_.begin(), pawn_history_.end(), std::int16_t(0));
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
@@ -380,6 +386,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& row : history_)
     for (int& h : row) h >>= HIST_DECAY_SHIFT;  // as Engine 1.6: an arithmetic shift, rounding down
   for (std::int16_t& h : cont_history_) h = std::int16_t(h >> HIST_DECAY_SHIFT);
+  for (std::int16_t& h : pawn_history_) h = std::int16_t(h >> HIST_DECAY_SHIFT);
   for (auto& by_piece : capt_history_)
     for (auto& by_to : by_piece)
       for (std::int16_t& h : by_to) h = std::int16_t(h >> HIST_DECAY_SHIFT);
@@ -645,7 +652,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
   std::int16_t* const cont1 = cont_row(ply, 1);
   std::int16_t* const cont2 = cont_row(ply, 2);
-  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2, &capt_history_);
+  std::int16_t* const pawn_row =
+      PAWN_HIST ? &pawn_history_[(pos.pawn_key() & (PAWN_HIST_SIZE - 1)) * CONT_INDEX] : nullptr;
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2, &capt_history_,
+                    pawn_row);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
@@ -807,12 +817,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
             h = gravity(h, bonus, HIST_GRAVITY);
             cont_add(cont1, piece * 64 + move.to(), bonus);
             cont_add(cont2, piece * 64 + move.to(), bonus);
+            cont_add(pawn_row, piece * 64 + move.to(), bonus);
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
               hq = gravity(hq, -bonus, HIST_GRAVITY);
               cont_add(cont1, quiets_searched[q], -bonus);
               cont_add(cont2, quiets_searched[q], -bonus);
+              cont_add(pawn_row, quiets_searched[q], -bonus);
             }
           }
           break;
