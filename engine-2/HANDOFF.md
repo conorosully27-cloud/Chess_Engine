@@ -1,7 +1,7 @@
 # Engine 2 handoff
 
 Start here when picking up Engine 2 in a new session. Companion files:
-`README.md` (build, layout, tools), `CHANGELOG.md` (every accepted change and
+`README.md` (build, layout, tools), `NETWORK.md` (everything about the neural network and its training), `CHANGELOG.md` (every accepted change and
 its measured Elo), `FAILED_EXPERIMENTS.md` (every rejected one), and Engine 1's
 `../engine-1/HANDOFF.md` and `../engine-1/FAILED_EXPERIMENTS.md` for the
 history behind the search and evaluation.

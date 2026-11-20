@@ -9,4 +9,5 @@ Two engines in one repo, built and run separately.
   **ChessMcEngineFace** since 5.3.
 
 Run Engine 1 from inside its folder: `cd engine-1 && npm test`. To pick up
-the work in a new session, start with `engine-2/HANDOFF.md`.
+the work in a new session, start with `engine-2/HANDOFF.md`. Everything about
+the neural network and its training: [`engine-2/NETWORK.md`](engine-2/NETWORK.md).

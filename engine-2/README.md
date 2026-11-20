@@ -3,7 +3,7 @@
 The engine's name since 5.3 ("id name ChessMcEngineFace 5.5" now); "Engine 2" is
 the folder and the project's history.
 
-New session? Start with [`HANDOFF.md`](HANDOFF.md).
+New session? Start with [`HANDOFF.md`](HANDOFF.md). Everything about the neural network (every net, what data, size and buckets were worth, the trainer's history): [`NETWORK.md`](NETWORK.md).
 
 C++20 engine (bitboards, magic bitboards, NNUE evaluation). Built with CMake; the
 goal is maximum playing strength. Engine 1 (JavaScript, up to version 1.6, in
