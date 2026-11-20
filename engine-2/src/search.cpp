@@ -99,7 +99,12 @@ TUNE_PARAM(CONT_HIST_GRAVITY, 14859, 4000, 30000);
 // by the pawn structure (as Stockfish's pawnHistory), so a plan that works
 // with these pawns is tried early in other positions with them. Used in
 // move ordering only. 0 = off.
-TUNE_PARAM(PAWN_HIST, 0, 0, 1);
+TUNE_PARAM(PAWN_HIST, 1, 0, 1);
+// Pawn history v2: also counted in the history that scales late move
+// reductions (1 = on), and held to its own lower gravity, as its entries
+// are updated far more often than a continuation entry.
+TUNE_PARAM(PAWN_HIST_LMR, 1, 0, 1);
+TUNE_PARAM(PAWN_HIST_GRAVITY, 8000, 2000, 30000);
 // Capture history (src/movepick.h): the same bonus, gravity toward
 // +/-CAPT_HIST_GRAVITY.
 TUNE_PARAM(CAPT_HIST_GRAVITY, 26137, 4000, 30000);
@@ -744,7 +749,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
         if (!improving && !pv_node && legal >= IMPROVING_LMR_MOVE) reduction += IMPROVING_LMR;  // getting worse: late quiets matter less
         const int index = piece * 64 + move.to();
-        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0) +
+                            (PAWN_HIST_LMR && pawn_row ? pawn_row[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
@@ -817,14 +823,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
             h = gravity(h, bonus, HIST_GRAVITY);
             cont_add(cont1, piece * 64 + move.to(), bonus);
             cont_add(cont2, piece * 64 + move.to(), bonus);
-            cont_add(pawn_row, piece * 64 + move.to(), bonus);
+            if (pawn_row) pawn_row[piece * 64 + move.to()] = std::int16_t(gravity(pawn_row[piece * 64 + move.to()], bonus, PAWN_HIST_GRAVITY));
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
               hq = gravity(hq, -bonus, HIST_GRAVITY);
               cont_add(cont1, quiets_searched[q], -bonus);
               cont_add(cont2, quiets_searched[q], -bonus);
-              cont_add(pawn_row, quiets_searched[q], -bonus);
+              if (pawn_row) pawn_row[quiets_searched[q]] = std::int16_t(gravity(pawn_row[quiets_searched[q]], -bonus, PAWN_HIST_GRAVITY));
             }
           }
           break;

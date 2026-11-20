@@ -11,6 +11,25 @@ code can be recovered), the results, how promising it looked beforehand
 (`122591c`), was-PV reductions (`ebcc4b0`) and cutoff-count reductions
 (`21faed9`) each have their switched-off code at that commit.
 
+## Pawn history (ordering only), on 7.2 (Nov 2026)
+
+**Change** (`PAWN_HIST` 1 in `search.cpp`; commit `d4f5f9e`, committed
+off): a quiet-move history indexed by the pawn structure (1024 slots of
+the pawn key x piece * 64 + to), updated with the same bonus / malus and
+gravity as continuation history, added to quiet move ordering only (not
+LMR or pruning). Bench 1224793 -> 1410490.
+
+**Result:** vs 7.2 at 40+0.4 (cloud, 4 at a time, SPRT 0 / 5): **362
+games**, +36 -37 =289, **-1 +/- 15**, LLR -0.28. Stopped flat to test a
+fuller version (below/above: pawn history v2, also in LMR with its own
+gravity) (`~/matches/pawnhist-72.log`).
+
+**Prior:** 6/10 (standard in strong engines).
+
+**Why it failed (likely):** ordering alone adds little once killers and
+two continuation histories order the quiets; the payoff in other engines
+comes mostly from its use in reductions and pruning.
+
 ## Early table evaluations without the eval cache, on the 7.1 candidate (Nov 2026)
 
 **Change** (`TT_EVAL_EARLY` 1 in `search.cpp`, `EVAL_CACHE` 0 in
