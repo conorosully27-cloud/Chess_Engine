@@ -196,10 +196,15 @@ class FeatureTransformer(torch.nn.Module):
         with the number of inputs."""
         if x.dtype != torch.int64:
             return x @ self.weight + self.bias
-        pad = x >= self.in_features
-        idx = torch.where(pad, torch.zeros_like(x), x)
-        return torch.nn.functional.embedding_bag(idx, self.weight, mode="sum",
-                                                 per_sample_weights=(~pad).to(self.weight.dtype)) + self.bias
+        # Only the real pieces go in, as one flat list with each position's
+        # start: padding the empty squares onto row 0 with weight 0 made every
+        # position hit that row ~30 times, which serialised the backward pass
+        # on a GPU (all those gradient adds land on one row).
+        on = x < self.in_features
+        flat = x[on]
+        offsets = torch.zeros(len(x), dtype=torch.int64, device=x.device)
+        offsets[1:] = torch.cumsum(on.sum(dim=1), 0)[:-1]
+        return torch.nn.functional.embedding_bag(flat, self.weight, offsets, mode="sum") + self.bias
 
 
 def upgrade_state(saved):
@@ -245,7 +250,7 @@ class NNUE(torch.nn.Module):
 
 def batch_loss(model, records, device, wdl):
     pieces, stm, score, result = decode(records)
-    xw, xb = features(pieces, device, model.king_buckets, sparse=model.king_buckets > 1)
+    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1))
     stm_t = torch.from_numpy(stm).to(device)
     score = torch.from_numpy(score).to(device)
     result = torch.from_numpy(result).to(device) / 2  # White's side: 0 loss, 0.5 draw, 1 win
@@ -300,6 +305,9 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="use only this many positions per epoch (for a quick test)")
     ap.add_argument("--resume", help="checkpoint to continue from")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--ft", choices=("sparse", "dense"), default="sparse",
+                    help="how king-bucket nets compute the first layer: sparse lookups, or a dense one-hot matmul "
+                         "(same result; on some GPUs dense is faster)")
     ap.add_argument("--hidden", type=int, default=HIDDEN, help="hidden units per side (the engine is built to match)")
     ap.add_argument("--screlu", action="store_true", help="square the clipped hidden units (SCReLU)")
     ap.add_argument("--output-buckets", type=int, default=1, metavar="N",
@@ -326,6 +334,7 @@ def main():
 
     torch.manual_seed(args.seed)
     model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets).to(device)
+    model.sparse_ft = args.king_buckets > 1 and args.ft == "sparse"
     if args.init_from and not args.resume:
         src = torch.load(args.init_from, map_location=device)
         sm = upgrade_state(src)
