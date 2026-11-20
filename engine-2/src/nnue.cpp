@@ -7,7 +7,7 @@
 #include <iterator>
 #include <vector>
 
-#if defined(__AVX2__)
+#if defined(__AVX2__) || defined(__AVX512BW__)
 #include <immintrin.h>
 #endif
 
@@ -61,7 +61,24 @@ inline const std::int16_t* weights(Piece pc, Square s, Color side) { return net.
 // from-scratch computation's.
 using Row = const std::int16_t* __restrict;
 
-#if defined(__AVX2__)
+#if defined(__AVX512BW__)
+// AVX-512 (ENGINE_AVX512 builds): 64 units a step. Same results.
+template <int Adds, int Subs>
+inline void add_sub(std::int16_t* __restrict out, Row in, const std::int16_t* const (&rows)[Adds + Subs]) {
+  for (int j = 0; j < HIDDEN; j += 64) {
+    __m512i v0 = _mm512_loadu_si512(in + j);
+    __m512i v1 = _mm512_loadu_si512(in + j + 32);
+    for (int k = 0; k < Adds + Subs; k++) {
+      const __m512i w0 = _mm512_loadu_si512(rows[k] + j);
+      const __m512i w1 = _mm512_loadu_si512(rows[k] + j + 32);
+      v0 = k < Adds ? _mm512_add_epi16(v0, w0) : _mm512_sub_epi16(v0, w0);
+      v1 = k < Adds ? _mm512_add_epi16(v1, w1) : _mm512_sub_epi16(v1, w1);
+    }
+    _mm512_storeu_si512(out + j, v0);
+    _mm512_storeu_si512(out + j + 32, v1);
+  }
+}
+#elif defined(__AVX2__)
 // Written out with AVX2, 32 units a step: the compiler's own vectorization
 // of the plain loops below steps 16 at a time, and at 512 units the loop
 // overhead was a sizeable share of the network's cost. Same results.
@@ -133,7 +150,19 @@ inline std::int32_t output(Row us, Row them, Row w) {
 // unit x weight is formed first and fits 16 bits (the trainer keeps these
 // output weights within +/-127), so the 16-bit multiply-add still applies.
 // The sum is in units of QA x QA x QB.
-#if defined(__AVX2__)
+#if defined(__AVX512BW__)
+inline std::int32_t output_squared(Row us, Row them, Row w) {
+  const __m512i zero = _mm512_setzero_si512(), qa = _mm512_set1_epi16(QA);
+  __m512i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 32) {
+    const __m512i u = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(us + j), zero), qa);
+    const __m512i t = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(them + j), zero), qa);
+    s0 = _mm512_add_epi32(s0, _mm512_madd_epi16(_mm512_mullo_epi16(u, _mm512_loadu_si512(w + j)), u));
+    s1 = _mm512_add_epi32(s1, _mm512_madd_epi16(_mm512_mullo_epi16(t, _mm512_loadu_si512(w + HIDDEN + j)), t));
+  }
+  return _mm512_reduce_add_epi32(_mm512_add_epi32(s0, s1));
+}
+#elif defined(__AVX2__)
 inline std::int32_t output_squared(Row us, Row them, Row w) {
   const __m256i zero = _mm256_setzero_si256(), qa = _mm256_set1_epi16(QA);
   __m256i s0 = zero, s1 = zero;

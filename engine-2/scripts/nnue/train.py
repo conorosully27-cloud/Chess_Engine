@@ -25,11 +25,14 @@ import argparse
 import glob
 import math
 import os
+import queue
 import struct
+import threading
 import time
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from data import RECORD
 
@@ -113,16 +116,19 @@ SQUARES = torch.arange(64)
 
 
 def features(pieces, device):
-    """One-hot inputs from White's and Black's side, (B, 768) each."""
+    """The inputs that are on, from White's and Black's side: (B, 32) feature
+    numbers each, padded with INPUTS (no feature) after the board's pieces.
+    A position has at most 32 of the 768 inputs on, so the first layer sums
+    32 weight rows (embedding_bag) instead of multiplying a mostly-zero
+    (B, 768) one-hot matrix: the same result, much less work."""
     pieces = torch.from_numpy(pieces).to(device=device, dtype=torch.int64)
     on = pieces >= 0
     sq = SQUARES.to(device)
     white = torch.where(on, pieces * 64 + sq, INPUTS)
     # Seen from Black: colors swapped (piece 0-5 <-> 6-11) and the board flipped.
     black = torch.where(on, ((pieces + 6) % 12) * 64 + (sq ^ 56), INPUTS)
-    xw = torch.zeros(len(pieces), INPUTS + 1, device=device).scatter_(1, white, 1.0)[:, :INPUTS]
-    xb = torch.zeros(len(pieces), INPUTS + 1, device=device).scatter_(1, black, 1.0)[:, :INPUTS]
-    return xw, xb
+    # Sorting moves the padding (INPUTS, the largest number) to the end.
+    return torch.sort(white, dim=1).values[:, :32], torch.sort(black, dim=1).values[:, :32]
 
 
 class NNUE(torch.nn.Module):
@@ -133,14 +139,22 @@ class NNUE(torch.nn.Module):
         self.out = torch.nn.Linear(2 * hidden, buckets)
 
     def forward(self, xw, xb, stm, count=None):
-        """count: pieces on the board, (B,); only needed with output buckets."""
-        w, b = self.ft(xw), self.ft(xb)
+        """xw, xb: features() from White's and Black's side; count: pieces on
+        the board, (B,), only needed with output buckets."""
+        # Side to move first: swap the (B, 32) inputs, not the (B, 2 x hidden)
+        # hidden units (moving those around cost a third of a training step).
         black_to_move = (stm == 1).unsqueeze(1)
-        hidden = torch.where(black_to_move, torch.cat([b, w], 1), torch.cat([w, b], 1))
-        act = torch.clamp(hidden, 0, 1)
+        us, them = torch.where(black_to_move, xb, xw), torch.where(black_to_move, xw, xb)
+        hidden = self.ft.out_features
+        # The first layer's weights as rows, one per input, plus a zero row
+        # for the padding.
+        rows = torch.cat([self.ft.weight.T, self.ft.weight.new_zeros(1, hidden)])
+        a = torch.clamp(F.embedding_bag(us, rows, mode="sum", padding_idx=INPUTS) + self.ft.bias, 0, 1)
+        b = torch.clamp(F.embedding_bag(them, rows, mode="sum", padding_idx=INPUTS) + self.ft.bias, 0, 1)
         if self.screlu:
-            act = act * act
-        out = self.out(act)
+            a, b = a * a, b * b
+        w = self.out.weight
+        out = a @ w[:, :hidden].T + b @ w[:, hidden:].T + self.out.bias
         if self.buckets == 1:
             return out.squeeze(1)
         return out.gather(1, bucket_of(count, self.buckets).unsqueeze(1)).squeeze(1)
@@ -154,7 +168,8 @@ class NNUE(torch.nn.Module):
 
 
 def batch_loss(model, records, device, wdl):
-    pieces, stm, score, result = decode(records)
+    """records: a batch of records, or decode() of them (prefetched)."""
+    pieces, stm, score, result = decode(records) if isinstance(records, np.ndarray) else records
     xw, xb = features(pieces, device)
     stm_t = torch.from_numpy(stm).to(device)
     score = torch.from_numpy(score).to(device)
@@ -166,6 +181,24 @@ def batch_loss(model, records, device, wdl):
     count = torch.from_numpy((pieces >= 0).sum(axis=1)).to(device)
     pred = torch.sigmoid(model(xw, xb, stm_t, count) * SCALE / K)
     return torch.mean((pred - target) ** 2)
+
+
+def prefetch(batches, depth=4):
+    """decode() the batches in a background thread, a few ahead, so the
+    GPU need not wait for the CPU's share of each batch."""
+    q = queue.Queue(maxsize=depth)
+    done = object()
+
+    def work():
+        try:
+            for records in batches:
+                q.put(decode(records))
+        finally:
+            q.put(done)
+
+    threading.Thread(target=work, daemon=True).start()
+    while (item := q.get()) is not done:
+        yield item
 
 
 def export(model, path):
@@ -199,6 +232,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--batch", type=int, default=16384)
     ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--lr-end", type=float, default=0.1, metavar="F",
+                    help="the learning rate ends at F x --lr, on a cosine (0.1 as before; 0.01 falls 100x)")
     ap.add_argument("--wdl", type=float, default=0.25, help="weight of the game result in the target")
     ap.add_argument("--limit", type=int, default=0, help="use only this many positions per epoch (for a quick test)")
     ap.add_argument("--resume", help="checkpoint to continue from")
@@ -215,6 +250,9 @@ def main():
     if not paths:
         raise SystemExit("no data files found")
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    # TF32 for the output layer's matrix products on recent NVIDIA GPUs
+    # (Ampere on): several times faster than full float32.
+    torch.backends.cuda.matmul.allow_tf32 = True
     data = Dataset(paths)
     val = data.validation()
     os.makedirs(args.out, exist_ok=True)
@@ -225,8 +263,8 @@ def main():
     torch.manual_seed(args.seed)
     model = NNUE(args.hidden, args.screlu, args.output_buckets).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
-    # The learning rate falls by 10x over the run, on a cosine.
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs, eta_min=args.lr / 10)
+    # The learning rate falls by 1 / --lr-end (10x by default) over the run, on a cosine.
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs, eta_min=args.lr * args.lr_end)
     start_epoch = 1
     if args.resume:
         state = torch.load(args.resume, map_location=device)
@@ -242,7 +280,7 @@ def main():
     for epoch in range(start_epoch, args.epochs + 1):
         model.train()
         t0, total, n = time.time(), 0.0, 0
-        for records in data.batches(args.batch, rng):
+        for records in prefetch(data.batches(args.batch, rng)):
             loss = batch_loss(model, records, device, args.wdl)
             opt.zero_grad()
             loss.backward()
