@@ -28,12 +28,14 @@ def main():
     saved = torch.load(checkpoint, map_location="cpu")
     state = upgrade_state(saved)
     # Hidden units, activation, output layers and king buckets, from the checkpoint.
-    king_buckets = state["ft.weight"].shape[0] // 768
-    model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets)
+    factorize = saved.get("factorize", False)
+    king_buckets = saved.get("king_buckets", state["ft.weight"].shape[0] // 768)
+    model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets,
+                 factorize)
     model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
-    xw, xb = features(pieces, "cpu", king_buckets, sparse=king_buckets > 1)
+    xw, xb = features(pieces, "cpu", king_buckets, sparse=king_buckets > 1, factorize=factorize)
     with torch.no_grad():
         piece_count = torch.from_numpy((pieces >= 0).sum(axis=1))
         float_eval = (model(xw, xb, torch.from_numpy(stm), piece_count) * SCALE).numpy()

@@ -19,6 +19,12 @@ the network file, so no rebuild is needed):
                       files e-h. The first layer is then sparse (only the
                       ~32 active inputs are looked up), so training costs
                       about the same as without.
+  --factorize         with king buckets: train a shared set of 768 input
+                      weights that every bucket adds to ("factoriser"), so
+                      each bucket only learns how it differs from the rest
+                      and rare (bucket, piece, square) inputs still learn
+                      from all the data; folded into the buckets on export,
+                      so the engine and the network file are unchanged
   --init-from CKPT    start from another run's checkpoint (same hidden units,
                       activation and output layers): with king buckets its
                       input weights are copied into every bucket, so the
@@ -53,6 +59,7 @@ SCALE = 400  # output unit, in centipawns
 K = 400      # centipawns per unit of the sigmoid that turns scores into win probabilities
 FT_CLIP = 1.98  # first-layer weight limit: 32 pieces * 1.98 * QA fits a 16-bit accumulator
 OUT_CLIP = 127 / QB  # output weight limit with --screlu: unit x weight must fit 16 bits in the engine
+QB_FINE = 1024  # output weights times QB_FINE with --fine-output (engine: output_squared_fine)
 
 
 # King bucket maps: for each square of a side's own king, seen from that
@@ -168,13 +175,24 @@ def feature_indices(pieces, device, king_buckets=1):
     return torch.where(on, white, total), torch.where(on, black, total)
 
 
-def features(pieces, device, king_buckets=1, sparse=False):
+def features(pieces, device, king_buckets=1, sparse=False, factorize=False):
     """The network's inputs from White's and Black's side: one-hot (B, inputs)
-    each, or with `sparse` the (B, 64) index lists of feature_indices."""
+    each, or with `sparse` the (B, 64) index lists of feature_indices. With
+    `factorize` each piece also turns on its shared input (the same piece
+    and square, mirrored as its bucket is, in the 768 rows after the
+    buckets): (B, 128) index lists, padded with the number of inputs."""
     white, black = feature_indices(pieces, device, king_buckets)
+    total = INPUTS * king_buckets
+    if factorize:
+        pad = total + INPUTS
+
+        def with_shared(idx):
+            on = idx < total
+            return torch.cat([torch.where(on, idx, pad), torch.where(on, idx % INPUTS + total, pad)], 1)
+
+        white, black, total = with_shared(white), with_shared(black), pad
     if sparse:
         return white, black
-    total = INPUTS * king_buckets
     xw = torch.zeros(len(pieces), total + 1, device=device).scatter_(1, white, 1.0)[:, :total]
     xb = torch.zeros(len(pieces), total + 1, device=device).scatter_(1, black, 1.0)[:, :total]
     return xw, xb
@@ -220,11 +238,31 @@ def upgrade_state(saved):
 
 
 class NNUE(torch.nn.Module):
-    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1, king_buckets=1):
+    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1, king_buckets=1, factorize=False):
         super().__init__()
         self.screlu, self.buckets, self.king_buckets = screlu, buckets, king_buckets
-        self.ft = FeatureTransformer(INPUTS * king_buckets, hidden)
+        self.factorize = factorize and king_buckets > 1
+        rows = INPUTS * king_buckets
+        self.ft = FeatureTransformer(rows + (INPUTS if self.factorize else 0), hidden)
+        if self.factorize:
+            # Start as a plain network: the buckets' own weights at 0, the
+            # shared ones initialised as a 768-input layer would be.
+            with torch.no_grad():
+                bound = 1 / math.sqrt(INPUTS)
+                self.ft.weight[:rows].zero_()
+                self.ft.weight[rows:].uniform_(-bound, bound)
+                self.ft.bias.uniform_(-bound, bound)
         self.out = torch.nn.Linear(2 * hidden, buckets)
+
+    def bucket_weights(self):
+        """The first layer's weights as the engine uses them, (king_buckets x
+        768, hidden): with the factoriser, each bucket's own weights plus the
+        shared ones."""
+        rows = INPUTS * self.king_buckets
+        w = self.ft.weight
+        if not self.factorize:
+            return w
+        return (w[:rows].view(self.king_buckets, INPUTS, -1) + w[rows:]).reshape(rows, -1)
 
     def transform(self, x):
         return self.ft(x)
@@ -248,25 +286,35 @@ class NNUE(torch.nn.Module):
 
     def clip(self):
         with torch.no_grad():
-            self.ft.weight.clamp_(-FT_CLIP, FT_CLIP)
+            if self.factorize:
+                # Keep what the engine will use, bucket + shared, within the
+                # limit (and the shared weights themselves).
+                rows = INPUTS * self.king_buckets
+                shared = self.ft.weight[rows:]
+                shared.clamp_(-FT_CLIP, FT_CLIP)
+                own = self.ft.weight[:rows].view(self.king_buckets, INPUTS, -1)
+                own.copy_(torch.clamp(own + shared, -FT_CLIP, FT_CLIP) - shared)
+            else:
+                self.ft.weight.clamp_(-FT_CLIP, FT_CLIP)
             self.ft.bias.clamp_(-FT_CLIP, FT_CLIP)
             if self.screlu:
                 self.out.weight.clamp_(-OUT_CLIP, OUT_CLIP)
 
 
-def batch_loss(model, records, device, wdl):
+def batch_loss(model, records, device, wdl, k=K):
     """records: a batch of records, or decode() of them (prefetched)."""
     pieces, stm, score, result = decode(records) if isinstance(records, np.ndarray) else records
-    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1))
+    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1),
+                      factorize=model.factorize)
     stm_t = torch.from_numpy(stm).to(device)
     score = torch.from_numpy(score).to(device)
     result = torch.from_numpy(result).to(device) / 2  # White's side: 0 loss, 0.5 draw, 1 win
     white = stm_t == 0
     score_stm = torch.where(white, score, -score)
     result_stm = torch.where(white, result, 1 - result)
-    target = (1 - wdl) * torch.sigmoid(score_stm / K) + wdl * result_stm
+    target = (1 - wdl) * torch.sigmoid(score_stm / k) + wdl * result_stm
     count = torch.from_numpy((pieces >= 0).sum(axis=1)).to(device)
-    pred = torch.sigmoid(model(xw, xb, stm_t, count) * SCALE / K)
+    pred = torch.sigmoid(model(xw, xb, stm_t, count) * SCALE / k)
     return torch.mean((pred - target) ** 2)
 
 
@@ -288,7 +336,7 @@ def prefetch(batches, depth=4):
         yield item
 
 
-def export(model, path):
+def export(model, path, fine=False):
     """The engine's network file (little-endian). Without --screlu and
     --output-buckets, version 1, as before:
     b"E2NN", u32 version 1, u32 hidden,
@@ -299,18 +347,27 @@ def export(model, path):
     i16 out_weight[buckets][2 * hidden], i32 out_bias[buckets].
     With king buckets, version 3: after buckets come u32 king_buckets,
     u32 mirror (1) and u8 king_map[64] (KING_MAPS), and ft_weight has
-    king_buckets * 768 rows, bucket-major."""
-    ft_w = torch.round(model.ft.weight.detach().cpu() * QA).to(torch.int16).numpy()  # (inputs, hidden), input-major
+    king_buckets * 768 rows, bucket-major. The activation field is 0
+    (clipped), 1 (SCReLU) or 2 (SCReLU with `fine` output weights: x1024
+    instead of x64, out_bias x QA x 1024; engines before Nov 2026 refuse it)."""
+    ft_w = torch.round(model.bucket_weights().detach().cpu() * QA).to(torch.int16).numpy()  # (inputs, hidden), input-major
     ft_b = torch.round(model.ft.bias.detach().cpu() * QA).to(torch.int16).numpy()
-    out_w = torch.round(model.out.weight.detach().cpu() * QB).to(torch.int16).numpy()  # (buckets, 2 * hidden)
-    out_b = torch.round(model.out.bias.detach().cpu().double() * QA * QB).to(torch.int32).numpy()
+    if fine and not model.screlu:
+        raise ValueError("fine output weights are for SCReLU networks")
+    qb = QB_FINE if fine else QB
+    out_w = model.out.weight.detach().cpu() * qb
+    if out_w.abs().max() > 32767:
+        raise ValueError("output weights too large for 16 bits")
+    out_w = torch.round(out_w).to(torch.int16).numpy()  # (buckets, 2 * hidden)
+    out_b = torch.round(model.out.bias.detach().cpu().double() * QA * qb).to(torch.int32).numpy()
+    activation = (2 if fine else 1) if model.screlu else 0
     with open(path, "wb") as f:
         if model.king_buckets > 1:
-            f.write(b"E2NN" + struct.pack("<IIIIII", 3, model.ft.out_features, int(model.screlu), model.buckets,
+            f.write(b"E2NN" + struct.pack("<IIIIII", 3, model.ft.out_features, activation, model.buckets,
                                           model.king_buckets, 1))
             f.write(bytes(KING_MAPS[model.king_buckets]))
         elif model.screlu or model.buckets > 1:
-            f.write(b"E2NN" + struct.pack("<IIII", 2, model.ft.out_features, int(model.screlu), model.buckets))
+            f.write(b"E2NN" + struct.pack("<IIII", 2, model.ft.out_features, activation, model.buckets))
         else:
             f.write(b"E2NN" + struct.pack("<II", 1, model.ft.out_features))
         f.write(ft_w.astype("<i2").tobytes())
@@ -342,29 +399,52 @@ def main():
                     help="N output layers chosen by piece count (1 = a single output, as before; 8 is usual)")
     ap.add_argument("--king-buckets", type=int, default=1, choices=sorted(KING_MAPS),
                     help="input weight sets chosen by each side's own king square, mirrored (1 = none, as before)")
+    ap.add_argument("--factorize", action="store_true",
+                    help="with king buckets: shared input weights every bucket adds to, folded in on export")
+    ap.add_argument("--bucket-decay", type=float, default=0.0, metavar="L",
+                    help="with --factorize: each step, shrink the buckets' own weights by learning rate x L (not the "
+                         "shared ones), so a bucket with little data stays close to the shared weights (0 = off)")
     ap.add_argument("--init-from", metavar="CKPT",
-                    help="start from this checkpoint's weights (its input weights copied into every king bucket)")
+                    help="start from this checkpoint's weights (its input weights copied into every king bucket, "
+                         "or with --factorize into the shared weights)")
+    ap.add_argument("--k", type=float, default=K,
+                    help="centipawns per unit of the sigmoid that turns scores into win probabilities (400 as before; "
+                         "data.py prints the best fit for a data file)")
+    ap.add_argument("--wdl-end", type=float, metavar="W",
+                    help="move the result weight from --wdl in the first epoch to W in the last, in equal steps")
+    ap.add_argument("--fine-output", action="store_true",
+                    help="with --screlu: write output weights x1024 (16x less rounding error; needs a current engine)")
+    ap.add_argument("--tf32", action="store_true",
+                    help="TF32 matrix products on NVIDIA GPUs (Ampere on): faster for --ft dense, less precise")
     args = ap.parse_args()
     if not 1 <= args.output_buckets <= 8:
         raise SystemExit("--output-buckets must be between 1 and 8")
+    if args.fine_output and not args.screlu:
+        raise SystemExit("--fine-output needs --screlu")
+    if args.factorize and args.king_buckets == 1:
+        raise SystemExit("--factorize needs --king-buckets")
+    if args.bucket_decay and not args.factorize:
+        raise SystemExit("--bucket-decay needs --factorize")
 
     paths = sorted(p for pattern in args.data for p in glob.glob(pattern))
     if not paths:
         raise SystemExit("no data files found")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # TF32 for matrix products on recent NVIDIA GPUs (Ampere on): several
-    # times faster than full float32.
-    torch.backends.cuda.matmul.allow_tf32 = True
+    # Off by default: with the sparse first layer the only matrix product
+    # left is the small output layer, so TF32 saves little, and it rounds
+    # inputs to 10 bits of mantissa.
+    torch.backends.cuda.matmul.allow_tf32 = args.tf32
     data = Dataset(paths)
     val = data.validation()
     os.makedirs(args.out, exist_ok=True)
     print(f"{len(paths)} files, {data.size:,} training positions, {args.hidden} hidden units, "
           f"{'squared clipped (SCReLU)' if args.screlu else 'clipped'} units, "
           f"{args.output_buckets} output layer{'s' if args.output_buckets > 1 else ''}, "
-          f"{args.king_buckets} king bucket{'s' if args.king_buckets > 1 else ''}, device {device}")
+          f"{args.king_buckets} king bucket{'s' if args.king_buckets > 1 else ''}"
+          f"{' (factorised)' if args.factorize else ''}, device {device}")
 
     torch.manual_seed(args.seed)
-    model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets).to(device)
+    model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize).to(device)
     model.sparse_ft = args.king_buckets > 1 and args.ft == "sparse"
     if args.init_from and not args.resume:
         src = torch.load(args.init_from, map_location=device)
@@ -372,12 +452,20 @@ def main():
         if (src.get("screlu", False) != args.screlu or sm["out.weight"].shape[0] != args.output_buckets
                 or sm["ft.weight"].shape[1] != args.hidden):
             raise SystemExit("--init-from: the checkpoint has different --hidden / --screlu / --output-buckets")
-        src_kb = sm["ft.weight"].shape[0] // INPUTS
+        src_kb = src.get("king_buckets", sm["ft.weight"].shape[0] // INPUTS)
+        src_w = sm["ft.weight"]
+        if src.get("factorize", False):  # fold the source's shared weights into its buckets
+            rows = INPUTS * src_kb
+            src_w = (src_w[:rows].view(src_kb, INPUTS, -1) + src_w[rows:]).reshape(rows, -1)
+        rows = INPUTS * args.king_buckets
         with torch.no_grad():
+            model.ft.weight.zero_()
             if src_kb == args.king_buckets:
-                model.ft.weight.copy_(sm["ft.weight"])
+                model.ft.weight[:rows].copy_(src_w)
+            elif src_kb == 1 and args.factorize:
+                model.ft.weight[rows:].copy_(src_w)  # shared weights = the source's, own weights 0
             elif src_kb == 1:
-                model.ft.weight.copy_(sm["ft.weight"].repeat(args.king_buckets, 1))
+                model.ft.weight.copy_(src_w.repeat(args.king_buckets, 1))
             else:
                 raise SystemExit("--init-from: can only start king buckets from a network without them")
             model.ft.bias.copy_(sm["ft.bias"])
@@ -392,8 +480,10 @@ def main():
         state = torch.load(args.resume, map_location=device)
         model_state = upgrade_state(state)
         if (state.get("screlu", False) != args.screlu or model_state["out.weight"].shape[0] != args.output_buckets
-                or model_state["ft.weight"].shape[0] != INPUTS * args.king_buckets):
-            raise SystemExit("the checkpoint was trained with different --screlu / --output-buckets / --king-buckets settings")
+                or model_state["ft.weight"].shape[0] != model.ft.in_features
+                or state.get("factorize", False) != args.factorize):
+            raise SystemExit("the checkpoint was trained with different --screlu / --output-buckets / --king-buckets / "
+                             "--factorize settings")
         model.load_state_dict(model_state)
         if state.get("ft_input_major", False):
             opt.load_state_dict(state["opt"])
@@ -413,12 +503,17 @@ def main():
     rng = np.random.default_rng(args.seed + start_epoch)
     for epoch in range(start_epoch, args.epochs + 1):
         model.train()
+        wdl = args.wdl if args.wdl_end is None or args.epochs == 1 else \
+            args.wdl + (args.wdl_end - args.wdl) * (epoch - 1) / (args.epochs - 1)
         t0, total, n = time.time(), 0.0, 0
         for records in prefetch(data.batches(args.batch, rng)):
-            loss = batch_loss(model, records, device, args.wdl)
+            loss = batch_loss(model, records, device, wdl, args.k)
             opt.zero_grad()
             loss.backward()
             opt.step()
+            if args.bucket_decay:
+                with torch.no_grad():
+                    model.ft.weight[:INPUTS * args.king_buckets].mul_(1 - opt.param_groups[0]["lr"] * args.bucket_decay)
             model.clip()
             total += loss.item()
             n += 1
@@ -429,12 +524,13 @@ def main():
         sched.step()
         model.eval()
         with torch.no_grad():
-            val_loss = batch_loss(model, val, device, args.wdl).item()
+            val_loss = batch_loss(model, val, device, wdl, args.k).item()
         print(f"epoch {epoch}: train {total / max(n, 1):.6f}, validation {val_loss:.6f}, {time.time() - t0:.0f} s", flush=True)
         torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
-                    "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True},
+                    "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True,
+                    "factorize": args.factorize},
                    os.path.join(args.out, "checkpoint.pt"))
-        export(model, os.path.join(args.out, f"net-{epoch}.nnue"))
+        export(model, os.path.join(args.out, f"net-{epoch}.nnue"), args.fine_output)
 
 
 if __name__ == "__main__":

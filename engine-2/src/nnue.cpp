@@ -18,6 +18,10 @@ namespace {
 constexpr int INPUTS = 768;
 constexpr int QA = 255;
 constexpr int QB = 64;
+// Output weights of "fine" SCReLU networks (activation 2 in the file):
+// x1024 instead of x64, so the output layer's rounding error is 16x smaller
+// (about 0.7 cp on average instead of 6 on 7.2's network).
+constexpr int QB_FINE = 1024;
 constexpr int SCALE = 400;
 
 constexpr int MAX_BUCKETS = 8;
@@ -34,6 +38,7 @@ struct Network {
   std::int32_t out_bias[MAX_BUCKETS];
   int buckets = 1;      // output layers, chosen by piece count
   bool screlu = false;  // the clipped units are squared before the output layer
+  bool fine = false;    // ...and the output weights are x QB_FINE (output_squared_fine)
   // King buckets (network file version 3): each side's inputs depend on its
   // own king's square, seen from that side: king_map gives the bucket, and
   // with `mirror` a king on files e-h flips every square left-right (so the
@@ -214,6 +219,62 @@ inline std::int32_t output_squared(Row us, Row them, Row w) {
 }
 #endif
 
+// SCReLU with fine output weights (x QB_FINE): unit x weight no longer fits
+// 16 bits, so it is formed with a rounding multiply-high instead:
+//   v = round((unit << 7) x weight / 2^15) = round(unit x weight / 256),
+// at most about |weight| (unit <= 255), and then v x unit is summed by the
+// 16-bit multiply-add as before. The sum is in units of QA x QA x QB_FINE /
+// 256. Same instruction count as output_squared but one shift.
+constexpr int FINE_SHIFT = 7;
+#if defined(__AVX512BW__)
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  const __m512i zero = _mm512_setzero_si512(), qa = _mm512_set1_epi16(QA);
+  __m512i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 32) {
+    const __m512i u = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(us + j), zero), qa);
+    const __m512i t = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(them + j), zero), qa);
+    const __m512i uw = _mm512_mulhrs_epi16(_mm512_slli_epi16(u, FINE_SHIFT), _mm512_loadu_si512(w + j));
+    const __m512i tw = _mm512_mulhrs_epi16(_mm512_slli_epi16(t, FINE_SHIFT), _mm512_loadu_si512(w + HIDDEN + j));
+    s0 = _mm512_add_epi32(s0, _mm512_madd_epi16(uw, u));
+    s1 = _mm512_add_epi32(s1, _mm512_madd_epi16(tw, t));
+  }
+  return _mm512_reduce_add_epi32(_mm512_add_epi32(s0, s1));
+}
+#elif defined(__AVX2__)
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  const __m256i zero = _mm256_setzero_si256(), qa = _mm256_set1_epi16(QA);
+  __m256i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 16) {
+    const __m256i u = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(us + j)), zero), qa);
+    const __m256i t = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(them + j)), zero), qa);
+    const __m256i uw = _mm256_mulhrs_epi16(_mm256_slli_epi16(u, FINE_SHIFT), _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + j)));
+    const __m256i tw =
+        _mm256_mulhrs_epi16(_mm256_slli_epi16(t, FINE_SHIFT), _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + HIDDEN + j)));
+    s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(uw, u));
+    s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(tw, t));
+  }
+  __m256i s = _mm256_add_epi32(s0, s1);
+  __m128i h = _mm_add_epi32(_mm256_castsi256_si128(s), _mm256_extracti128_si256(s, 1));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0x4E));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0xB1));
+  return _mm_cvtsi128_si32(h);
+}
+#else
+// The rounding multiply-high (x86 pmulhrsw, WebAssembly i16x8.q15mulr_sat_s)
+// written out: (a x b + 2^14) >> 15.
+inline std::int32_t mulhrs(std::int32_t a, std::int32_t b) { return (a * b + (1 << 14)) >> 15; }
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  std::int32_t sum = 0;
+  for (int j = 0; j < HIDDEN; j++) {
+    const std::int32_t u = std::min<std::int16_t>(std::max<std::int16_t>(us[j], 0), QA);
+    const std::int32_t t = std::min<std::int16_t>(std::max<std::int16_t>(them[j], 0), QA);
+    sum += mulhrs(u << FINE_SHIFT, w[j]) * u;
+    sum += mulhrs(t << FINE_SHIFT, w[HIDDEN + j]) * t;
+  }
+  return sum;
+}
+#endif
+
 // next = prev changed by next.dirty, from one side, whose king state
 // (king_state) is the same in both.
 void apply(const Accumulator& prev, Accumulator& next, Color side, int st) {
@@ -254,6 +315,49 @@ void unapply(const Accumulator& next, Accumulator& prev, Color side, int st) {
   prev.net[side] = net_id;
 }
 
+// sums += the `na` rows in adds - the `ns` rows in subs, written to both
+// `sums` and `out`; a block of units at a time, kept in registers while
+// every row is applied. Wraps like add_sub (same results in any order).
+#if defined(__AVX2__) && !defined(__AVX512BW__)
+inline void add_sub_many(std::int16_t* sums, std::int16_t* out, const std::int16_t* const* adds, int na,
+                         const std::int16_t* const* subs, int ns) {
+  constexpr int REGS = 8, BLOCK = REGS * 16;
+  static_assert(HIDDEN % BLOCK == 0, "refresh blocks of 128 units");
+  for (int j = 0; j < HIDDEN; j += BLOCK) {
+    __m256i r[REGS];
+    for (int k = 0; k < REGS; k++) r[k] = _mm256_load_si256(reinterpret_cast<const __m256i*>(sums + j + 16 * k));
+    for (int a = 0; a < na; a++)
+      for (int k = 0; k < REGS; k++)
+        r[k] = _mm256_add_epi16(r[k], _mm256_loadu_si256(reinterpret_cast<const __m256i*>(adds[a] + j + 16 * k)));
+    for (int a = 0; a < ns; a++)
+      for (int k = 0; k < REGS; k++)
+        r[k] = _mm256_sub_epi16(r[k], _mm256_loadu_si256(reinterpret_cast<const __m256i*>(subs[a] + j + 16 * k)));
+    for (int k = 0; k < REGS; k++) {
+      _mm256_store_si256(reinterpret_cast<__m256i*>(sums + j + 16 * k), r[k]);
+      _mm256_store_si256(reinterpret_cast<__m256i*>(out + j + 16 * k), r[k]);
+    }
+  }
+}
+#else
+// Plain loops in blocks (the compiler vectorizes them; AVX-512 and
+// WebAssembly builds).
+inline void add_sub_many(std::int16_t* sums, std::int16_t* out, const std::int16_t* const* adds, int na,
+                         const std::int16_t* const* subs, int ns) {
+  constexpr int BLOCK = 128;
+  static_assert(HIDDEN % BLOCK == 0, "refresh blocks of 128 units");
+  for (int j = 0; j < HIDDEN; j += BLOCK) {
+    std::int16_t r[BLOCK];
+    std::memcpy(r, sums + j, sizeof(r));
+    for (int a = 0; a < na; a++)
+      for (int k = 0; k < BLOCK; k++) r[k] = std::int16_t(r[k] + adds[a][j + k]);
+    for (int a = 0; a < ns; a++)
+      for (int k = 0; k < BLOCK; k++) r[k] = std::int16_t(r[k] - subs[a][j + k]);
+    std::memcpy(sums + j, r, sizeof(r));
+    std::memcpy(out + j, r, sizeof(r));
+  }
+}
+#endif
+
 // Accumulator cache ("Finny table"), for king buckets: per side and king
 // state, the sums last computed there and the pieces they were for. A side
 // whose king changes zone (or crosses between files d and e) needs its
@@ -287,20 +391,20 @@ void refresh(const Position& pos, Accumulator& acc, Color side, int st) {
     std::fill(std::begin(e.pieces), std::end(e.pieces), Bitboard(0));
     e.net = net_id;
   }
+  // The rows to add and remove, then one pass over the sums for all of them,
+  // writing the entry and the accumulator together (a pass per piece, and a
+  // copy after, cost about 4% of the bench with a king-bucket network).
+  const std::int16_t* adds[32];
+  const std::int16_t* subs[32];
+  int na = 0, ns = 0;
   for (int p = 0; p < PIECE_NB; p++) {
     const Piece pc = Piece(p);
     const Bitboard now = pos.pieces(color_of(pc), type_of(pc));
-    for (Bitboard add = now & ~e.pieces[p]; add;) {
-      const std::int16_t* w = weights(pc, pop_lsb(add), side, st);
-      for (int j = 0; j < HIDDEN; j++) e.values[j] += w[j];
-    }
-    for (Bitboard sub = e.pieces[p] & ~now; sub;) {
-      const std::int16_t* w = weights(pc, pop_lsb(sub), side, st);
-      for (int j = 0; j < HIDDEN; j++) e.values[j] -= w[j];
-    }
+    for (Bitboard add = now & ~e.pieces[p]; add;) adds[na++] = weights(pc, pop_lsb(add), side, st);
+    for (Bitboard sub = e.pieces[p] & ~now; sub;) subs[ns++] = weights(pc, pop_lsb(sub), side, st);
     e.pieces[p] = now;
   }
-  std::memcpy(v, e.values, sizeof(e.values));
+  add_sub_many(e.values, v, adds, na, subs, ns);
   acc.net[side] = net_id;
 }
 
@@ -371,14 +475,15 @@ bool load(const unsigned char* data, std::size_t size) {
   if (std::memcmp(magic, "E2NN", 4) != 0 || version < 1 || version > 3 || hidden != HIDDEN) return false;
   // Version 2 adds the activation and the number of output layers; version
   // 3 also king buckets (their count, the mirror flag and the 64-square
-  // map); version 1 is plain clipped units and one output.
+  // map); version 1 is plain clipped units and one output. The activation
+  // field: 0 clipped, 1 squared (SCReLU), 2 squared with fine output weights.
   std::uint32_t screlu = 0, buckets = 1, king_buckets = 1, mirror = 0;
   std::uint8_t king_map[64] = {};
   if (version >= 2 && (!take(data, size, pos, &screlu, 4) || !take(data, size, pos, &buckets, 4))) return false;
   if (version >= 3 && (!take(data, size, pos, &king_buckets, 4) || !take(data, size, pos, &mirror, 4) ||
                        !take(data, size, pos, king_map, 64)))
     return false;
-  if (screlu > 1 || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
+  if (screlu > 2 || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
     return false;
   for (std::uint8_t b : king_map)
     if (b >= king_buckets) return false;
@@ -388,7 +493,8 @@ bool load(const unsigned char* data, std::size_t size) {
       !take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
       !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size)
     return false;
-  net.screlu = screlu == 1;
+  net.screlu = screlu >= 1;
+  net.fine = screlu == 2;
   net.buckets = int(buckets);
   net.king_buckets = int(king_buckets);
   net.mirror = mirror == 1;
@@ -423,6 +529,12 @@ int evaluate(const Position& pos) {
   // count, the fullest boards in the last. train.py's bucket_of is the same.
   const int bucket = net.buckets == 1 ? 0 : std::min((popcount(pos.pieces()) - 2) * net.buckets / 32, net.buckets - 1);
   const std::int16_t* w = net.out_weight[bucket];
+  if (net.fine) {
+    // The sum is in units of QA x QA x QB_FINE / 2^(15 - FINE_SHIFT): times
+    // 256 and over QA, it is in the bias's units, QA x QB_FINE.
+    const std::int32_t sum = output_squared_fine(acc.values[us], acc.values[~us], w);
+    return int(((std::int64_t(sum) << (15 - FINE_SHIFT)) / QA + net.out_bias[bucket]) * SCALE / (QA * QB_FINE));
+  }
   if (net.screlu) {
     const std::int32_t sum = output_squared(acc.values[us], acc.values[~us], w);
     return int((std::int64_t(sum) / QA + net.out_bias[bucket]) * SCALE / (QA * QB));
