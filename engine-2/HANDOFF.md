@@ -322,8 +322,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games. v2
   (`PAWN_HIST_LMR` 1: also in the LMR history; `PAWN_HIST_GRAVITY` 8000)
   **rejected**, -20 +/- 19 over 240 games. Testing gravity only
-  (`PAWN_HIST_LMR` 0, gravity 8000) vs 7.2 at 40+0.4
-  (`~/matches/pawnhist3-72.log`).
+  (`PAWN_HIST_LMR` 0, gravity 8000) vs 7.2: 40+0.4 paused at 2840
+  games, +1.5 +/- 5.1, LLR -0.76 (led +7 at 400-900 games, faded;
+  `~/matches/pawnhist3-72.log`, resumable from
+  `matches/run-20261120-142850`); now at 8+0.08
+  (`~/matches/pawnhist3-72-8.log`).
 - **Early table evaluations, eval cache dropped** (`TT_EVAL_EARLY` 1,
   `EVAL_CACHE` 0; committed as 0 / 1, the old behaviour): **rejected** vs
   the 7.1 candidate, -9 +/- 9 over 1,118 games at 8+0.08 and -4 +/- 10
