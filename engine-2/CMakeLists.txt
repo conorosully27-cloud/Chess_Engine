@@ -32,6 +32,9 @@ endif()
 add_library(engine2_options INTERFACE)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(engine2_options INTERFACE -Wall -Wextra -Wshadow)
+  # The NNUE's float layers (src/nnue.cpp) must round the same in every
+  # build: no fused multiply-adds where one build has them and another not.
+  target_compile_options(engine2_options INTERFACE -ffp-contract=off)
   if(ENGINE_AVX2)
     target_compile_options(engine2_options INTERFACE -mavx2 -mpopcnt)
   endif()

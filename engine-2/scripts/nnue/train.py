@@ -63,6 +63,14 @@ FT_CLIP = 1.98  # first-layer weight limit (--ft-clip): a bias and 32 pieces, 33
 FT_CLIP_MAX = 32767 / (33 * QA)  # 3.89: the largest limit that still fits
 OUT_CLIP = 127 / QB  # output weight limit with --screlu: unit x weight must fit 16 bits in the engine
 QB_FINE = 1024  # output weights times QB_FINE with --fine-output (engine: output_squared_fine)
+# --layers (network file version 4): the first extra layer's inputs are the
+# squared units as the engine computes them, (c * c) >> 4 for c in [0, QA],
+# so 1.0 is L1_IN = QA * QA / 16; its weights are x L1_Q in 16 bits. The
+# limit keeps a sum of 2 x 1024 such products within 32 bits.
+L1_IN = QA * QA / 16
+L1_Q = 256
+L1_CLIP = 253 / L1_Q
+ENGINE_LAYERS = (16, 32)  # the only extra-layer sizes the engine runs
 
 
 # King bucket maps: for each square of a side's own king, seen from that
@@ -266,9 +274,10 @@ def upgrade_state(saved):
 
 
 class NNUE(torch.nn.Module):
-    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1, king_buckets=1, factorize=False):
+    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1, king_buckets=1, factorize=False, layers=None):
         super().__init__()
         self.screlu, self.buckets, self.king_buckets = screlu, buckets, king_buckets
+        self.layers = tuple(layers) if layers else None
         self.factorize = factorize and king_buckets > 1
         rows = INPUTS * king_buckets
         self.ft = FeatureTransformer(rows + (INPUTS if self.factorize else 0), hidden)
@@ -280,7 +289,14 @@ class NNUE(torch.nn.Module):
                 self.ft.weight[:rows].zero_()
                 self.ft.weight[rows:].uniform_(-bound, bound)
                 self.ft.bias.uniform_(-bound, bound)
-        self.out = torch.nn.Linear(2 * hidden, buckets)
+        self.out = torch.nn.Linear(2 * hidden, buckets)  # unused with --layers (kept so checkpoints look alike)
+        if self.layers:
+            # Extra layers, one set per output bucket: both sides' squared
+            # units -> l1 clipped units -> l2 clipped units -> the output.
+            l1, l2 = self.layers
+            self.l1 = torch.nn.Linear(2 * hidden, l1 * buckets)
+            self.l2 = torch.nn.Linear(l1, l2 * buckets)
+            self.l3 = torch.nn.Linear(l2, buckets)
 
     def bucket_weights(self):
         """The first layer's weights as the engine uses them, (king_buckets x
@@ -312,6 +328,13 @@ class NNUE(torch.nn.Module):
         if self.screlu:
             a, b = a * a, b * b
         hidden = self.ft.out_features
+        if self.layers:
+            n = len(a)
+            k = bucket_of(count, self.buckets) if self.buckets > 1 else torch.zeros(n, dtype=torch.int64, device=a.device)
+            row = torch.arange(n, device=a.device)
+            h1 = torch.clamp(self.l1(torch.cat([a, b], 1)).view(n, self.buckets, -1)[row, k], 0, 1)
+            h2 = torch.clamp(self.l2(h1).view(n, self.buckets, -1)[row, k], 0, 1)
+            return self.l3(h2)[row, k]
         w = self.out.weight
         out = a @ w[:, :hidden].T + b @ w[:, hidden:].T + self.out.bias
         if self.buckets == 1:
@@ -336,6 +359,8 @@ class NNUE(torch.nn.Module):
             self.ft.bias.clamp_(-FT_CLIP, FT_CLIP)
             if self.screlu:
                 self.out.weight.clamp_(-OUT_CLIP, OUT_CLIP)
+            if self.layers:
+                self.l1.weight.clamp_(-L1_CLIP, L1_CLIP)
 
 
 def batch_loss(model, records, device, wdl, k=K, power=2.0):
@@ -407,6 +432,9 @@ def export(model, path, fine=False):
     out_w = torch.round(out_w).to(torch.int16).numpy()  # (buckets, 2 * hidden)
     out_b = torch.round(model.out.bias.detach().cpu().double() * QA * qb).to(torch.int32).numpy()
     activation = (2 if fine else 1) if model.screlu else 0
+    if model.layers:
+        export_layers(model, path, ft_w, ft_b)
+        return
     with open(path, "wb") as f:
         if model.king_buckets > 1:
             f.write(b"E2NN" + struct.pack("<IIIIII", 3, model.ft.out_features, activation, model.buckets,
@@ -420,6 +448,38 @@ def export(model, path, fine=False):
         f.write(ft_b.astype("<i2").tobytes())
         f.write(out_w.astype("<i2").tobytes())
         f.write(out_b.astype("<i4").tobytes())
+
+
+def export_layers(model, path, ft_w, ft_b):
+    """Version 4, for --layers: the version 3 header (activation 1, king
+    buckets 1 and no mirror without them), then u32 l1, u32 l2; the first
+    layer as in version 3; then per output bucket
+    i16 l1_weight[buckets][l1][2 * hidden] (x L1_Q, side to move first),
+    i32 l1_bias[buckets][l1] (x L1_IN x L1_Q),
+    f32 l2_weight[buckets][l2][l1], f32 l2_bias[buckets][l2],
+    f32 l3_weight[buckets][l2], f32 l3_bias[buckets]
+    (l3 in units of SCALE centipawns)."""
+    l1, l2 = model.layers
+    hidden, buckets = model.ft.out_features, model.buckets
+    w1 = model.l1.weight.detach().cpu().double() * L1_Q
+    if w1.abs().max() > 253.5:
+        raise ValueError("first extra layer's weights past their limit")
+    w1 = torch.round(w1).to(torch.int16).numpy().reshape(buckets, l1, 2 * hidden)
+    b1 = torch.round(model.l1.bias.detach().cpu().double() * L1_IN * L1_Q).to(torch.int32).numpy().reshape(buckets, l1)
+    f32 = lambda t, *shape: t.detach().cpu().to(torch.float32).numpy().reshape(*shape).astype("<f4").tobytes()
+    king_map = KING_MAPS[model.king_buckets]
+    with open(path, "wb") as f:
+        f.write(b"E2NN" + struct.pack("<IIIIII", 4, hidden, 1, buckets, model.king_buckets, int(model.king_buckets > 1)))
+        f.write(bytes(king_map))
+        f.write(struct.pack("<II", l1, l2))
+        f.write(ft_w.astype("<i2").tobytes())
+        f.write(ft_b.astype("<i2").tobytes())
+        f.write(w1.astype("<i2").tobytes())
+        f.write(b1.astype("<i4").tobytes())
+        f.write(f32(model.l2.weight, buckets, l2, l1))
+        f.write(f32(model.l2.bias, buckets, l2))
+        f.write(f32(model.l3.weight, buckets, l2))
+        f.write(f32(model.l3.bias, buckets))
 
 
 def main():
@@ -466,6 +526,9 @@ def main():
     ap.add_argument("--ft-clip", type=float, default=FT_CLIP, metavar="C",
                     help=f"first-layer weight and bias limit ({FT_CLIP} as before; up to {FT_CLIP_MAX:.2f} still fits "
                          "the engine's 16-bit sums, and 7.2 has 0.35%% of its weights pinned at 1.98)")
+    ap.add_argument("--layers", metavar="L1,L2",
+                    help="two extra layers of L1 and L2 clipped units after the hidden units, one set per output "
+                         "bucket (16,32 is what the engine runs; network file version 4; needs --screlu)")
     ap.add_argument("--loss-power", type=float, default=2.0, metavar="P",
                     help="train on |error|^P (2 = squared error, as before); validation also prints the squared "
                          "error so runs with different P compare")
@@ -480,6 +543,12 @@ def main():
         raise SystemExit(f"--ft-clip must be at most {FT_CLIP_MAX:.3f} (a bias and 32 pieces in 16 bits)")
     if args.fine_output and not args.screlu:
         raise SystemExit("--fine-output needs --screlu")
+    layers = tuple(int(x) for x in args.layers.split(",")) if args.layers else None
+    if layers and (len(layers) != 2 or not args.screlu or args.fine_output):
+        raise SystemExit("--layers takes two sizes (16,32), needs --screlu, and has its own output format "
+                         "(no --fine-output)")
+    if layers and layers != ENGINE_LAYERS:
+        print(f"note: the engine only runs --layers {ENGINE_LAYERS[0]},{ENGINE_LAYERS[1]}")
     if args.factorize and args.king_buckets == 1:
         raise SystemExit("--factorize needs --king-buckets")
     if args.bucket_decay and not args.factorize:
@@ -506,7 +575,7 @@ def main():
           f"{' (factorised)' if args.factorize else ''}, device {device}")
 
     torch.manual_seed(args.seed)
-    model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize).to(device)
+    model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize, layers).to(device)
     model.sparse_ft = args.ft == "sparse"
     model.ft_clip = args.ft_clip
     if args.init_from and not args.resume:
@@ -534,6 +603,11 @@ def main():
             model.ft.bias.copy_(sm["ft.bias"])
             model.out.weight.copy_(sm["out.weight"])
             model.out.bias.copy_(sm["out.bias"])
+            if layers and tuple(src.get("layers") or ()) == layers:
+                for name in ("l1", "l2", "l3"):
+                    getattr(model, name).load_state_dict({k[3:]: v for k, v in sm.items() if k.startswith(name + ".")})
+            elif layers:
+                print("--init-from: first layer only (the source has other or no extra layers)")
         print(f"started from {args.init_from} (epoch {src.get('epoch', '?')})")
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     # The learning rate falls by 1 / --lr-end (10x by default) over the run, on a cosine.
@@ -544,9 +618,10 @@ def main():
         model_state = upgrade_state(state)
         if (state.get("screlu", False) != args.screlu or model_state["out.weight"].shape[0] != args.output_buckets
                 or model_state["ft.weight"].shape[0] != model.ft.in_features
-                or state.get("factorize", False) != args.factorize):
+                or state.get("factorize", False) != args.factorize
+                or tuple(state.get("layers") or ()) != tuple(layers or ())):
             raise SystemExit("the checkpoint was trained with different --screlu / --output-buckets / --king-buckets / "
-                             "--factorize settings")
+                             "--factorize / --layers settings")
         model.load_state_dict(model_state)
         if state.get("ft_input_major", False):
             opt.load_state_dict(state["opt"])
@@ -615,7 +690,7 @@ def main():
               f"{time.time() - t0:.0f} s", flush=True)
         saved = {"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
                  "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True,
-                 "factorize": args.factorize}
+                 "factorize": args.factorize, "layers": layers}
         if ema is not None:
             saved["ema"] = ema.state_dict()
         torch.save(saved, os.path.join(args.out, "checkpoint.pt"))

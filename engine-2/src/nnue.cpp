@@ -29,6 +29,20 @@ constexpr int SCALE = 400;
 constexpr int MAX_BUCKETS = 8;
 constexpr int MAX_KING_BUCKETS = 16;
 
+// Extra layers (network file version 4, train.py --layers 16,32): both
+// sides' squared units -> L1 clipped units -> L2 clipped units -> output,
+// one set per output bucket. L1's inputs are (c * c) >> 4 for each unit c
+// in [0, QA] (0-4064), its weights x L1_Q, so its sums are in units of
+// L1_UNIT; the trainer's limit on those weights (253 / 256) keeps 2 x 1024
+// products in 32 bits. L2 and the output are in float, added up in a fixed
+// order (and built with -ffp-contract=off), so every build gives the same
+// evaluations.
+constexpr int L1 = 16;
+constexpr int L2 = 32;
+constexpr int L1_SHIFT = 4;
+constexpr int L1_Q = 256;
+constexpr float L1_UNIT = float(QA * QA) / (1 << L1_SHIFT) * L1_Q;  // 1,040,400
+
 struct Network {
   // First layer: one block of INPUTS rows per king bucket (one block without
   // king buckets), each row HIDDEN weights.
@@ -48,6 +62,16 @@ struct Network {
   int king_buckets = 1;
   bool mirror = false;
   std::uint8_t king_map[64] = {};
+  // Extra layers (version 4): `layers` replaces out_weight / out_bias.
+  // l1_weight is [bucket][pair of inputs][L1][2], so one pair's weights for
+  // all 16 outputs are 64 consecutive bytes (the file has [bucket][L1][input]).
+  bool layers = false;
+  std::vector<std::int16_t> l1_weight;
+  std::int32_t l1_bias[MAX_BUCKETS][L1] = {};
+  float l2_weight[MAX_BUCKETS][L1][L2] = {};  // [input][output] (the file has [output][input])
+  float l2_bias[MAX_BUCKETS][L2] = {};
+  float l3_weight[MAX_BUCKETS][L2] = {};
+  float l3_bias[MAX_BUCKETS] = {};
 };
 
 Network net;
@@ -297,6 +321,101 @@ inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
 }
 #endif
 
+// Extra layers. activate(): out = (clamp(v, 0, QA)^2) >> L1_SHIFT for one
+// side's HIDDEN units. l1_sums(): sums[o] = sum over inputs i of act[i] x
+// weight[o][i], skipping the pairs of inputs that are both 0 (most are:
+// 7.2's units are 0 89% of the time). Integer sums, so every version gives
+// the same result.
+#if defined(__AVX2__)
+inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
+  const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA);
+  for (int j = 0; j < HIDDEN; j += 16) {
+    const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v + j)), zero), top);
+    // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
+    _mm256_store_si256(reinterpret_cast<__m256i*>(out + j), _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT));
+  }
+}
+
+inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
+  __m256i s0 = _mm256_setzero_si256(), s1 = _mm256_setzero_si256();
+  const __m256i zero = _mm256_setzero_si256();
+  for (int p0 = 0; p0 < HIDDEN; p0 += 8) {  // 8 pairs (16 inputs) a step
+    const __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(act + 2 * p0));
+    unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(v, zero))));
+    while (mask) {
+      const int p = p0 + __builtin_ctz(mask);
+      mask &= mask - 1;
+      std::int32_t pair;
+      std::memcpy(&pair, act + 2 * p, 4);
+      const __m256i b = _mm256_set1_epi32(pair);
+      const __m256i* row = reinterpret_cast<const __m256i*>(w + std::size_t(p) * L1 * 2);
+      s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(b, _mm256_loadu_si256(row)));
+      s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(b, _mm256_loadu_si256(row + 1)));
+    }
+  }
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums), s0);
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums + 8), s1);
+}
+#elif defined(__wasm_simd128__)
+inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
+  const v128_t zero = wasm_i16x8_splat(0), top = wasm_i16x8_splat(QA);
+  for (int j = 0; j < HIDDEN; j += 8) {
+    const v128_t c = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(v + j), zero), top);
+    wasm_v128_store(out + j, wasm_u16x8_shr(wasm_i16x8_mul(c, c), L1_SHIFT));
+  }
+}
+
+inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
+  v128_t s[4] = {wasm_i32x4_splat(0), wasm_i32x4_splat(0), wasm_i32x4_splat(0), wasm_i32x4_splat(0)};
+  for (int p = 0; p < HIDDEN; p++) {
+    std::int32_t pair;
+    std::memcpy(&pair, act + 2 * p, 4);
+    if (!pair) continue;
+    const v128_t b = wasm_i32x4_splat(pair);
+    const std::int16_t* row = w + std::size_t(p) * L1 * 2;
+    for (int k = 0; k < 4; k++) s[k] = wasm_i32x4_add(s[k], wasm_i32x4_dot_i16x8(b, wasm_v128_load(row + 8 * k)));
+  }
+  for (int k = 0; k < 4; k++) wasm_v128_store(sums + 4 * k, s[k]);
+}
+#else
+inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
+  for (int j = 0; j < HIDDEN; j++) {
+    const int c = std::clamp(int(v[j]), 0, QA);
+    out[j] = std::int16_t((c * c) >> L1_SHIFT);
+  }
+}
+
+inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
+  for (int o = 0; o < L1; o++) sums[o] = 0;
+  for (int i = 0; i < 2 * HIDDEN; i++) {
+    if (!act[i]) continue;
+    const std::int16_t* row = w + std::size_t(i / 2) * L1 * 2 + (i & 1);
+    for (int o = 0; o < L1; o++) sums[o] += act[i] * row[2 * o];
+  }
+}
+#endif
+
+// The extra layers' evaluation, in units of SCALE centipawns.
+float evaluate_layers(const std::int16_t* us, const std::int16_t* them, int bucket) {
+  alignas(64) std::int16_t act[2 * HIDDEN];
+  activate(us, act);
+  activate(them, act + HIDDEN);
+  std::int32_t sums[L1];
+  l1_sums(act, &net.l1_weight[std::size_t(bucket) * HIDDEN * L1 * 2], sums);
+  float h1[L1];
+  for (int o = 0; o < L1; o++)
+    h1[o] = std::clamp(float(sums[o] + net.l1_bias[bucket][o]) * (1.0f / L1_UNIT), 0.0f, 1.0f);
+  // Input by input over all outputs: each output's terms are added in the
+  // same order whether or not the compiler vectorizes the inner loop.
+  float h2[L2];
+  for (int o = 0; o < L2; o++) h2[o] = net.l2_bias[bucket][o];
+  for (int i = 0; i < L1; i++)
+    for (int o = 0; o < L2; o++) h2[o] += h1[i] * net.l2_weight[bucket][i][o];
+  float out = net.l3_bias[bucket];
+  for (int o = 0; o < L2; o++) out += std::clamp(h2[o], 0.0f, 1.0f) * net.l3_weight[bucket][o];
+  return out;
+}
+
 // next = prev changed by next.dirty, from one side, whose king state
 // (king_state) is the same in both.
 void apply(const Accumulator& prev, Accumulator& next, Color side, int st) {
@@ -494,7 +613,7 @@ bool load(const unsigned char* data, std::size_t size) {
   std::size_t pos = 0;
   if (!take(data, size, pos, magic, 4) || !take(data, size, pos, &version, 4) || !take(data, size, pos, &hidden, 4))
     return false;
-  if (std::memcmp(magic, "E2NN", 4) != 0 || version < 1 || version > 3 || hidden != HIDDEN) return false;
+  if (std::memcmp(magic, "E2NN", 4) != 0 || version < 1 || version > 4 || hidden != HIDDEN) return false;
   // Version 2 adds the activation and the number of output layers; version
   // 3 also king buckets (their count, the mirror flag and the 64-square
   // map); version 1 is plain clipped units and one output. The activation
@@ -505,16 +624,42 @@ bool load(const unsigned char* data, std::size_t size) {
   if (version >= 3 && (!take(data, size, pos, &king_buckets, 4) || !take(data, size, pos, &mirror, 4) ||
                        !take(data, size, pos, king_map, 64)))
     return false;
+  // Version 4: the extra layers' sizes, which must be the engine's.
+  std::uint32_t l1 = 0, l2 = 0;
+  if (version >= 4 && (!take(data, size, pos, &l1, 4) || !take(data, size, pos, &l2, 4) || l1 != L1 || l2 != L2 ||
+                       screlu != 1))
+    return false;
   if (screlu > 2 || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
     return false;
   for (std::uint8_t b : king_map)
     if (b >= king_buckets) return false;
   net.ft_weight.resize(std::size_t(king_buckets) * INPUTS * HIDDEN);
   if (!take(data, size, pos, net.ft_weight.data(), net.ft_weight.size() * sizeof(std::int16_t)) ||
-      !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)) ||
-      !take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
-      !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size)
+      !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)))
     return false;
+  net.layers = version >= 4;
+  if (net.layers) {
+    std::vector<std::int16_t> w1(std::size_t(buckets) * L1 * 2 * HIDDEN);
+    std::vector<float> w2(std::size_t(buckets) * L2 * L1);
+    if (!take(data, size, pos, w1.data(), w1.size() * sizeof(std::int16_t)) ||
+        !take(data, size, pos, net.l1_bias, buckets * sizeof(net.l1_bias[0])) ||
+        !take(data, size, pos, w2.data(), w2.size() * sizeof(float)) ||
+        !take(data, size, pos, net.l2_bias, buckets * sizeof(net.l2_bias[0])) ||
+        !take(data, size, pos, net.l3_weight, buckets * sizeof(net.l3_weight[0])) ||
+        !take(data, size, pos, net.l3_bias, buckets * sizeof(float)) || pos != size)
+      return false;
+    net.l1_weight.resize(w1.size());
+    for (std::size_t b = 0; b < buckets; b++)
+      for (int o = 0; o < L1; o++)
+        for (int i = 0; i < 2 * HIDDEN; i++)
+          net.l1_weight[((b * HIDDEN + i / 2) * L1 + o) * 2 + (i & 1)] = w1[(b * L1 + o) * 2 * HIDDEN + i];
+    for (std::size_t b = 0; b < buckets; b++)
+      for (int o = 0; o < L2; o++)
+        for (int i = 0; i < L1; i++) net.l2_weight[b][i][o] = w2[(b * L2 + o) * L1 + i];
+  } else if (!take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
+             !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size) {
+    return false;
+  }
   net.screlu = screlu >= 1;
   net.fine = screlu == 2;
   net.buckets = int(buckets);
@@ -551,6 +696,7 @@ int evaluate(const Position& pos) {
   // The output layer for this many pieces (2 to 32): equal steps of piece
   // count, the fullest boards in the last. train.py's bucket_of is the same.
   const int bucket = net.buckets == 1 ? 0 : std::min((popcount(pos.pieces()) - 2) * net.buckets / 32, net.buckets - 1);
+  if (net.layers) return int(evaluate_layers(acc.values[us], acc.values[~us], bucket) * SCALE);
   const std::int16_t* w = net.out_weight[bucket];
   if (net.fine) {
     // The sum is in units of QA x QA x QB_FINE / 2^(15 - FINE_SHIFT): times
