@@ -11,6 +11,33 @@ near/far-miss reductions, network correction history (`CORR_NET_RATE`),
 TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
 Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
 
+## Training run v14: 4 king input buckets, mirrored, vs 7.2 (Nov 2026)
+
+**Change:** v13 (7.2's run) plus `train.py --king-buckets 4`. Each side's
+768 inputs come in 4 sets, chosen by its own king's zone, with the board
+mirrored left-right when that king is on files e-h. Same 660M positions
+and 20 epochs. The engine code (network file version 3, per-side
+accumulators, refresh cache) is from branch `claude/king-buckets`
+(`cf09573`, `bb883d2`), now merged into `claude/sweet-ptolemy-sp040f`.
+Epochs 6-20 ran on the faster trainer (same losses as the old one).
+
+**Result:** lost to 7.2 (owner, Nov 21). The SPRT numbers and the
+per-epoch validation losses next to v13's are not recorded here yet.
+
+**Prior:** 7/10 (other engines report +20 to +50).
+
+**Commentary** (full post-mortem in `NETWORK.md` section 4):
+- **No bugs found** in the trainer, the engine, or the pause and resume.
+- **Too little data per bucket.** In 660M positions the median
+  first-layer row sees 1.9M examples instead of 8.3M, and the buckets are
+  tied to game phase.
+- **On CPU tests the same design was 4.2% worse** in validation loss than
+  no buckets at 2.5M positions, and 2.5% worse at 10.4M.
+- About 5% fewer nodes/s.
+- **The fix, now in `train.py`:** `--factorize` (shared weights every
+  bucket adds to) with `--bucket-decay 1`. It was 0.97% *better* than no
+  buckets at 10.4M positions; that is the v15b recipe.
+
 ## Near-miss reductions, on 6.7 (Nov 2026)
 
 **Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):
