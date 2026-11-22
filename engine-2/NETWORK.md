@@ -258,6 +258,19 @@ validation set, so compare within this table):
 - **The best decay falls as data grows:** 10 was best at 2.5M, 1 at
   10.4M (and 1 learned faster early). For 660M+, use `--bucket-decay 1`.
 
+**The v15 recipes side by side** (10.4M positions, 256 units, 8 epochs;
+the exported net's validation loss):
+
+| Recipe | Validation | vs the old recipe |
+|---|---|---|
+| Old: no buckets, `--lr-end 0.1` | 0.021212 | |
+| v15a: + `--lr-end 0.01 --ema 0.25` | 0.021176 | 0.17% better |
+| **v15b: v15a + `--king-buckets 4 --factorize --bucket-decay 1`** | **0.020880** | **1.6% better** |
+
+v15b's moving average was best at epoch 5 (0.020820) and drifted up
+slightly after: mild overfitting at this size, which should matter far
+less with 660M positions.
+
 ## 5. The trainer and training algorithm
 
 `scripts/nnue/train.py` (PyTorch), `scripts/nnue/data.py` (data format,
