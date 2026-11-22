@@ -165,6 +165,27 @@ Slope of each net's evaluation against 7.2's own search scores
   more data. **v14 lost to 7.2** on the same 660M positions; section 4
   has the post-mortem.
 
+### More v15 candidates on CPU (Nov 22)
+
+All on the v15b recipe (4 king buckets, factoriser, `--bucket-decay 1`,
+`--lr-end 0.01 --ema 0.25`), 256 units, the same 10.4M positions and 8
+epochs; validation is the exported moving average's squared error.
+v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
+
+| Change | Best | End | Notes |
+|---|---|---|---|
+| `--loss-power 2.5` | **0.020811** | **0.020826** | Better *squared* error than training on squared error, and less overfitting late. Colder: scale 0.895 vs 0.960. Games below |
+| `--init-from` the finished plain net (v15a-style), 4 epochs | **0.020574** (epoch 2) | 0.020636 | 1.2% better than v15b from scratch after 2 epochs. Same scale. Games below |
+| `--king-buckets 8` | 0.020779 | 0.020858 | 0.2% better, but about **7% fewer nodes/s** than 4 buckets (1024 units; a 12.6 MB first layer) |
+| `--k 300` | (other target) | | Much colder: scale 0.830. Games below, re-exported on v15b's scale |
+
+- **Warm start is the big one for the laptop:** v15b's recipe started from
+  a finished plain net beat v15b from scratch after one epoch. For v15b
+  that means `--init-from <v13>/checkpoint.pt` with fewer epochs, which
+  could halve the run (about 17 h for 20 epochs on 660M).
+- **8 king buckets** are not worth their speed at this data size; worth
+  another look once there is much more data.
+
 ### Speed is strength
 - Incremental updates alone (2.6): **+102**. Faster network code was
   most of 3.3's +46.
