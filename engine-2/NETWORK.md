@@ -207,10 +207,16 @@ bucket (the "layer stacks" most top engines use).
   WebAssembly builds give the same bench node count. Engine vs trainer:
   about 5.5 cp on average on a trained net (simulated), most of it the
   first layer's rounding.
-- **Speed:** on a test file with 7.2's first layer (so 7.2's sparsity)
-  whose extra layers pass 7.2's evaluation through, the node rate is
-  about **0.77x 7.2's** (1024 units, AVX2). It was 0.48x before the
-  non-zero pairs were listed without a branch per pair.
+- **Speed:** on a test file with 7.2's first layer (so 7.2's sparsity:
+  about 205 of 1,024 input pairs are non-zero) whose extra layers pass
+  7.2's evaluation through (so the search trees are 7.2's), the node rate
+  is about **0.7x 7.2's** (1024 units, AVX2; 1.47x the instructions per
+  node). The first version was 0.48x: a branch per non-zero pair
+  mispredicted constantly. Listing the pairs through a lookup table,
+  then one tight loop over the list (Stockfish's method), fixed that;
+  fusing the activation into the listing pass and 32-bit pairs took the
+  layer from 5,160 to 4,460 instructions an evaluation. About half is
+  the activation pass over all 2,048 units, half the multiplies.
 - Games at 256 units: below, when played.
 
 ### Speed is strength
