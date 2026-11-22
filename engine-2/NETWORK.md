@@ -198,10 +198,20 @@ bucket (the "layer stacks" most top engines use).
 | **`--layers 16,32`** | **0.019997** | 3 | 0.020640 |
 | `--layers 16,32`, a 4-epoch schedule | 0.020129 | 3 | 0.020305 (4) |
 | `--layers 16,32` fed plain clipped units (no squaring), 4 epochs | 0.020507 | 2 | 0.020762 (4) |
+| `--layers 16,32 --pairwise`, 4 epochs | 0.020248 | 3 | 0.020361 (4) |
 
 - **4.0% better at its best**, more than king buckets' 1.4% (which was
   +34 Elo in games). It overfits fast at this size (training loss 0.0148
   against 0.0168), so on 660M positions it should keep improving longer.
+- **`--pairwise`** (activation 3; Stockfish's pairwise multiplication):
+  the inputs are unit i x unit i + hidden/2 of each side instead of the
+  squares, so half as many, and a product is 0 when either unit is. 0.6%
+  worse than squares here, 2.7% better than one output layer, and much
+  cheaper in the engine. Which wins in play is for a match (queued).
+- **Sparsity grows with training:** these 256-unit CPU nets are dense
+  (squared: 58% of the inputs non-zero, 210 of 256 pairs; pairwise: 116
+  of 128 pairs), while 7.2's units are 0 89% of the time. So the engine's
+  skipping of zero pairs pays far more on a net trained like 7.2.
 - **The squaring matters:** without it the inputs would fit 8 bits and
   the first extra layer could use 8-bit weights (Stockfish's way, about
   40% cheaper), but validation is 1.9% worse. The 16-bit inputs stay.
