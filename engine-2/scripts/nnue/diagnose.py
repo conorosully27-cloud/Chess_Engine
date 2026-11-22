@@ -21,6 +21,10 @@ as the engine uses them):
     stand-in for the unrounded weights the trainer had); about 6 cp for a
     x64 network, under 1 cp for a fine (x1024) one
   - output weights at the 16-bit limit that x64 SCReLU networks have
+  - its scale: the slope of eval against search score (1.000 = the same
+    scale as the search that labelled the data). The search's margins were
+    tuned with the network of its day, so a net on a different scale moves
+    every margin, even if it is more accurate
 """
 import argparse
 import struct
@@ -122,10 +126,17 @@ def main():
             line += "; White's positions per bucket " + " ".join(f"{100 * x:.0f}%" for x in share)
         print(line)
 
+    slopes = []
     for path in args.net:
         model, desc, qb, ow = read_net(path)
         ev = evaluate(model, pieces, stm, count)
         print(f"\n== {path}: {desc}")
+        m = np.abs(score_stm) < 1000
+        slope = np.polyfit(score_stm[m], ev[m], 1)[0]
+        slopes.append((path, slope))
+        print(f"scale: eval = {slope:.3f} x search score (|score| < 1000; 1.000 = the search's scale), "
+              f"eval spread {ev[m].std():.0f} cp vs search {score_stm[m].std():.0f} cp. A new net on a different "
+              f"scale than the one the search was tuned with shifts every pruning margin")
         print("pieces  positions  eval-search mean  |eval-search| median  results - predicted (K 400)")
         for k in range(8):
             m = (bucket8 == k) & (np.abs(score_stm) < 1500)
@@ -145,6 +156,11 @@ def main():
         print(f"output rounding error (x{qb}): mean {moved.mean():.2f} cp, 99th percentile {np.percentile(moved, 99):.1f} cp")
         if qb == train.QB and model.screlu:
             print(f"output weights at the +/-127 limit: {int((np.abs(ow) >= 126).sum())} of {ow.size}")
+    if len(slopes) > 1:
+        ref, ref_slope = slopes[0]
+        print(f"\n== to put each net on {ref}'s scale: export.py <checkpoint> <out> --scale F")
+        for path, slope in slopes[1:]:
+            print(f"{path}: F = {ref_slope / slope:.3f}")
 
 
 if __name__ == "__main__":

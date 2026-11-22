@@ -107,6 +107,34 @@ match the build's `-DENGINE_NNUE_HIDDEN`, 1024 by default).
   **+15 +/- 21** at 40+0.4 against run 8's net. It has stayed at 0.4
   since 6.0. The weight barely matters at this data size.
 
+### The networks' scale, and why it matters for every SPRT (Nov 22)
+
+Slope of each net's evaluation against 7.2's own search scores
+(`diagnose.py`; 1.000 = the search's scale):
+
+| Net | Result weight | Scale |
+|---|---|---|
+| 5.5 | 0.25 | 1.004 |
+| 5.6 | 0.25 | 1.017 |
+| 6.0 | 0.4 | 1.069 |
+| 7.0 | 0.4 | 1.056 |
+| 7.1 | 0.4 | 1.058 |
+| 7.2 | 0.4 | 1.071 |
+
+- **Since the result weight went to 0.4, every net evaluates about 6%
+  more extreme than its search scores.** The game results are more
+  decisive than `sigmoid(score / 400)` says (best fit K is about 300), so
+  the result part of the target pulls evaluations outward.
+- The search's margins were SPSA-tuned (6.2, 6.7, 6.8) on these
+  6%-"hot" nets. **A new net on another scale moves every margin**, so it
+  can lose an SPRT while evaluating better. Changes that move the scale
+  include `--k`, `--wdl`, king buckets and more data.
+- **Fix:** `diagnose.py --net nets/engine-7.2.nnue --net <candidate>`
+  prints the factor F that puts the candidate on 7.2's scale, and
+  `export.py <checkpoint> <out> --scale F` applies it exactly. That
+  multiplies the output layer, so the net prefers exactly the same
+  positions.
+
 ### Activation and output layers (same data, so a clean comparison)
 - SCReLU (squared clipped units), 7.1: **+14 STC, +6 LTC**, about 5%
   slower per node.
@@ -236,6 +264,8 @@ integer evaluation against the trainer's, to catch export bugs).
 | Nov 21 | TF32 opt-in (`--tf32`) | No speed left to gain with the sparse first layer |
 | Nov 22 | Factoriser folds the shared weights into the buckets once per batch | Same losses to the last digit; no second lookup per piece |
 | Nov 22 | `scripts/nnue/diagnose.py`: data and network health report | See below |
+| Nov 22 | `--ema F`: a moving average of the weights over about F of an epoch, exported | Testing |
+| Nov 22 | `export.py --scale F` | Puts a net on another net's scale (section 3) |
 
 ### Diagnosing a network before playing it
 
@@ -247,8 +277,9 @@ python scripts/nnue/diagnose.py <fresh data>.bin --net nets/engine-7.2.nnue --ne
   examples each first-layer row gets with 1, 4 or 8 king buckets, scaled
   to the dataset's size.
 - **For each net (any file version):** eval against search score and
-  against game results for each output bucket, plus the output-layer
-  rounding error.
+  against game results for each output bucket, the output-layer rounding
+  error, and the net's scale (with the factor that matches the first net
+  given).
 - Use data the nets were not trained on, ideally fresh games from the
   current engine.
 - 7.2 against 7.1 on 7.2's games: the median eval-to-search error is lower
