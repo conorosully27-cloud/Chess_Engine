@@ -66,7 +66,7 @@ def read_net(path):
     qb = train.QB_FINE if activation == 2 else train.QB
     if king_buckets > 1 and (king_map != train.KING_MAPS.get(king_buckets) or not mirror):
         raise SystemExit(f"{path}: king map differs from train.py's KING_MAPS[{king_buckets}]")
-    model = train.NNUE(hidden, activation >= 1, buckets, king_buckets, layers=layers)
+    model = train.NNUE(hidden, activation >= 1, buckets, king_buckets, layers=layers, pairwise=activation == 3)
     with torch.no_grad():
         model.ft.weight.copy_(torch.from_numpy(ft.astype(np.float32) / train.QA))
         model.ft.bias.copy_(torch.from_numpy(fb.astype(np.float32) / train.QA))
@@ -81,7 +81,8 @@ def read_net(path):
                 pos += n * np.dtype(dtype).itemsize
                 return x
 
-            w1 = take("<i2", buckets * l1 * 2 * hidden).reshape(buckets * l1, 2 * hidden) / train.L1_Q
+            inputs = hidden if model.pairwise else 2 * hidden
+            w1 = take("<i2", buckets * l1 * inputs).reshape(buckets * l1, inputs) / train.L1_Q
             b1 = take("<i4", buckets * l1) / (train.L1_IN * train.L1_Q)
             model.l1.weight.copy_(torch.from_numpy(w1.astype(np.float32)))
             model.l1.bias.copy_(torch.from_numpy(b1.astype(np.float32)))
@@ -97,7 +98,7 @@ def read_net(path):
             model.out.weight.copy_(torch.from_numpy(ow.astype(np.float32) / qb))
             model.out.bias.copy_(torch.from_numpy(ob.astype(np.float64) / (train.QA * qb)).float())
     model.eval()
-    desc = (f"version {version}, {hidden} hidden units, {['clipped', 'SCReLU', 'SCReLU fine'][activation]}, "
+    desc = (f"version {version}, {hidden} hidden units, {['clipped', 'SCReLU', 'SCReLU fine', 'pairwise'][activation]}, "
             f"{buckets} output bucket(s), {king_buckets} king bucket(s)"
             f"{f', extra layers {layers[0]} and {layers[1]}' if layers else ''}")
     return model, desc, qb, ow

@@ -274,10 +274,15 @@ def upgrade_state(saved):
 
 
 class NNUE(torch.nn.Module):
-    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1, king_buckets=1, factorize=False, layers=None):
+    def __init__(self, hidden=HIDDEN, screlu=False, buckets=1, king_buckets=1, factorize=False, layers=None,
+                 pairwise=False):
         super().__init__()
         self.screlu, self.buckets, self.king_buckets = screlu, buckets, king_buckets
         self.layers = tuple(layers) if layers else None
+        # With --pairwise the extra layers' inputs are products of two units
+        # of the same side (unit i times unit i + hidden / 2) instead of the
+        # squared units: half as many, and sparser.
+        self.pairwise = bool(pairwise and self.layers)
         self.factorize = factorize and king_buckets > 1
         rows = INPUTS * king_buckets
         self.ft = FeatureTransformer(rows + (INPUTS if self.factorize else 0), hidden)
@@ -294,7 +299,7 @@ class NNUE(torch.nn.Module):
             # Extra layers, one set per output bucket: both sides' squared
             # units -> l1 clipped units -> l2 clipped units -> the output.
             l1, l2 = self.layers
-            self.l1 = torch.nn.Linear(2 * hidden, l1 * buckets)
+            self.l1 = torch.nn.Linear(hidden if self.pairwise else 2 * hidden, l1 * buckets)
             self.l2 = torch.nn.Linear(l1, l2 * buckets)
             self.l3 = torch.nn.Linear(l2, buckets)
 
@@ -325,7 +330,10 @@ class NNUE(torch.nn.Module):
         weights = self.bucket_weights()
         a = torch.clamp(self.transform(us, weights), 0, 1)
         b = torch.clamp(self.transform(them, weights), 0, 1)
-        if self.screlu:
+        if self.pairwise:
+            h = a.shape[1] // 2
+            a, b = a[:, :h] * a[:, h:], b[:, :h] * b[:, h:]
+        elif self.screlu:
             a, b = a * a, b * b
         hidden = self.ft.out_features
         if self.layers:
@@ -451,10 +459,11 @@ def export(model, path, fine=False):
 
 
 def export_layers(model, path, ft_w, ft_b):
-    """Version 4, for --layers: the version 3 header (activation 1, king
-    buckets 1 and no mirror without them), then u32 l1, u32 l2; the first
-    layer as in version 3; then per output bucket
-    i16 l1_weight[buckets][l1][2 * hidden] (x L1_Q, side to move first),
+    """Version 4, for --layers: the version 3 header (activation 1, or 3
+    with --pairwise; king buckets 1 and no mirror without them), then
+    u32 l1, u32 l2; the first layer as in version 3; then per output bucket
+    i16 l1_weight[buckets][l1][inputs] (x L1_Q, side to move first; inputs
+    2 x hidden squared units, or hidden products with --pairwise),
     i32 l1_bias[buckets][l1] (x L1_IN x L1_Q),
     f32 l2_weight[buckets][l2][l1], f32 l2_bias[buckets][l2],
     f32 l3_weight[buckets][l2], f32 l3_bias[buckets]
@@ -464,12 +473,14 @@ def export_layers(model, path, ft_w, ft_b):
     w1 = model.l1.weight.detach().cpu().double() * L1_Q
     if w1.abs().max() > 253.5:
         raise ValueError("first extra layer's weights past their limit")
-    w1 = torch.round(w1).to(torch.int16).numpy().reshape(buckets, l1, 2 * hidden)
+    inputs = hidden if model.pairwise else 2 * hidden
+    w1 = torch.round(w1).to(torch.int16).numpy().reshape(buckets, l1, inputs)
     b1 = torch.round(model.l1.bias.detach().cpu().double() * L1_IN * L1_Q).to(torch.int32).numpy().reshape(buckets, l1)
     f32 = lambda t, *shape: t.detach().cpu().to(torch.float32).numpy().reshape(*shape).astype("<f4").tobytes()
     king_map = KING_MAPS[model.king_buckets]
     with open(path, "wb") as f:
-        f.write(b"E2NN" + struct.pack("<IIIIII", 4, hidden, 1, buckets, model.king_buckets, int(model.king_buckets > 1)))
+        f.write(b"E2NN" + struct.pack("<IIIIII", 4, hidden, 3 if model.pairwise else 1, buckets, model.king_buckets,
+                                      int(model.king_buckets > 1)))
         f.write(bytes(king_map))
         f.write(struct.pack("<II", l1, l2))
         f.write(ft_w.astype("<i2").tobytes())
@@ -529,6 +540,10 @@ def main():
     ap.add_argument("--layers", metavar="L1,L2",
                     help="two extra layers of L1 and L2 clipped units after the hidden units, one set per output "
                          "bucket (16,32 is what the engine runs; network file version 4; needs --screlu)")
+    ap.add_argument("--pairwise", action="store_true",
+                    help="with --layers: the extra layers' inputs are products of two units of the same side (unit i "
+                         "x unit i + hidden/2) instead of squared units: half as many inputs and much cheaper in the "
+                         "engine (CPU test: 0.6%% worse validation than squared)")
     ap.add_argument("--loss-power", type=float, default=2.0, metavar="P",
                     help="train on |error|^P (2 = squared error, as before); validation also prints the squared "
                          "error so runs with different P compare")
@@ -547,6 +562,8 @@ def main():
     if layers and (len(layers) != 2 or not args.screlu or args.fine_output):
         raise SystemExit("--layers takes two sizes (16,32), needs --screlu, and has its own output format "
                          "(no --fine-output)")
+    if args.pairwise and not layers:
+        raise SystemExit("--pairwise needs --layers")
     if layers and layers != ENGINE_LAYERS:
         print(f"note: the engine only runs --layers {ENGINE_LAYERS[0]},{ENGINE_LAYERS[1]}")
     if args.factorize and args.king_buckets == 1:
@@ -575,7 +592,8 @@ def main():
           f"{' (factorised)' if args.factorize else ''}, device {device}")
 
     torch.manual_seed(args.seed)
-    model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize, layers).to(device)
+    model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize, layers,
+                 args.pairwise).to(device)
     model.sparse_ft = args.ft == "sparse"
     model.ft_clip = args.ft_clip
     if args.init_from and not args.resume:
@@ -603,7 +621,7 @@ def main():
             model.ft.bias.copy_(sm["ft.bias"])
             model.out.weight.copy_(sm["out.weight"])
             model.out.bias.copy_(sm["out.bias"])
-            if layers and tuple(src.get("layers") or ()) == layers:
+            if layers and tuple(src.get("layers") or ()) == layers and src.get("pairwise", False) == args.pairwise:
                 for name in ("l1", "l2", "l3"):
                     getattr(model, name).load_state_dict({k[3:]: v for k, v in sm.items() if k.startswith(name + ".")})
             elif layers:
@@ -619,9 +637,10 @@ def main():
         if (state.get("screlu", False) != args.screlu or model_state["out.weight"].shape[0] != args.output_buckets
                 or model_state["ft.weight"].shape[0] != model.ft.in_features
                 or state.get("factorize", False) != args.factorize
-                or tuple(state.get("layers") or ()) != tuple(layers or ())):
+                or tuple(state.get("layers") or ()) != tuple(layers or ())
+                or state.get("pairwise", False) != args.pairwise):
             raise SystemExit("the checkpoint was trained with different --screlu / --output-buckets / --king-buckets / "
-                             "--factorize / --layers settings")
+                             "--factorize / --layers / --pairwise settings")
         model.load_state_dict(model_state)
         if state.get("ft_input_major", False):
             opt.load_state_dict(state["opt"])
@@ -690,7 +709,7 @@ def main():
               f"{time.time() - t0:.0f} s", flush=True)
         saved = {"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
                  "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True,
-                 "factorize": args.factorize, "layers": layers}
+                 "factorize": args.factorize, "layers": layers, "pairwise": args.pairwise}
         if ema is not None:
             saved["ema"] = ema.state_dict()
         torch.save(saved, os.path.join(args.out, "checkpoint.pt"))

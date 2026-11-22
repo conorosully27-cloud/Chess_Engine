@@ -66,6 +66,7 @@ struct Network {
   // l1_weight is [bucket][pair of inputs][L1][2], so one pair's weights for
   // all 16 outputs are 64 consecutive bytes (the file has [bucket][L1][input]).
   bool layers = false;
+  bool pairwise = false;  // activation 3: the first extra layer's inputs are products of two units
   std::vector<std::int16_t> l1_weight;
   std::int32_t l1_bias[MAX_BUCKETS][L1] = {};
   float l2_weight[MAX_BUCKETS][L1][L2] = {};  // [input][output] (the file has [output][input])
@@ -321,11 +322,18 @@ inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
 }
 #endif
 
-// Extra layers. activate(): out = (clamp(v, 0, QA)^2) >> L1_SHIFT for one
-// side's HIDDEN units. l1_sums(): sums[o] = sum over inputs i of act[i] x
-// weight[o][i], skipping the pairs of inputs that are both 0 (most are:
-// 7.2's units are 0 89% of the time). Integer sums, so every version gives
-// the same result.
+// Extra layers. The first extra layer's inputs, for each side, side to
+// move first: (c * c) >> L1_SHIFT for each of its HIDDEN units c (clipped
+// to [0, QA]), or with Pairwise (activation 3 in the file) the products
+// (c[i] * c[i + HIDDEN / 2]) >> L1_SHIFT, half as many. The layer adds up
+// input x weight for its 16 outputs, skipping pairs of inputs that are
+// both 0 (most are: 7.2's units are 0 89% of the time; a product is 0 when
+// either unit is). Integer sums, so every version gives the same result.
+static_assert(HIDDEN % 64 == 0, "the extra layers step 32 units at a time on each half");
+
+template <bool Pairwise>
+constexpr int L1_INPUTS = Pairwise ? HIDDEN : 2 * HIDDEN;  // = 2 x the pairs
+
 // For each 8-bit mask, the positions of its set bits (the rest 0): turns a
 // comparison's mask into a list of non-zero pairs without a branch per bit.
 struct NnzTable {
@@ -341,20 +349,23 @@ struct NnzTable {
 constexpr NnzTable nnz_table;
 
 #if defined(__AVX512BW__)
-// AVX-512: 32 units (16 pairs) a step, the list made with a compress
+// AVX-512: 32 inputs (16 pairs) a step, the list made with a compress
 // instead of a table, and one register for all 16 outputs. Same results.
+template <bool Pairwise>
 inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
                        const std::int16_t* __restrict w, std::int32_t* sums) {
-  alignas(64) std::int32_t act[HIDDEN];  // input pairs (2i, 2i + 1), low half first
-  alignas(64) std::int32_t list[HIDDEN + 16];
+  constexpr int PER_SIDE = L1_INPUTS<Pairwise> / 2, OTHER = Pairwise ? HIDDEN / 2 : 0;
+  alignas(64) std::int32_t act[L1_INPUTS<Pairwise> / 2];  // input pairs (2i, 2i + 1), low half first
+  alignas(64) std::int32_t list[L1_INPUTS<Pairwise> / 2 + 16];
   std::int32_t* ap = act;
   std::int32_t* lp = list;
   const __m512i zero = _mm512_setzero_si512(), top = _mm512_set1_epi16(QA), sixteen = _mm512_set1_epi32(16);
   __m512i base = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
   for (const std::int16_t* v : {us, them})
-    for (const std::int16_t* end = v + HIDDEN; v < end; v += 32, ap += 16) {
-      const __m512i c = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(v), zero), top);
-      const __m512i a = _mm512_srli_epi16(_mm512_mullo_epi16(c, c), L1_SHIFT);
+    for (int j = 0; j < PER_SIDE; j += 32, ap += 16) {
+      const __m512i c = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(v + j), zero), top);
+      const __m512i d = Pairwise ? _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(v + j + OTHER), zero), top) : c;
+      const __m512i a = _mm512_srli_epi16(_mm512_mullo_epi16(c, d), L1_SHIFT);
       _mm512_store_si512(ap, a);
       const __mmask16 mask = _mm512_cmpgt_epi32_mask(a, zero);
       _mm512_storeu_si512(lp, _mm512_maskz_compress_epi32(mask, base));
@@ -390,20 +401,25 @@ struct NnzTable32 {
 constexpr NnzTable32 nnz_table32;
 
 // One pass over both sides' units computes the inputs, kept as 32-bit
-// pairs, and lists the non-zero pairs (16 units, 8 pairs, a step); then
+// pairs, and lists the non-zero pairs (16 inputs, 8 pairs, a step); then
 // each listed pair's weights for all 16 outputs, two pairs at a time.
+template <bool Pairwise>
 inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
                        const std::int16_t* __restrict w, std::int32_t* sums) {
-  alignas(64) std::int32_t act[HIDDEN];  // input pairs (2i, 2i + 1), low half first
-  alignas(32) std::int32_t list[HIDDEN + 8];
+  constexpr int PER_SIDE = L1_INPUTS<Pairwise> / 2, OTHER = Pairwise ? HIDDEN / 2 : 0;
+  alignas(64) std::int32_t act[L1_INPUTS<Pairwise> / 2];  // input pairs (2i, 2i + 1), low half first
+  alignas(32) std::int32_t list[L1_INPUTS<Pairwise> / 2 + 8];
   std::int32_t* ap = act;
   std::int32_t* lp = list;
   const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA), eight = _mm256_set1_epi32(8);
   __m256i base = zero;
+  const auto clipped = [&](const std::int16_t* v) {
+    return _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v)), zero), top);
+  };
   const auto step = [&](const std::int16_t* v, std::int32_t* out) {
-    const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v)), zero), top);
-    // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
-    const __m256i a = _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT);
+    const __m256i c = clipped(v);
+    // c * d < 65536 fits the 16 bits as an unsigned number; shift it as one.
+    const __m256i a = _mm256_srli_epi16(_mm256_mullo_epi16(c, Pairwise ? clipped(v + OTHER) : c), L1_SHIFT);
     _mm256_store_si256(reinterpret_cast<__m256i*>(out), a);
     // As 32-bit numbers the pairs are never negative: > 0 means not both 0.
     const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(a, zero))));
@@ -413,9 +429,9 @@ inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __
     base = _mm256_add_epi32(base, eight);
   };
   for (const std::int16_t* v : {us, them})
-    for (const std::int16_t* end = v + HIDDEN; v < end; v += 32, ap += 16) {
-      step(v, ap);
-      step(v + 16, ap + 8);
+    for (int j = 0; j < PER_SIDE; j += 32, ap += 16) {
+      step(v + j, ap);
+      step(v + j + 16, ap + 8);
     }
   const std::int32_t* const list_end = lp;
   __m256i s0 = zero, s1 = zero, s2 = zero, s3 = zero;
@@ -440,22 +456,36 @@ inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __
   _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums), _mm256_add_epi32(s0, s2));
   _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums + 8), _mm256_add_epi32(s1, s3));
 }
-#elif defined(__wasm_simd128__)
+#else
+// One side's inputs into out (L1_INPUTS / 2 of them).
+template <bool Pairwise>
 inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
+  constexpr int PER_SIDE = L1_INPUTS<Pairwise> / 2, OTHER = Pairwise ? HIDDEN / 2 : 0;
+#if defined(__wasm_simd128__)
   const v128_t zero = wasm_i16x8_splat(0), top = wasm_i16x8_splat(QA);
-  for (int j = 0; j < HIDDEN; j += 8) {
+  for (int j = 0; j < PER_SIDE; j += 8) {
     const v128_t c = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(v + j), zero), top);
-    wasm_v128_store(out + j, wasm_u16x8_shr(wasm_i16x8_mul(c, c), L1_SHIFT));
+    const v128_t d = Pairwise ? wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(v + j + OTHER), zero), top) : c;
+    wasm_v128_store(out + j, wasm_u16x8_shr(wasm_i16x8_mul(c, d), L1_SHIFT));
   }
+#else
+  for (int j = 0; j < PER_SIDE; j++) {
+    const int c = std::clamp(int(v[j]), 0, QA), d = Pairwise ? std::clamp(int(v[j + OTHER]), 0, QA) : c;
+    out[j] = std::int16_t((c * d) >> L1_SHIFT);
+  }
+#endif
 }
 
+template <bool Pairwise>
 inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
+  constexpr int PAIRS = L1_INPUTS<Pairwise> / 2;
+#if defined(__wasm_simd128__)
   // As with AVX2: the non-zero pairs first, 4 a step (a 4-bit mask), then
   // each listed pair's weights for all 16 outputs, 4 registers.
-  alignas(16) std::uint16_t list[HIDDEN + 8];
+  alignas(16) std::uint16_t list[PAIRS + 8];
   int n = 0;
   const v128_t zero = wasm_i32x4_splat(0);
-  for (int p0 = 0; p0 < HIDDEN; p0 += 4) {
+  for (int p0 = 0; p0 < PAIRS; p0 += 4) {
     const unsigned mask = wasm_i32x4_bitmask(wasm_i32x4_gt(wasm_v128_load(act + 2 * p0), zero));
     const v128_t idx = wasm_i16x8_add(wasm_v128_load(nnz_table.idx[mask]), wasm_i16x8_splat(std::int16_t(p0)));
     wasm_v128_store64_lane(list + n, idx, 0);
@@ -471,39 +501,33 @@ inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __re
     for (int j = 0; j < 4; j++) s[j] = wasm_i32x4_add(s[j], wasm_i32x4_dot_i16x8(b, wasm_v128_load(row + 8 * j)));
   }
   for (int j = 0; j < 4; j++) wasm_v128_store(sums + 4 * j, s[j]);
-}
 #else
-inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
-  for (int j = 0; j < HIDDEN; j++) {
-    const int c = std::clamp(int(v[j]), 0, QA);
-    out[j] = std::int16_t((c * c) >> L1_SHIFT);
-  }
-}
-
-inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
   for (int o = 0; o < L1; o++) sums[o] = 0;
-  for (int i = 0; i < 2 * HIDDEN; i++) {
+  for (int i = 0; i < 2 * PAIRS; i++) {
     if (!act[i]) continue;
     const std::int16_t* row = w + std::size_t(i / 2) * L1 * 2 + (i & 1);
     for (int o = 0; o < L1; o++) sums[o] += act[i] * row[2 * o];
   }
-}
 #endif
+}
 
-#if !defined(__AVX2__)
+template <bool Pairwise>
 inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
                        const std::int16_t* __restrict w, std::int32_t* sums) {
-  alignas(64) std::int16_t act[2 * HIDDEN];
-  activate(us, act);
-  activate(them, act + HIDDEN);
-  l1_sums(act, w, sums);
+  alignas(64) std::int16_t act[L1_INPUTS<Pairwise>];
+  activate<Pairwise>(us, act);
+  activate<Pairwise>(them, act + L1_INPUTS<Pairwise> / 2);
+  l1_sums<Pairwise>(act, w, sums);
 }
 #endif
 
 // The extra layers' evaluation, in units of SCALE centipawns.
 float evaluate_layers(const std::int16_t* us, const std::int16_t* them, int bucket) {
   std::int32_t sums[L1];
-  l1_forward(us, them, &net.l1_weight[std::size_t(bucket) * HIDDEN * L1 * 2], sums);
+  if (net.pairwise)
+    l1_forward<true>(us, them, &net.l1_weight[std::size_t(bucket) * L1_INPUTS<true> * L1], sums);
+  else
+    l1_forward<false>(us, them, &net.l1_weight[std::size_t(bucket) * L1_INPUTS<false> * L1], sums);
   float h1[L1];
   for (int o = 0; o < L1; o++)
     h1[o] = std::clamp(float(sums[o] + net.l1_bias[bucket][o]) * (1.0f / L1_UNIT), 0.0f, 1.0f);
@@ -737,9 +761,9 @@ bool load(const unsigned char* data, std::size_t size) {
   // Version 4: the extra layers' sizes, which must be the engine's.
   std::uint32_t l1 = 0, l2 = 0;
   if (version >= 4 && (!take(data, size, pos, &l1, 4) || !take(data, size, pos, &l2, 4) || l1 != L1 || l2 != L2 ||
-                       screlu != 1))
+                       (screlu != 1 && screlu != 3)))
     return false;
-  if (screlu > 2 || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
+  if (screlu > (version >= 4 ? 3u : 2u) || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
     return false;
   for (std::uint8_t b : king_map)
     if (b >= king_buckets) return false;
@@ -748,8 +772,10 @@ bool load(const unsigned char* data, std::size_t size) {
       !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)))
     return false;
   net.layers = version >= 4;
+  net.pairwise = net.layers && screlu == 3;
   if (net.layers) {
-    std::vector<std::int16_t> w1(std::size_t(buckets) * L1 * 2 * HIDDEN);
+    const int inputs = net.pairwise ? L1_INPUTS<true> : L1_INPUTS<false>;
+    std::vector<std::int16_t> w1(std::size_t(buckets) * L1 * inputs);
     std::vector<float> w2(std::size_t(buckets) * L2 * L1);
     if (!take(data, size, pos, w1.data(), w1.size() * sizeof(std::int16_t)) ||
         !take(data, size, pos, net.l1_bias, buckets * sizeof(net.l1_bias[0])) ||
@@ -761,8 +787,8 @@ bool load(const unsigned char* data, std::size_t size) {
     net.l1_weight.resize(w1.size());
     for (std::size_t b = 0; b < buckets; b++)
       for (int o = 0; o < L1; o++)
-        for (int i = 0; i < 2 * HIDDEN; i++)
-          net.l1_weight[((b * HIDDEN + i / 2) * L1 + o) * 2 + (i & 1)] = w1[(b * L1 + o) * 2 * HIDDEN + i];
+        for (int i = 0; i < inputs; i++)
+          net.l1_weight[((b * (inputs / 2) + i / 2) * L1 + o) * 2 + (i & 1)] = w1[(b * L1 + o) * inputs + i];
     for (std::size_t b = 0; b < buckets; b++)
       for (int o = 0; o < L2; o++)
         for (int i = 0; i < L1; i++) net.l2_weight[b][i][o] = w2[(b * L2 + o) * L1 + i];

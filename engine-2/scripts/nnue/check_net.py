@@ -31,7 +31,7 @@ def main():
     factorize = saved.get("factorize", False)
     king_buckets = saved.get("king_buckets", state["ft.weight"].shape[0] // 768)
     model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets,
-                 factorize, saved.get("layers"))
+                 factorize, saved.get("layers"), saved.get("pairwise", False))
     model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
