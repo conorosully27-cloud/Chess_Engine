@@ -230,16 +230,22 @@ units, 8 epochs; final validation loss):
 **At 4x the data** (10.4M positions, same settings; a different
 validation set, so compare within this table):
 
-| Net | Validation after 8 epochs | vs no buckets |
-|---|---|---|
-| No king buckets | 0.021212 | |
-| **4 king buckets + factoriser, `--bucket-decay 10`** | **0.021015** | **0.93% better** |
+| Net | Validation after 8 epochs | vs no buckets | At 2.5M |
+|---|---|---|---|
+| No king buckets | 0.021212 | | |
+| 4 king buckets (v14) | 0.021740 | 2.5% worse | 4.2% worse |
+| 4 king buckets + factoriser, `--bucket-decay 10` | 0.021015 | 0.93% better | 0.7% better |
+| **4 king buckets + factoriser, `--bucket-decay 1`** | **0.021006** | **0.97% better** | 1.0% worse |
 
-- The advantage grew with the data (0.7% at 2.5M positions).
-- The king-bucket net was still improving at epoch 8, while the plain
-  net had stopped (0.021212 at epochs 7 and 8).
-- `--bucket-decay 1` was ahead of 10 after 2 epochs (0.021938 vs
-  0.022286), as expected with more data; its final figure is still to come.
+- **v14's design is data-starved:** its deficit shrinks with data (4.2% ->
+  2.5% for 4x the data) but it is still behind at 10.4M. On 660M it
+  probably ended about level in accuracy and lost on its 5% speed cost,
+  which fits v14's result.
+- **With the factoriser and decay, king buckets beat no buckets at both
+  sizes, by more with more data.** They were still improving at epoch 8;
+  the plain net had stopped (0.021212 at epochs 7 and 8).
+- **The best decay falls as data grows:** 10 was best at 2.5M, 1 at
+  10.4M (and 1 learned faster early). For 660M+, use `--bucket-decay 1`.
 
 ## 5. The trainer and training algorithm
 
@@ -383,7 +389,7 @@ The owner's roadmap (one unproven network change per run):
 | v14 | 4 king buckets, mirrored | **Failed** (section 4) |
 | **7.2.1** | **v13's checkpoint re-exported with `--fine-output`** | No training: `export.py`, then an SPRT against 7.2. Needs this engine |
 | v15a | v13's design + `--lr-end 0.01`, exported with `--fine-output` | One change from v13; small but consistent gain in every CPU test |
-| v15b | 4 king buckets + `--factorize --bucket-decay 10`, same schedule | King buckets again, with the fix for what sank v14 (section 4) |
+| v15b | 4 king buckets + `--factorize --bucket-decay 1`, same schedule | King buckets again, with the fix for what sank v14 (section 4); 0.97% better validation than no buckets at 10.4M positions |
 | data | **Fresh data from 7.2**, as much as possible, added to the 660M | The most reliable gain in this project's history; king buckets need it most. `keep 4` searches 4 quiet positions for each 1 it keeps; `keep 2` doubles the positions per hour (neighbouring positions are more alike, so worth a comparison) |
 | later | `--k` from `data.py`'s fit; 8 king buckets or 1536-2048 units (fine output first); extra hidden layers, threat inputs | |
 
@@ -416,7 +422,7 @@ python scripts/nnue/export.py <v13 run>/checkpoint.pt nets/candidate-7.2.1-fine.
 python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15a --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output
 ```
 ```bash
-python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15b --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output --king-buckets 4 --factorize --bucket-decay 10
+python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15b --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output --king-buckets 4 --factorize --bucket-decay 1
 ```
 Fine nets need an engine from Nov 21 on (older ones refuse them).
 

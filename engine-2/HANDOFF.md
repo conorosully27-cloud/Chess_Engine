@@ -110,8 +110,9 @@ positions) lost to 7.2.
 - **New trainer options:**
   - `--factorize`: shared input weights that every bucket adds to.
   - `--bucket-decay L`: pulls the buckets' own weights toward the shared
-    ones. On a 2.5M-position CPU test, king buckets went from 4.2% worse
-    than no buckets to **0.7% better** with `--factorize --bucket-decay 10`.
+    ones. On CPU tests, king buckets went from 4.2% worse than no buckets
+    to **0.7% better** at 2.5M positions (`--bucket-decay 10`) and
+    **0.97% better** at 10.4M (`--bucket-decay 1`, the setting for v15b).
   - `--k`: the score -> win probability scale; `data.py` fits it (300 on
     7.2's games, against the 400 used so far).
   - `--wdl-end` (result weight schedule); `--tf32` is now opt-in.
