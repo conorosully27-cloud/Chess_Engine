@@ -334,13 +334,24 @@ python scripts/nnue/diagnose.py <fresh data>.bin --net nets/engine-7.2.nnue --ne
   to the dataset's size.
 - **For each net (any file version):** eval against search score and
   against game results for each output bucket, the output-layer rounding
-  error, and the net's scale (with the factor that matches the first net
-  given).
+  error, the net's scale (with the factor that matches the first net
+  given), and its hidden units: how many are dead (never above 0, so
+  they never learn), and how sparse the rest are.
 - Use data the nets were not trained on, ideally fresh games from the
   current engine.
 - 7.2 against 7.1 on 7.2's games: the median eval-to-search error is lower
   in every bucket from 18 pieces up (e.g. 40.7 vs 46.7 cp at 26-29
   pieces), where the output buckets were expected to help.
+- **Hidden units (Nov 22):** 7.2 and 7.0 have **no dead units**. 7.2's are
+  very sparse: 89% of unit values are 0, the median unit is on in 6.8%
+  of positions, and only 0.4% of values reach the clip at 1. The 41
+  rarest units (on in under 1%) have 3x the output weight of the others:
+  specialists, not waste. A small CPU net (256 units, 10M positions) is
+  the opposite: 28% zeros, the median unit on in 72%. For a future extra
+  hidden layer this sparsity is what makes it cheap (only the ~11% of
+  non-zero values need multiplying).
+- **Scale is not only `--wdl`:** the 256-unit CPU nets come out *cold*
+  (0.96 against 7.2's 1.067 on the same data), so check every candidate.
 
 ### Training speed on the GPU
 - With king buckets, each step reads about 20 rows of 1024 floats per

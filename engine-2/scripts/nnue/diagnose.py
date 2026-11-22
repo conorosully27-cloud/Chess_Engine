@@ -156,6 +156,18 @@ def main():
         print(f"output rounding error (x{qb}): mean {moved.mean():.2f} cp, 99th percentile {np.percentile(moved, 99):.1f} cp")
         if qb == train.QB and model.screlu:
             print(f"output weights at the +/-127 limit: {int((np.abs(ow) >= 126).sum())} of {ow.size}")
+        # Hidden units: a unit that is never above 0 gets no gradient and is
+        # dead weight (7.2: none; 89% of unit values are 0, the median unit
+        # is on in 7% of positions, 0.4% of values reach the clip at 1).
+        n = min(len(pieces), 50_000)
+        xw, xb = train.features(pieces[:n], "cpu", model.king_buckets, sparse=True)
+        with torch.no_grad():
+            w = model.bucket_weights()
+            acts = torch.cat([model.transform(xw, w), model.transform(xb, w)])
+        on = (acts > 0).float().mean(0)
+        print(f"hidden units: {int((on == 0).sum())} of {len(on)} never on (dead), {int((on < 0.01).sum())} on in <1% "
+              f"of positions; values at 0 {100 * (acts <= 0).float().mean():.0f}%, at the clip "
+              f"{100 * (acts >= 1).float().mean():.1f}%; median unit on in {100 * on.median():.1f}% of positions")
     if len(slopes) > 1:
         ref, ref_slope = slopes[0]
         print(f"\n== to put each net on {ref}'s scale: export.py <checkpoint> <out> --scale F")
