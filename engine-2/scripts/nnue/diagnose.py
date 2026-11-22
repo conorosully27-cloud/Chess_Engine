@@ -54,26 +54,52 @@ def read_net(path):
         pos += 8
         king_map = list(b[pos:pos + 64])
         pos += 64
+    layers = None
+    if version >= 4:
+        layers = struct.unpack_from("<II", b, pos)
+        pos += 8
     rows = train.INPUTS * king_buckets
     ft = np.frombuffer(b, "<i2", rows * hidden, pos).reshape(rows, hidden)
     pos += rows * hidden * 2
     fb = np.frombuffer(b, "<i2", hidden, pos)
     pos += hidden * 2
-    ow = np.frombuffer(b, "<i2", buckets * 2 * hidden, pos).reshape(buckets, 2 * hidden)
-    pos += buckets * 2 * hidden * 2
-    ob = np.frombuffer(b, "<i4", buckets, pos)
     qb = train.QB_FINE if activation == 2 else train.QB
     if king_buckets > 1 and (king_map != train.KING_MAPS.get(king_buckets) or not mirror):
         raise SystemExit(f"{path}: king map differs from train.py's KING_MAPS[{king_buckets}]")
-    model = train.NNUE(hidden, activation >= 1, buckets, king_buckets)
+    model = train.NNUE(hidden, activation >= 1, buckets, king_buckets, layers=layers)
     with torch.no_grad():
         model.ft.weight.copy_(torch.from_numpy(ft.astype(np.float32) / train.QA))
         model.ft.bias.copy_(torch.from_numpy(fb.astype(np.float32) / train.QA))
-        model.out.weight.copy_(torch.from_numpy(ow.astype(np.float32) / qb))
-        model.out.bias.copy_(torch.from_numpy(ob.astype(np.float64) / (train.QA * qb)).float())
+        if layers:
+            # The engine's own rounding of the inputs ((c * c) >> 4) is not
+            # modelled: this is the file's weights in the float network.
+            l1, l2 = layers
+
+            def take(dtype, n):
+                nonlocal pos
+                x = np.frombuffer(b, dtype, n, pos)
+                pos += n * np.dtype(dtype).itemsize
+                return x
+
+            w1 = take("<i2", buckets * l1 * 2 * hidden).reshape(buckets * l1, 2 * hidden) / train.L1_Q
+            b1 = take("<i4", buckets * l1) / (train.L1_IN * train.L1_Q)
+            model.l1.weight.copy_(torch.from_numpy(w1.astype(np.float32)))
+            model.l1.bias.copy_(torch.from_numpy(b1.astype(np.float32)))
+            model.l2.weight.copy_(torch.from_numpy(take("<f4", buckets * l2 * l1).reshape(buckets * l2, l1).copy()))
+            model.l2.bias.copy_(torch.from_numpy(take("<f4", buckets * l2).copy()))
+            model.l3.weight.copy_(torch.from_numpy(take("<f4", buckets * l2).reshape(buckets, l2).copy()))
+            model.l3.bias.copy_(torch.from_numpy(take("<f4", buckets).copy()))
+            ow = None
+        else:
+            ow = np.frombuffer(b, "<i2", buckets * 2 * hidden, pos).reshape(buckets, 2 * hidden)
+            pos += buckets * 2 * hidden * 2
+            ob = np.frombuffer(b, "<i4", buckets, pos)
+            model.out.weight.copy_(torch.from_numpy(ow.astype(np.float32) / qb))
+            model.out.bias.copy_(torch.from_numpy(ob.astype(np.float64) / (train.QA * qb)).float())
     model.eval()
     desc = (f"version {version}, {hidden} hidden units, {['clipped', 'SCReLU', 'SCReLU fine'][activation]}, "
-            f"{buckets} output bucket(s), {king_buckets} king bucket(s)")
+            f"{buckets} output bucket(s), {king_buckets} king bucket(s)"
+            f"{f', extra layers {layers[0]} and {layers[1]}' if layers else ''}")
     return model, desc, qb, ow
 
 
@@ -147,15 +173,19 @@ def main():
             print(f"{2 + 4 * k:2d}-{min(5 + 4 * k, 32):2d}   {m.sum():9,d}  {d.mean():+15.1f}  {np.median(np.abs(d)):20.1f}"
                   f"  {100 * (result_stm[m].mean() - pred.mean()):+20.1f}%")
         rng = np.random.default_rng(1)
-        with torch.no_grad():
-            saved = model.out.weight.clone()
-            model.out.weight.add_(torch.from_numpy(rng.uniform(-0.5, 0.5, saved.shape).astype(np.float32) / qb))
-        moved = np.abs(evaluate(model, pieces[:20000], stm[:20000], count[:20000]) - ev[:20000])
-        with torch.no_grad():
-            model.out.weight.copy_(saved)
-        print(f"output rounding error (x{qb}): mean {moved.mean():.2f} cp, 99th percentile {np.percentile(moved, 99):.1f} cp")
-        if qb == train.QB and model.screlu:
-            print(f"output weights at the +/-127 limit: {int((np.abs(ow) >= 126).sum())} of {ow.size}")
+        if model.layers:
+            print("output rounding error: not measured for extra layers (check_net.py compares with the engine)")
+        else:
+            with torch.no_grad():
+                saved = model.out.weight.clone()
+                model.out.weight.add_(torch.from_numpy(rng.uniform(-0.5, 0.5, saved.shape).astype(np.float32) / qb))
+            moved = np.abs(evaluate(model, pieces[:20000], stm[:20000], count[:20000]) - ev[:20000])
+            with torch.no_grad():
+                model.out.weight.copy_(saved)
+            print(f"output rounding error (x{qb}): mean {moved.mean():.2f} cp, "
+                  f"99th percentile {np.percentile(moved, 99):.1f} cp")
+            if qb == train.QB and model.screlu:
+                print(f"output weights at the +/-127 limit: {int((np.abs(ow) >= 126).sum())} of {ow.size}")
         # Hidden units: a unit that is never above 0 gets no gradient and is
         # dead weight (7.2: none; 89% of unit values are 0, the median unit
         # is on in 7% of positions, 0.4% of values reach the clip at 1).
