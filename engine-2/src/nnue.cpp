@@ -336,22 +336,43 @@ inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict 
   }
 }
 
-inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
-  __m256i s0 = _mm256_setzero_si256(), s1 = _mm256_setzero_si256();
-  const __m256i zero = _mm256_setzero_si256();
-  for (int p0 = 0; p0 < HIDDEN; p0 += 8) {  // 8 pairs (16 inputs) a step
-    const __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(act + 2 * p0));
-    unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(v, zero))));
-    while (mask) {
-      const int p = p0 + __builtin_ctz(mask);
-      mask &= mask - 1;
-      std::int32_t pair;
-      std::memcpy(&pair, act + 2 * p, 4);
-      const __m256i b = _mm256_set1_epi32(pair);
-      const __m256i* row = reinterpret_cast<const __m256i*>(w + std::size_t(p) * L1 * 2);
-      s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(b, _mm256_loadu_si256(row)));
-      s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(b, _mm256_loadu_si256(row + 1)));
+// For each 8-bit mask, the positions of its set bits (the rest 0): turns a
+// comparison's mask into a list of non-zero pairs without a branch per bit.
+struct NnzTable {
+  alignas(16) std::uint16_t idx[256][8];
+  constexpr NnzTable() : idx() {
+    for (int m = 0; m < 256; m++) {
+      int n = 0;
+      for (int b = 0; b < 8; b++)
+        if (m & (1 << b)) idx[m][n++] = std::uint16_t(b);
     }
+  }
+};
+constexpr NnzTable nnz_table;
+
+inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
+  // First the list of pairs of inputs that are not both 0 (as 32-bit
+  // numbers, pairs are never negative), 8 pairs a step...
+  alignas(32) std::uint16_t list[HIDDEN + 8];
+  int n = 0;
+  const __m256i zero = _mm256_setzero_si256();
+  for (int p0 = 0; p0 < HIDDEN; p0 += 8) {
+    const __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(act + 2 * p0));
+    const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(v, zero))));
+    const __m128i idx = _mm_load_si128(reinterpret_cast<const __m128i*>(nnz_table.idx[mask]));
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(list + n), _mm_add_epi16(idx, _mm_set1_epi16(std::int16_t(p0))));
+    n += __builtin_popcount(mask);
+  }
+  // ...then each listed pair's weights for all 16 outputs, 2 registers.
+  __m256i s0 = _mm256_setzero_si256(), s1 = _mm256_setzero_si256();
+  for (int k = 0; k < n; k++) {
+    const int p = list[k];
+    std::int32_t pair;
+    std::memcpy(&pair, act + 2 * p, 4);
+    const __m256i b = _mm256_set1_epi32(pair);
+    const __m256i* row = reinterpret_cast<const __m256i*>(w + std::size_t(p) * L1 * 2);
+    s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(b, _mm256_loadu_si256(row)));
+    s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(b, _mm256_loadu_si256(row + 1)));
   }
   _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums), s0);
   _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums + 8), s1);
