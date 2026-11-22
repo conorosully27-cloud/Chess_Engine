@@ -38,6 +38,7 @@ larger than memory works. Every epoch saves a checkpoint (resume with
 export()).
 """
 import argparse
+import copy
 import glob
 import math
 import os
@@ -218,6 +219,12 @@ class FeatureTransformer(torch.nn.Module):
         offsets = torch.zeros(len(x), dtype=torch.int64, device=x.device)
         offsets[1:] = torch.cumsum(on.sum(dim=1), 0)[:-1]
         return torch.nn.functional.embedding_bag(flat, weight, offsets, mode="sum") + self.bias
+
+
+def net_state(saved):
+    """The weights a checkpoint's network files were exported from: the
+    moving average with --ema, else the trained weights (upgraded)."""
+    return upgrade_state({**saved, "model": saved["ema"]} if "ema" in saved else saved)
 
 
 def upgrade_state(saved):
@@ -412,6 +419,9 @@ def main():
                     help="move the result weight from --wdl in the first epoch to W in the last, in equal steps")
     ap.add_argument("--fine-output", action="store_true",
                     help="with --screlu: write output weights x1024 (16x less rounding error; needs a current engine)")
+    ap.add_argument("--ema", type=float, default=0.0, metavar="F",
+                    help="also keep an exponential moving average of the weights, over about F of an epoch, and "
+                         "export that (0 = off; e.g. 0.25)")
     ap.add_argument("--tf32", action="store_true",
                     help="TF32 matrix products on NVIDIA GPUs (Ampere on): faster for --ft dense, less precise")
     args = ap.parse_args()
@@ -446,7 +456,7 @@ def main():
     model.sparse_ft = args.king_buckets > 1 and args.ft == "sparse"
     if args.init_from and not args.resume:
         src = torch.load(args.init_from, map_location=device)
-        sm = upgrade_state(src)
+        sm = net_state(src)
         if (src.get("screlu", False) != args.screlu or sm["out.weight"].shape[0] != args.output_buckets
                 or sm["ft.weight"].shape[1] != args.hidden):
             raise SystemExit("--init-from: the checkpoint has different --hidden / --screlu / --output-buckets")
@@ -498,6 +508,18 @@ def main():
         start_epoch = state["epoch"] + 1
         print(f"resumed from {args.resume} (epoch {state['epoch']})")
 
+    # The moving average: decay per step so that it spans about --ema of an
+    # epoch, whatever the data size (a fixed decay would cover several
+    # epochs of a small dataset and a sliver of a large one).
+    ema, ema_decay = None, 0.0
+    if args.ema:
+        steps = max(1, (args.limit or data.size) // args.batch)
+        ema_decay = 1 - 1 / max(1.0, args.ema * steps)
+        ema = copy.deepcopy(model)
+        if args.resume and "ema" in state:
+            ema.load_state_dict(upgrade_state({**state, "model": state["ema"]}))
+        print(f"moving average over about {args.ema * steps:,.0f} steps (decay {ema_decay:.6f})")
+
     rng = np.random.default_rng(args.seed + start_epoch)
     for epoch in range(start_epoch, args.epochs + 1):
         model.train()
@@ -513,6 +535,9 @@ def main():
                 with torch.no_grad():
                     model.ft.weight[:INPUTS * args.king_buckets].mul_(1 - opt.param_groups[0]["lr"] * args.bucket_decay)
             model.clip()
+            if ema is not None:
+                with torch.no_grad():
+                    torch._foreach_lerp_(list(ema.parameters()), list(model.parameters()), 1 - ema_decay)
             total += loss.item()
             n += 1
             if args.limit and n * args.batch >= args.limit:
@@ -523,12 +548,19 @@ def main():
         model.eval()
         with torch.no_grad():
             val_loss = batch_loss(model, val, device, wdl, args.k).item()
-        print(f"epoch {epoch}: train {total / max(n, 1):.6f}, validation {val_loss:.6f}, {time.time() - t0:.0f} s", flush=True)
-        torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
-                    "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True,
-                    "factorize": args.factorize},
-                   os.path.join(args.out, "checkpoint.pt"))
-        export(model, os.path.join(args.out, f"net-{epoch}.nnue"), args.fine_output)
+            ema_note = ""
+            if ema is not None:
+                ema.eval()
+                ema_note = f", moving average {batch_loss(ema, val, device, wdl, args.k).item():.6f}"
+        print(f"epoch {epoch}: train {total / max(n, 1):.6f}, validation {val_loss:.6f}{ema_note}, "
+              f"{time.time() - t0:.0f} s", flush=True)
+        saved = {"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
+                 "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True,
+                 "factorize": args.factorize}
+        if ema is not None:
+            saved["ema"] = ema.state_dict()
+        torch.save(saved, os.path.join(args.out, "checkpoint.pt"))
+        export(model if ema is None else ema, os.path.join(args.out, f"net-{epoch}.nnue"), args.fine_output)
 
 
 if __name__ == "__main__":

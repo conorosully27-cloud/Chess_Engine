@@ -12,7 +12,7 @@ import argparse
 
 import torch
 
-from train import NNUE, export, upgrade_state
+from train import NNUE, export, net_state
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
     ap.add_argument("--fine-output", action="store_true", help="output weights x1024 (SCReLU networks only)")
     args = ap.parse_args()
     saved = torch.load(args.checkpoint, map_location="cpu")
-    state = upgrade_state(saved)
+    state = net_state(saved)
     factorize = saved.get("factorize", False)
     king_buckets = saved.get("king_buckets", state["ft.weight"].shape[0] // 768)
     model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets,

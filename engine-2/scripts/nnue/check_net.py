@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 import data
-from train import NNUE, SCALE, decode, features, upgrade_state
+from train import NNUE, SCALE, decode, features, net_state
 
 
 def main():
@@ -26,7 +26,7 @@ def main():
     records = records[np.sort(idx)]
 
     saved = torch.load(checkpoint, map_location="cpu")
-    state = upgrade_state(saved)
+    state = net_state(saved)
     # Hidden units, activation, output layers and king buckets, from the checkpoint.
     factorize = saved.get("factorize", False)
     king_buckets = saved.get("king_buckets", state["ft.weight"].shape[0] // 768)
