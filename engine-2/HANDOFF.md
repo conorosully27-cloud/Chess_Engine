@@ -129,6 +129,27 @@ positions) lost to 7.2.
      bucket decay); commands in `NETWORK.md` section 8.
   3. Fresh data from 7.2.
 
+**Nov 22 (cloud), more v15 work** (detail in `NETWORK.md` section 3):
+- **7.2 without its endgame scaling: H0, -12 +/- 10** (1,272 games): the
+  output buckets do not replace it; keep it.
+- **Extra hidden layers** (`train.py --layers 16,32`, network file
+  version 4, engine support on AVX2 / AVX-512 / WebAssembly / plain with
+  identical bench counts): **4.0% better validation** than one output
+  layer on CPU (256 units, 10.4M positions), at about **0.7x the node
+  rate** (1024 units). Game test at 256 units in progress.
+- **Warm start** (`--init-from` a finished plain net, v15b recipe): 1.2%
+  better validation than v15b from scratch after 2 epochs. For v15b:
+  start from v13's checkpoint and train fewer epochs. Games in progress.
+- **`--loss-power 2.5`**: lower squared error than training on squared
+  error (0.020826 vs 0.020880 at the end), less overfitting; the net comes
+  out colder, so match the scale. Games in progress.
+- **8 king buckets**: 0.2% better validation, about 7% fewer nodes/s than
+  4. Not for v15.
+- **`--k 300`**: much colder net (scale 0.83). Games queued.
+- Trainer: records unpacked on the GPU, loss summed on the device;
+  `diagnose.py` reports dead and sparse hidden units (7.2: none dead, 89%
+  of values 0).
+
 **Network speed and trainer review (Nov 20, cloud):**
 - **train.py is faster, same results.** The first layer sums the 32 rows
   of the pieces on the board (`embedding_bag`) instead of multiplying a
