@@ -99,7 +99,7 @@ TUNE_PARAM(CONT_HIST_GRAVITY, 14859, 4000, 30000);
 // by the pawn structure (as Stockfish's pawnHistory), so a plan that works
 // with these pawns is tried early in other positions with them. Used in
 // move ordering only. 0 = off.
-TUNE_PARAM(PAWN_HIST, 1, 0, 1);
+TUNE_PARAM(PAWN_HIST, 0, 0, 1);
 // Pawn history v2: also counted in the history that scales late move
 // reductions (1 = on), and held to its own lower gravity, as its entries
 // are updated far more often than a continuation entry.

@@ -11,6 +11,33 @@ code can be recovered), the results, how promising it looked beforehand
 (`122591c`), was-PV reductions (`ebcc4b0`) and cutoff-count reductions
 (`21faed9`) each have their switched-off code at that commit.
 
+## Pawn history v3 (ordering only, own gravity), on 7.2 (Nov 2026)
+
+**Change** (`PAWN_HIST` 1, `PAWN_HIST_LMR` 0, `PAWN_HIST_GRAVITY` 8000
+in `search.cpp`; committed with `PAWN_HIST` 0, so the code is in the
+tree): pawn history in quiet move ordering only, as v1, but its updates
+held to their own gravity (8000) instead of the continuation tables'
+14859. Bench 1325409.
+
+**Result:** vs 7.2 (cloud, 4 at a time):
+- **40+0.4, SPRT [0, 5]: 4606 games**, +436 -435 =3735, **+0.1 +/- 4.0**,
+  pentanomial [10, 319, 1645, 318, 11], **H0 accepted**. It led +7 at
+  400-900 games and +4.6 at 1700, then faded to zero
+  (`~/matches/pawnhist3-72.log`).
+- **8+0.08, SPRT [0, 5]: 3182 games**, +409 -405 =2368, **+0.4 +/- 5.7**,
+  LLR -1.22, stopped (`~/matches/pawnhist3-72-8.log`).
+- **40+0.4, non-regression SPRT [-3, 1]: 800 games**, +64 -77 =659,
+  -5.7 +/- 9.4, LLR -0.81; stopped by the owner, who turned it off
+  (`~/matches/pawnhist3-72-nonreg.log`).
+
+**Prior:** 6/10.
+
+**Why it failed (likely):** neutral, not harmful. Three forms of pawn
+history (v1-v3) all came out between -1 and +2 except v2's LMR use
+(-20). With two continuation histories and killers, this engine's quiet
+ordering seems to have little left for a pawn-structure table to add. A
+lesson in reading early leads: +7 over 900 games was noise.
+
 ## Pawn history v2 (also in LMR, own gravity), on 7.2 (Nov 2026)
 
 **Change** (`PAWN_HIST_LMR` 1 and `PAWN_HIST_GRAVITY` 8000 in

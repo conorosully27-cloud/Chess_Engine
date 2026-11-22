@@ -328,9 +328,8 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   `matches/run-20261120-142850`); 8+0.08 stopped at
   3182 games, +0.4 +/- 5.7, LLR -1.22 (`~/matches/pawnhist3-72-8.log`);
   40+0.4 resumed: **H0 accepted** at 4606 games, +0.1 +/- 4.0
-  (+436 -435 =3735). Now a non-regression SPRT [-3, 1] at 40+0.4
-  (`~/matches/pawnhist3-72-nonreg.log`) for the owner's keep-or-drop
-  decision.
+  (+436 -435 =3735); non-regression [-3, 1] stopped at 800 games,
+  -5.7 +/- 9.4. **Turned off** by the owner (`PAWN_HIST` 0; code kept).
 - **Early table evaluations, eval cache dropped** (`TT_EVAL_EARLY` 1,
   `EVAL_CACHE` 0; committed as 0 / 1, the old behaviour): **rejected** vs
   the 7.1 candidate, -9 +/- 9 over 1,118 games at 8+0.08 and -4 +/- 10
