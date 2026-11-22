@@ -545,7 +545,8 @@ int evaluate(const Position& pos) {
   const Accumulator& acc = pos.accumulators()[pos.game_ply()];
   if (acc.net[WHITE] != net_id || acc.net[BLACK] != net_id) update(pos);
   // Accumulators fit in 16 bits: the trainer keeps first-layer weights and
-  // biases within 1.98, so 33 terms of at most 1.98 * QA stay under 32767.
+  // biases within its --ft-clip (1.98 by default, at most 3.89), so a bias
+  // and 32 pieces, 33 terms of at most 3.89 * QA, stay under 32767.
   const Color us = pos.side_to_move();
   // The output layer for this many pieces (2 to 32): equal steps of piece
   // count, the fullest boards in the last. train.py's bucket_of is the same.

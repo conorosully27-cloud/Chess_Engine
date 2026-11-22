@@ -266,6 +266,8 @@ integer evaluation against the trainer's, to catch export bugs).
 | Nov 22 | `scripts/nnue/diagnose.py`: data and network health report | See below |
 | Nov 22 | `--ema F`: a moving average of the weights over about F of an epoch, exported | Testing |
 | Nov 22 | `export.py --scale F` | Puts a net on another net's scale (section 3) |
+| Nov 22 | `--ft-clip C` (first-layer limit, 1.98 as before, up to 3.89) | 7.2 has 2,730 first-layer weights (0.35%, in 584 of 1,024 units) pinned at 1.98, yet its largest possible sum is 16,009 of the 32,767 a 16-bit accumulator holds. The 1.98 was the output layer's x64 limit. Engine checked with weights up to 3.85; testing |
+| Nov 22 | `--ft sparse` (the default) for every net | The king-bucket merge had left plain nets on the dense path: a plain 1024-unit epoch 22 s -> 10 s on CPU, same losses |
 
 ### Diagnosing a network before playing it
 

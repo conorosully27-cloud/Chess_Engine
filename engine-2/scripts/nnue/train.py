@@ -58,7 +58,8 @@ QA = 255     # first layer: weights and biases times QA, accumulators in [0, QA]
 QB = 64      # output weights times QB
 SCALE = 400  # output unit, in centipawns
 K = 400      # centipawns per unit of the sigmoid that turns scores into win probabilities
-FT_CLIP = 1.98  # first-layer weight limit: 32 pieces * 1.98 * QA fits a 16-bit accumulator
+FT_CLIP = 1.98  # first-layer weight limit (--ft-clip): a bias and 32 pieces, 33 x 1.98 x QA = 16,662, fit a 16-bit accumulator
+FT_CLIP_MAX = 32767 / (33 * QA)  # 3.89: the largest limit that still fits
 OUT_CLIP = 127 / QB  # output weight limit with --screlu: unit x weight must fit 16 bits in the engine
 QB_FINE = 1024  # output weights times QB_FINE with --fine-output (engine: output_squared_fine)
 
@@ -290,7 +291,10 @@ class NNUE(torch.nn.Module):
             return out.squeeze(1)
         return out.gather(1, bucket_of(count, self.buckets).unsqueeze(1)).squeeze(1)
 
+    ft_clip = FT_CLIP
+
     def clip(self):
+        FT_CLIP = self.ft_clip
         with torch.no_grad():
             if self.factorize:
                 # Keep what the engine will use, bucket + shared, within the
@@ -422,11 +426,16 @@ def main():
     ap.add_argument("--ema", type=float, default=0.0, metavar="F",
                     help="also keep an exponential moving average of the weights, over about F of an epoch, and "
                          "export that (0 = off; e.g. 0.25)")
+    ap.add_argument("--ft-clip", type=float, default=FT_CLIP, metavar="C",
+                    help=f"first-layer weight and bias limit ({FT_CLIP} as before; up to {FT_CLIP_MAX:.2f} still fits "
+                         "the engine's 16-bit sums, and 7.2 has 0.35%% of its weights pinned at 1.98)")
     ap.add_argument("--tf32", action="store_true",
                     help="TF32 matrix products on NVIDIA GPUs (Ampere on): faster for --ft dense, less precise")
     args = ap.parse_args()
     if not 1 <= args.output_buckets <= 8:
         raise SystemExit("--output-buckets must be between 1 and 8")
+    if not 0 < args.ft_clip <= FT_CLIP_MAX:
+        raise SystemExit(f"--ft-clip must be at most {FT_CLIP_MAX:.3f} (a bias and 32 pieces in 16 bits)")
     if args.fine_output and not args.screlu:
         raise SystemExit("--fine-output needs --screlu")
     if args.factorize and args.king_buckets == 1:
@@ -454,6 +463,7 @@ def main():
     torch.manual_seed(args.seed)
     model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize).to(device)
     model.sparse_ft = args.ft == "sparse"
+    model.ft_clip = args.ft_clip
     if args.init_from and not args.resume:
         src = torch.load(args.init_from, map_location=device)
         sm = net_state(src)
