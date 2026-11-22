@@ -100,6 +100,32 @@ of the hidden layer uses weights for its own king's zone and sees all 32
 pieces, so the opponent's king safety (our attackers near their king) is
 learned in their half, not only our own.
 
+**v14 post-mortem and v15 work (Nov 21-22, cloud; full detail in
+`NETWORK.md` sections 4, 5 and 6):** v14 (4 king buckets, 660M
+positions) lost to 7.2.
+- **No bugs found** in the king-bucket trainer or engine code, or in the
+  pause and resume.
+- **The weakness:** too little data per bucket. The median first-layer
+  row sees 1.9M positions instead of 8.3M, and the nets overfit.
+- **New trainer options:**
+  - `--factorize`: shared input weights that every bucket adds to.
+  - `--bucket-decay L`: pulls the buckets' own weights toward the shared
+    ones. On a 2.5M-position CPU test, king buckets went from 4.2% worse
+    than no buckets to **0.7% better** with `--factorize --bucket-decay 10`.
+  - `--k`: the score -> win probability scale; `data.py` fits it (300 on
+    7.2's games, against the 400 used so far).
+  - `--wdl-end` (result weight schedule); `--tf32` is now opt-in.
+- **Fine output weights** (activation 2, `--fine-output`,
+  `scripts/nnue/export.py`): output rounding error 6.5 -> 0.7 cp on 7.2's
+  net, +1.2% instructions per node.
+- **Refresh cache** in one pass: -2.9% instructions with king-bucket nets.
+- **Next:**
+  1. Re-export v13's checkpoint with `--fine-output` as a 7.2.1 candidate
+     (no training) and SPRT it against 7.2.
+  2. v15a (v13 + `--lr-end 0.01`) and v15b (+ king buckets, factoriser,
+     bucket decay); commands in `NETWORK.md` section 8.
+  3. Fresh data from 7.2.
+
 **Network speed and trainer review (Nov 20, cloud):**
 - **train.py is faster, same results.** The first layer sums the 32 rows
   of the pieces on the board (`embedding_bag`) instead of multiplying a

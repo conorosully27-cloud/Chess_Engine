@@ -58,7 +58,7 @@ Contents:
 | 7.0 | `engine-7.0.nnue` | 1024 | | new run | 20 | **+28 STC, +19 LTC** |
 | 7.1 | `engine-7.1.nnue` | 1024 | **SCReLU** | 7.0's data (run v12) | 20 | **+14 STC, +6 LTC** |
 | 7.2 | `engine-7.2.nnue` | 1024 | SCReLU + **8 output buckets** | 7.0's data (run v13) | 20 | **+27 STC, +8 LTC** |
-| v14 | in training | 1024 | + **4 king buckets, mirrored** | 7.0's data | 20 | not yet measured |
+| v14 | not kept | 1024 | + **4 king buckets, mirrored** | 7.0's data (660M) | 20 | **failed against 7.2** (see section 4) |
 
 The network files from 5.0 on are kept in `nets/`. Any of them loads with
 `setoption name EvalFile value nets/engine-X.nnue` (the hidden size must
@@ -116,13 +116,15 @@ match the build's `-DENGINE_NNUE_HIDDEN`, 1024 by default).
   matters less there, and the evaluation matters less once the search is
   deeper.
 
-### King input buckets (v14, in training)
+### King input buckets (v14): failed on 660M positions
 - 4 zones for each side's own king, mirrored left-right when that king is
   on files e-h.
 - The engine keeps a refresh cache ("Finny table") per side and zone.
 - Costs about 5% nodes/s (a 4x larger first layer, 6.3 MB, misses the
-  cache more).
-- Other engines report +20 to +50 for king buckets.
+  cache more); the Nov 21 refresh rewrite takes back about 3%.
+- Other engines report +20 to +50 for king buckets, but they train on far
+  more data. **v14 lost to 7.2** on the same 660M positions; section 4
+  has the post-mortem.
 
 ### Speed is strength
 - Incremental updates alone (2.6): **+102**. Faster network code was
@@ -141,6 +143,61 @@ Details and commits in `FAILED_EXPERIMENTS.md`.
 | Network correction history (hidden-unit signature as a key, on 6.6) | flat, removed in 7.1.1 | |
 | TT evaluation refinement (on 6.x) | -13 +/- 15 | Margins and correction history already cover it |
 | Run 8's epoch 9 instead of epoch 20 | -26 +/- 19 | Use the end of the run |
+| **v14: 4 king buckets, mirrored** (660M, 20 epochs) | lost to 7.2 | Too little data per bucket; see below |
+
+### The v14 post-mortem (Nov 21)
+
+**No bugs found.** Checked:
+- The trainer's king-bucket inputs and mirroring against the engine's.
+- Engine vs trainer evaluations (`check_net.py`).
+- Incremental vs from-scratch updates through king moves (`nnue_test`,
+  with king-bucket nets built in, AVX2 and AVX-512).
+- WebAssembly vs native bench node counts.
+- Pausing v14 at epoch 5 and resuming with the faster trainer: same losses
+  as the old trainer resuming it.
+- TF32, which was on for epochs 6-20: only the small output-layer product
+  used it, which is harmless, but it gained nothing either and is now off.
+
+**The weakness: too little data per weight.**
+- With 4 buckets each first-layer row learns only from positions with
+  its own king in that zone.
+- In 660M positions the median row sees **1.9M positions, against 8.3M**
+  without buckets. 877 rows see fewer than 1M; with 8 buckets the median
+  would be 0.77M.
+- The buckets are also strongly tied to game phase: bucket 3 (king off
+  the back two ranks) is 60% of positions with 2-14 pieces and 0.2% of
+  openings.
+
+**Smaller contributors:**
+- About 5% fewer nodes/s.
+- The first layer started at half v13's weight scale (`1/sqrt(3072)`).
+- `--init-from` does not reproduce the source net exactly: with mirroring,
+  a side whose king is on e-h sees the board flipped, which v13's weights
+  never saw.
+
+**CPU experiments** (2.5M positions from 7.2 at 800 nodes, 256 hidden
+units, 8 epochs; final validation loss):
+
+| Net | Validation | vs no buckets |
+|---|---|---|
+| No king buckets | **0.02391** | |
+| 4 king buckets (v14) | 0.02491 | 4.2% worse |
+| 4 king buckets + factoriser | 0.02471 | 3.4% worse |
+| + factoriser, `--lr-end 0.01` | 0.02465 | |
+| + factoriser, started from the plain net | 0.02450 | |
+| + factoriser, `--bucket-decay 1` | 0.02415 | 1.0% worse |
+| **+ factoriser, `--bucket-decay 10`** | **0.02373** | **0.7% better** |
+| + factoriser, `--bucket-decay 100` | 0.02379 | 0.5% better |
+
+- Without the decay, the king-bucket nets overfit: lower training loss,
+  higher validation loss, and at 16 epochs they got worse faster than
+  the plain net (0.02620 vs 0.02417).
+- **The factoriser with bucket decay is the first king-bucket setup to beat
+  no buckets.** Each bucket's own weights are pulled toward zero, so where
+  a bucket has little data the net falls back on the shared weights, and
+  where it has plenty the data wins.
+- This is 260x less data than v14 had, so it shows the mechanism, not the
+  size of the effect at 660M. More data should need a weaker decay.
 
 ## 5. The trainer and training algorithm
 
@@ -171,6 +228,12 @@ integer evaluation against the trainer's, to catch export bugs).
 | v14 | `--king-buckets 4/8`, `--init-from` (start from another run, its input weights copied into every bucket); input-major first layer; sparse first layer (embedding_bag) for king-bucket nets; old checkpoints upgraded on load | A 4-bucket epoch costs about what a plain one did; network file version 3 |
 | Nov 20 | **Faster trainer, same results** (below) | **84k -> 215k positions/s** on the laptop GPU (king buckets); 1.7x on CPU |
 | Nov 20 | `--lr-end F` | The learning rate ends at F x `--lr` (0.1 as before, 0.01 for v15) |
+| Nov 21 | `--factorize` (king buckets): 768 shared input weights every bucket adds to, folded into the buckets on export | Rare (bucket, piece, square) inputs learn from all the data; engine and file unchanged |
+| Nov 21 | `--bucket-decay L` (with `--factorize`): shrinks the buckets' own weights toward the shared ones | A bucket with little data stays close to a plain net |
+| Nov 21 | `--fine-output` and `scripts/nnue/export.py` (re-export any checkpoint) | Output weights x1024: 9x less rounding error |
+| Nov 21 | `--k K` and a K fit in `data.py` | Score -> win probability scale; 300 fits 7.2's games better than 400 |
+| Nov 21 | `--wdl-end W` | Result weight moving from `--wdl` to W over the run |
+| Nov 21 | TF32 opt-in (`--tf32`) | No speed left to gain with the sparse first layer |
 
 ### The Nov 20 speedups in detail
 
@@ -186,6 +249,8 @@ integer evaluation against the trainer's, to catch export bugs).
 3. **Prefetch:** batches are decoded a few ahead in a background thread,
    so the GPU does not wait for the CPU's share.
 4. **TF32** matrix products on Ampere or newer GPUs (the laptop's A2000).
+   Off again since Nov 21 (`--tf32` turns it on): with the sparse first
+   layer only the small output layer uses it.
 
 **Checks:**
 - Plain net, 2 epochs on 600k positions: identical losses to 6 digits and
@@ -211,15 +276,27 @@ because the removed tensor shuffling was limited by memory traffic.
 | 2.x | WebAssembly SIMD for the phone app | 1.5x plain WebAssembly |
 | v14 | Per-side accumulators and a refresh cache for king-bucket zone changes | King-bucket nets at about 5% fewer nodes/s |
 | Nov 20 | `-DENGINE_AVX512=ON` (off by default) | Same moves; roughly +5-15% nodes/s on an AVX-512 Xeon (noisy cloud VM) |
+| Nov 21 | Refresh cache: one register-blocked pass for all changed pieces instead of one pass per piece plus a copy | -2.9% instructions for the bench with a king-bucket net, same moves |
+| Nov 21 | **Fine output weights** (activation 2): a rounding multiply-high (`pmulhrsw`) keeps unit x weight in 16 bits with weights x1024 | Output rounding error on 7.2's net 6.5 -> 0.7 cp (simulated); +1.2% instructions per node |
 
-**Watch out:**
-- **2048 hidden units can overflow.** The SCReLU output sum is a 32-bit
-  integer. With 7.2's weights the worst case is 0.90 of its range, so
-  1024 units are safe but 2048 units are not. Sum each half separately
-  and divide by QA before adding, before training a 2048-unit net.
-- **Endgame output weights are capped.** 23 of the 2-5 piece output
-  layer's 2048 weights sit at the +/-127 limit that SCReLU's 16-bit
-  multiply needs. Mildly limiting in bare endgames only.
+**Output-layer precision (Nov 21).** The output weights are rounded to
+1/64. On 7.2's real weights that adds about **6.5 cp of evaluation error
+on average (22 cp at the 99th percentile)**, the same in balanced
+positions as in lopsided ones, and 3x the first layer's rounding error
+(2.2 cp). The fine format fixes it:
+
+| Output weights | Mean error | 99th percentile |
+|---|---|---|
+| x64 (all nets up to 7.2) | 6.46 cp | 21.9 cp |
+| x128, unit halved first | 3.31 cp | 12.9 cp |
+| **x1024, rounding multiply-high (fine)** | **0.74 cp** | **2.6 cp** |
+
+Measured on a trained test net, engine vs trainer: 10.2 cp -> 3.5 cp
+(plain), 11.5 cp -> 3.3 cp (4 king buckets). The fine format also:
+- removes the +/-127 output-weight limit (up to +/-32 fits);
+- gives the int32 output sum 16x more headroom. **2048 hidden units are
+  only safe with fine output weights:** with x64 weights, 7.2's worst case
+  is already 0.90 of the int32 range at 1024 units.
 
 ## 7. Next steps
 
@@ -227,13 +304,15 @@ The owner's roadmap (one unproven network change per run):
 
 | Run | Change | Notes |
 |---|---|---|
-| v14 | 4 king buckets, mirrored | Training now; biggest expected gain |
-| v15 | Training schedule: more epochs, `--lr-end 0.01`, maybe a `--wdl` schedule | Cheap; can ride on v14 |
-| v16 | 8-16 king zones and/or 1536-2048 hidden units, with more data | Fix the int32 output sum first (section 6) |
-| later | Extra small hidden layers, pairwise multiplication, threat inputs | The biggest engine projects |
+| v14 | 4 king buckets, mirrored | **Failed** (section 4) |
+| **7.2.1** | **v13's checkpoint re-exported with `--fine-output`** | No training: `export.py`, then an SPRT against 7.2. Needs this engine |
+| v15a | v13's design + `--lr-end 0.01`, exported with `--fine-output` | One change from v13; small but consistent gain in every CPU test |
+| v15b | 4 king buckets + `--factorize --bucket-decay 10`, same schedule | King buckets again, with the fix for what sank v14 (section 4) |
+| data | **Fresh data from 7.2**, as much as possible, added to the 660M | The most reliable gain in this project's history; king buckets need it most |
+| later | `--k` from `data.py`'s fit; 8 king buckets or 1536-2048 units (fine output first); extra hidden layers, threat inputs | |
 
-Also worth doing: fresh data from 7.2 or later. Every data run so far
-came from older engines, and better labels have paid every time.
+To test a bundle against 7.2, one change per run is still the rule; the
+re-export (7.2.1) is free and tests the fine format on its own.
 
 ## 8. How to train, pause and resume
 
@@ -249,6 +328,21 @@ python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/con
    A resumed run keeps its original `--lr-end`.
 
 Checkpoints from every trainer version load in the current one.
+
+**v15 commands.** First the free test: re-export v13's last checkpoint
+(the one `nets/engine-7.2.nnue` came from). Without `--fine-output` the
+file should be byte-identical to `nets/engine-7.2.nnue`, which confirms
+it is the right checkpoint:
+```bash
+python scripts/nnue/export.py <v13 run>/checkpoint.pt nets/candidate-7.2.1-fine.nnue --fine-output
+```
+```bash
+python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15a --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output
+```
+```bash
+python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15b --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output --king-buckets 4 --factorize --bucket-decay 10
+```
+Fine nets need an engine from Nov 21 on (older ones refuse them).
 
 **To check an exported net against the engine:**
 ```bash
