@@ -186,6 +186,33 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
 - **8 king buckets** are not worth their speed at this data size; worth
   another look once there is much more data.
 
+### Extra hidden layers (Nov 22): the largest validation gain on CPU
+
+`train.py --layers 16,32` (network file version 4): after the hidden
+units, 16 clipped units, then 32, then the output, one set per output
+bucket (the "layer stacks" most top engines use).
+
+| 10.4M positions, 256 units, v15b recipe | Best | Epoch | End (8) |
+|---|---|---|---|
+| One output layer (v15b) | 0.020820 | 5 | 0.020880 |
+| **`--layers 16,32`** | **0.019997** | 3 | 0.020640 |
+
+- **4.0% better at its best**, more than king buckets' 1.4% (which was
+  +34 Elo in games). It overfits fast at this size (training loss 0.0148
+  against 0.0168), so on 660M positions it should keep improving longer.
+- **Engine:** the first extra layer works on integers, skipping the
+  pairs of inputs that are both 0 (7.2's units are 0 89% of the time);
+  the other two are in float, added up in a fixed order and compiled with
+  `-ffp-contract=off`, so AVX2, AVX-512, plain, WebAssembly SIMD and plain
+  WebAssembly builds give the same bench node count. Engine vs trainer:
+  about 5.5 cp on average on a trained net (simulated), most of it the
+  first layer's rounding.
+- **Speed:** on a test file with 7.2's first layer (so 7.2's sparsity)
+  whose extra layers pass 7.2's evaluation through, the node rate is
+  about **0.77x 7.2's** (1024 units, AVX2). It was 0.48x before the
+  non-zero pairs were listed without a branch per pair.
+- Games at 256 units: below, when played.
+
 ### Speed is strength
 - Incremental updates alone (2.6): **+102**. Faster network code was
   most of 3.3's +46.
