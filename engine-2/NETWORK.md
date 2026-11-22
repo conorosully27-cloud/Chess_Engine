@@ -174,7 +174,7 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
 
 | Change | Best | End | Notes |
 |---|---|---|---|
-| `--loss-power 2.5` | **0.020811** | **0.020826** | Better *squared* error than training on squared error, and less overfitting late. Colder: scale 0.895 vs 0.960. Games below |
+| `--loss-power 2.5` | **0.020811** | **0.020826** | Better *squared* error than training on squared error, and less overfitting late. Colder: scale 0.895 vs 0.960. **Games: +17.0 +/- 11.4** (below) |
 | `--init-from` the finished plain net (v15a-style), 4 epochs | **0.020574** (epoch 2) | 0.020636 | 1.2% better than v15b from scratch after 2 epochs. Same scale. Games below |
 | `--king-buckets 8` | 0.020779 | 0.020858 | 0.2% better, but about **7% fewer nodes/s** than 4 buckets (1024 units; a 12.6 MB first layer) |
 | `--k 300` | (other target) | | Much colder: scale 0.830. Games below, re-exported on v15b's scale |
@@ -183,6 +183,12 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
   a finished plain net beat v15b from scratch after one epoch. For v15b
   that means `--init-from <v13>/checkpoint.pt` with fewer epochs, which
   could halve the run (about 17 h for 20 epochs on 660M).
+- **Power loss in games:** the `--loss-power 2.5` net, re-exported on the
+  v15b net's scale (`export.py --scale 1.073`), against v15b, both 256
+  units, 8+0.08: **+17.0 +/- 11.4 over 1,620 games**, +420 -341 =859,
+  LOS 99.8%, pentanomial [32, 187, 306, 240, 45], no time losses. A
+  training-only change: add `--loss-power 2.5` to v15, and match the
+  scale before the SPRT (the net comes out colder).
 - **8 king buckets** are not worth their speed at this data size; worth
   another look once there is much more data.
 
