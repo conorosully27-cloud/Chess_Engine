@@ -271,6 +271,14 @@ v15b's moving average was best at epoch 5 (0.020820) and drifted up
 slightly after: mild overfitting at this size, which should matter far
 less with 660M positions.
 
+**In games** (the two exported nets above, v15b against v15a, both 256
+units, each built into the engine; 8+0.08, 8moves_v3, 4 at a time,
+`scripts/match.sh`): **v15b +36 +/- 19 Elo after 698 games**, +232 -159
+=307, LOS 99.99%, pentanomial [18, 72, 116, 105, 38]. The validation gain
+shows up in play, after the king buckets' speed cost. These are small
+nets on 10M positions, so the size of the gain at 660M and 1024 units
+is for the real SPRT to show.
+
 ## 5. The trainer and training algorithm
 
 `scripts/nnue/train.py` (PyTorch), `scripts/nnue/data.py` (data format,
