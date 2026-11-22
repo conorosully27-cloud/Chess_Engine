@@ -310,7 +310,7 @@ class NNUE(torch.nn.Module):
 def batch_loss(model, records, device, wdl, k=K):
     """records: a batch of records, or decode() of them (prefetched)."""
     pieces, stm, score, result = decode(records) if isinstance(records, np.ndarray) else records
-    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1))
+    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", True))
     stm_t = torch.from_numpy(stm).to(device)
     score = torch.from_numpy(score).to(device)
     result = torch.from_numpy(result).to(device) / 2  # White's side: 0 loss, 0.5 draw, 1 win
@@ -396,8 +396,8 @@ def main():
     ap.add_argument("--resume", help="checkpoint to continue from")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--ft", choices=("sparse", "dense"), default="sparse",
-                    help="how king-bucket nets compute the first layer: sparse lookups, or a dense one-hot matmul "
-                         "(same result; on some GPUs dense is faster)")
+                    help="how the first layer is computed: sparse lookups of the ~32 active inputs, or a dense one-hot "
+                         "matrix product (same result; compare the pos/s of both on a GPU, dense with --tf32)")
     ap.add_argument("--hidden", type=int, default=HIDDEN, help="hidden units per side (the engine is built to match)")
     ap.add_argument("--screlu", action="store_true", help="square the clipped hidden units (SCReLU)")
     ap.add_argument("--output-buckets", type=int, default=1, metavar="N",
@@ -453,7 +453,7 @@ def main():
 
     torch.manual_seed(args.seed)
     model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets, args.factorize).to(device)
-    model.sparse_ft = args.king_buckets > 1 and args.ft == "sparse"
+    model.sparse_ft = args.ft == "sparse"
     if args.init_from and not args.resume:
         src = torch.load(args.init_from, map_location=device)
         sm = net_state(src)
