@@ -179,6 +179,7 @@ Details and commits in `FAILED_EXPERIMENTS.md`.
 |---|---|---|
 | Result weight 0.4 alone (run 9 vs run 8) | -2 +/- 10 STC (H0) | Kept later in a bundle (6.0) for its LTC reading |
 | Endgame scaling of the network's score (on 5.2) | flat | The net's endgame errors are not a matter of scale |
+| 7.2 **without** its endgame scaling (Nov 22: do the output buckets make it redundant?) | **-12 +/- 10** (H0, 1,272 games) | Keep it: the buckets do not replace it |
 | Network correction history (hidden-unit signature as a key, on 6.6) | flat, removed in 7.1.1 | |
 | TT evaluation refinement (on 6.x) | -13 +/- 15 | Margins and correction history already cover it |
 | Run 8's epoch 9 instead of epoch 20 | -26 +/- 19 | Use the end of the run |

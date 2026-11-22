@@ -11,6 +11,32 @@ near/far-miss reductions, network correction history (`CORR_NET_RATE`),
 TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
 Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
 
+## 7.2 without its endgame scaling (`MAT_SCALE_BASE` 0), Nov 22 2026
+
+**Change:** none in the code: 7.2 (the tuning build, bench 1224793) with
+`setoption name MAT_SCALE_BASE value 0` against the same build with the
+default 120. That switches off the material scaling of the network's
+score below 40 units of material (the fifty-move scaling stays).
+
+**Why:** the scaling was tuned on 5.3's single-output net. 7.2's 8 output
+buckets are chosen by piece count, and `diagnose.py` shows each bucket's
+predicted results within about 1% of the real ones, so the buckets might
+already know that thin endgames are drawish, and the scaling would then
+count it twice.
+
+**Result:** **H0 after 1,272 games, -12.0 +/- 9.7**, +161 -205 =906,
+LOS 0.8%, pentanomial [18, 128, 376, 108, 6], LLR -2.97 [0, 5]
+(cloud, 8+0.08, 4 at a time, `scripts/match.sh`).
+
+**Prior:** 4/10.
+
+**Commentary:** the scaling still earns its keep with output buckets,
+about as much as it did when it went in (5.3). The net predicts the
+results of thin endgames well on average, yet shrinking its scores there
+helps the search: a calibrated average is not the same as the search
+preferring the right endgames. Keep it for v15; retune it (SPSA) with a
+new net only as part of a normal tune.
+
 ## Training run v14: 4 king input buckets, mirrored, vs 7.2 (Nov 2026)
 
 **Change:** v13 (7.2's run) plus `train.py --king-buckets 4`. Each side's
