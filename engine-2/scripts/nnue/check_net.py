@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 import data
-from train import NNUE, SCALE, decode, features
+from train import NNUE, SCALE, decode, features, upgrade_state
 
 
 def main():
@@ -26,13 +26,14 @@ def main():
     records = records[np.sort(idx)]
 
     saved = torch.load(checkpoint, map_location="cpu")
-    state = saved["model"]
-    # Hidden units, activation and output layers, from the checkpoint.
-    model = NNUE(state["ft.weight"].shape[0], saved.get("screlu", False), state["out.weight"].shape[0])
+    state = upgrade_state(saved)
+    # Hidden units, activation, output layers and king buckets, from the checkpoint.
+    king_buckets = state["ft.weight"].shape[0] // 768
+    model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets)
     model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
-    xw, xb = features(pieces, "cpu")
+    xw, xb = features(pieces, "cpu", king_buckets, sparse=king_buckets > 1)
     with torch.no_grad():
         piece_count = torch.from_numpy((pieces >= 0).sum(axis=1))
         float_eval = (model(xw, xb, torch.from_numpy(stm), piece_count) * SCALE).numpy()

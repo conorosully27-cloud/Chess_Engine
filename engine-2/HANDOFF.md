@@ -41,6 +41,39 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
 
+### King buckets: the code (Nov 19, branch `claude/king-buckets`)
+
+- **Trainer** (`scripts/nnue/train.py`): `--king-buckets 4` (or 8): each
+  side's inputs offset by its own king's bucket (`KING_MAPS`; 4 = castled
+  short corner a/b, centre or long c/d, rank 2, anything higher, all after
+  mirroring), the squares mirrored left-right when that king is on files
+  e-h. Mirroring folds kingside and queenside together, so the 4 zones are
+  by how far the king is from its corner, not which side. The first layer
+  is now stored input-major (`FeatureTransformer`, (inputs, hidden)) and,
+  with king buckets, sparse (embedding_bag over the ~32 active inputs):
+  through a transposed view the backward pass was ~70x slower; this way a
+  4-bucket epoch costs about what a plain one did. Old checkpoints are
+  transposed on load (`upgrade_state`; also their Adam moments on
+  `--resume`). `--init-from CKPT` starts from another run's checkpoint,
+  copying its input weights into every bucket (so v14 can start as v13).
+  Network file version 3: version 2's header plus u32 king_buckets, u32
+  mirror, u8 king_map[64]; first layer king_buckets x 768 rows.
+- **Engine** (`src/nnue.cpp`): reads versions 1-3. Accumulators are kept
+  per side (`Accumulator::net[2]`): a king move into another bucket (or
+  across files d/e) recomputes that side only, from a per-thread cache of
+  the sums last seen per side and bucket ("Finny table"), adding and
+  removing only the pieces that differ. Plain nets take the old path: 7.2
+  still benches **1224793**.
+- **Checks:** dense and sparse first layers agree (1e-7); `check_net.py`
+  engine vs trainer on fresh nets: mean 3.9 cp (4 buckets), 3.6 cp (8), as
+  close as a plain net (6.3); `nnue_test` (60,707 incremental evaluations vs
+  from scratch, through king moves, castling, null moves) passes with a
+  4-bucket net built in; 7.2's net copied into 4 buckets (no mirror) benches
+  1224793 exactly. Cost: +2.8% instructions, about 5% fewer nodes/s (the
+  4x larger first layer misses the cache more).
+- **To train v14:** the v13 command plus `--king-buckets 4`, optionally
+  `--init-from <v13 run>/checkpoint.pt`; the net file is about 6.3 MB.
+
 ### Network roadmap (owner, Nov 19)
 
 One unproven network change per training run, so a flat or worse net
@@ -54,7 +87,7 @@ waits until the network settles, so the margins are tuned once.
 |---|---|---|---|
 | v12 (7.1) | SCReLU | loader (done) | +14 at 8+0.08, +6 at 40+0.4 |
 | v13 (7.2) | + 8 output buckets by piece count | none | +27 at 8+0.08, +8 at 40+0.4 |
-| **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares)** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
+| **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares). Code on branch `claude/king-buckets` (Nov 19), waiting for the owner's training run** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
 | v15 | training schedule: more epochs, learning rate falling 100x (now 10x), maybe a `--wdl` schedule | none | cheap, works with any architecture; can ride on v14's architecture |
 | v16 | more king zones (8-16) and/or a bigger hidden layer (1536-2048), with more data | small (file format) | only once 4 zones is proven; both want more data |
 | later | small extra hidden layers after the first (int8, SIMD), pairwise multiplication, threat inputs | large | biggest engine projects; after the simpler gains run out |
