@@ -507,15 +507,23 @@ float evaluate_layers(const std::int16_t* us, const std::int16_t* them, int buck
   float h1[L1];
   for (int o = 0; o < L1; o++)
     h1[o] = std::clamp(float(sums[o] + net.l1_bias[bucket][o]) * (1.0f / L1_UNIT), 0.0f, 1.0f);
-  // Input by input over all outputs: each output's terms are added in the
-  // same order whether or not the compiler vectorizes the inner loop.
-  float h2[L2];
-  for (int o = 0; o < L2; o++) h2[o] = net.l2_bias[bucket][o];
-  for (int i = 0; i < L1; i++)
-    for (int o = 0; o < L2; o++) h2[o] += h1[i] * net.l2_weight[bucket][i][o];
-  float out = net.l3_bias[bucket];
-  for (int o = 0; o < L2; o++) out += std::clamp(h2[o], 0.0f, 1.0f) * net.l3_weight[bucket][o];
-  return out;
+  // The sums are split into a fixed set of partial sums, added in a fixed
+  // order: shorter chains of dependent additions (a float addition waits
+  // ~4 cycles for the one before), and the same result whether or not the
+  // compiler vectorizes the loops (it may not reorder float additions).
+  // L2: inputs 0-7 and 8-15 separately, input by input over all outputs.
+  float lo[L2], hi[L2];
+  for (int o = 0; o < L2; o++) lo[o] = net.l2_bias[bucket][o], hi[o] = 0.0f;
+  for (int i = 0; i < L1 / 2; i++)
+    for (int o = 0; o < L2; o++) {
+      lo[o] += h1[i] * net.l2_weight[bucket][i][o];
+      hi[o] += h1[i + L1 / 2] * net.l2_weight[bucket][i + L1 / 2][o];
+    }
+  // Output: 8 partial sums (output o into o % 8), then a fixed tree.
+  float part[8] = {};
+  for (int o = 0; o < L2; o += 8)
+    for (int j = 0; j < 8; j++) part[j] += std::clamp(lo[o + j] + hi[o + j], 0.0f, 1.0f) * net.l3_weight[bucket][o + j];
+  return net.l3_bias[bucket] + (((part[0] + part[1]) + (part[2] + part[3])) + ((part[4] + part[5]) + (part[6] + part[7])));
 }
 
 // next = prev changed by next.dirty, from one side, whose king state
