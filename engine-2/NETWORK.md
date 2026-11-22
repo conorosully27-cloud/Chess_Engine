@@ -273,8 +273,8 @@ less with 660M positions.
 
 **In games** (the two exported nets above, v15b against v15a, both 256
 units, each built into the engine; 8+0.08, 8moves_v3, 4 at a time,
-`scripts/match.sh`): **v15b +36 +/- 19 Elo after 698 games**, +232 -159
-=307, LOS 99.99%, pentanomial [18, 72, 116, 105, 38]. The validation gain
+`scripts/match.sh`): **v15b +33.6 +/- 11.9 Elo over 1,640 games**, +519
+-361 =760, LOS 100%, pentanomial [37, 155, 316, 237, 75], no time losses. The validation gain
 shows up in play, after the king buckets' speed cost. These are small
 nets on 10M positions, so the size of the gain at 660M and 1024 units
 is for the real SPRT to show.
@@ -421,7 +421,7 @@ The owner's roadmap (one unproven network change per run):
 | v14 | 4 king buckets, mirrored | **Failed** (section 4) |
 | **7.2.1** | **v13's checkpoint re-exported with `--fine-output`** | No training: `export.py`, then an SPRT against 7.2. Needs this engine |
 | v15a | v13's design + `--lr-end 0.01 --ema 0.25`, exported with `--fine-output` | Training-only tweaks: 0.17% better validation together at 10.4M positions; add `--ft-clip 3.85` if testing it too |
-| v15b | 4 king buckets + `--factorize --bucket-decay 1`, same schedule | King buckets again, with the fix for what sank v14 (section 4); 0.97% better validation than no buckets at 10.4M positions |
+| v15b | 4 king buckets + `--factorize --bucket-decay 1`, same schedule | King buckets again, with the fix for what sank v14 (section 4): 1.4% better validation than v15a and **+34 +/- 12 Elo over v15a in 1,640 games** (small nets, 10.4M positions) |
 | data | **Fresh data from 7.2**, as much as possible, added to the 660M | The most reliable gain in this project's history; king buckets need it most. `keep 4` searches 4 quiet positions for each 1 it keeps; `keep 2` doubles the positions per hour (neighbouring positions are more alike, so worth a comparison) |
 | later | `--k` from `data.py`'s fit; 8 king buckets or 1536-2048 units (fine output first); extra hidden layers, threat inputs | |
 

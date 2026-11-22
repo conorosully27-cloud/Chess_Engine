@@ -113,6 +113,8 @@ positions) lost to 7.2.
     ones. On CPU tests, king buckets went from 4.2% worse than no buckets
     to **0.7% better** at 2.5M positions (`--bucket-decay 10`) and
     **0.97% better** at 10.4M (`--bucket-decay 1`, the setting for v15b).
+    In games, a v15b-style net beat a v15a-style one by **+34 +/- 12 Elo
+    over 1,640 games** (256 units, 10.4M positions, 8+0.08).
   - `--k`: the score -> win probability scale; `data.py` fits it (300 on
     7.2's games, against the 400 used so far).
   - `--wdl-end` (result weight schedule); `--tf32` is now opt-in.
