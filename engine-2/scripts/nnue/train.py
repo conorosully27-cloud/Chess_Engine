@@ -175,24 +175,15 @@ def feature_indices(pieces, device, king_buckets=1):
     return torch.where(on, white, total), torch.where(on, black, total)
 
 
-def features(pieces, device, king_buckets=1, sparse=False, factorize=False):
+def features(pieces, device, king_buckets=1, sparse=False):
     """The network's inputs from White's and Black's side: one-hot (B, inputs)
-    each, or with `sparse` the (B, 64) index lists of feature_indices. With
-    `factorize` each piece also turns on its shared input (the same piece
-    and square, mirrored as its bucket is, in the 768 rows after the
-    buckets): (B, 128) index lists, padded with the number of inputs."""
+    each, or with `sparse` the (B, 64) index lists of feature_indices. The
+    same with or without the factoriser (NNUE.transform folds the shared
+    weights into the buckets' before looking rows up)."""
     white, black = feature_indices(pieces, device, king_buckets)
-    total = INPUTS * king_buckets
-    if factorize:
-        pad = total + INPUTS
-
-        def with_shared(idx):
-            on = idx < total
-            return torch.cat([torch.where(on, idx, pad), torch.where(on, idx % INPUTS + total, pad)], 1)
-
-        white, black, total = with_shared(white), with_shared(black), pad
     if sparse:
         return white, black
+    total = INPUTS * king_buckets
     xw = torch.zeros(len(pieces), total + 1, device=device).scatter_(1, white, 1.0)[:, :total]
     xb = torch.zeros(len(pieces), total + 1, device=device).scatter_(1, black, 1.0)[:, :total]
     return xw, xb
@@ -211,20 +202,22 @@ class FeatureTransformer(torch.nn.Module):
         self.weight = torch.nn.Parameter(torch.empty(inputs, hidden).uniform_(-bound, bound))
         self.bias = torch.nn.Parameter(torch.empty(hidden).uniform_(-bound, bound))
 
-    def forward(self, x):
+    def forward(self, x, weight=None):
         """x is one-hot (B, inputs) or, sparse, (B, 64) input indices padded
-        with the number of inputs."""
+        with the number of inputs. `weight` replaces the layer's own (the
+        factoriser's folded weights)."""
+        weight = self.weight if weight is None else weight
         if x.dtype != torch.int64:
-            return x @ self.weight + self.bias
+            return x @ weight + self.bias
         # Only the real pieces go in, as one flat list with each position's
         # start: padding the empty squares onto row 0 with weight 0 made every
         # position hit that row ~30 times, which serialised the backward pass
         # on a GPU (all those gradient adds land on one row).
-        on = x < self.in_features
+        on = x < weight.shape[0]
         flat = x[on]
         offsets = torch.zeros(len(x), dtype=torch.int64, device=x.device)
         offsets[1:] = torch.cumsum(on.sum(dim=1), 0)[:-1]
-        return torch.nn.functional.embedding_bag(flat, self.weight, offsets, mode="sum") + self.bias
+        return torch.nn.functional.embedding_bag(flat, weight, offsets, mode="sum") + self.bias
 
 
 def upgrade_state(saved):
@@ -264,8 +257,10 @@ class NNUE(torch.nn.Module):
             return w
         return (w[:rows].view(self.king_buckets, INPUTS, -1) + w[rows:]).reshape(rows, -1)
 
-    def transform(self, x):
-        return self.ft(x)
+    def transform(self, x, weights=None):
+        """The first layer; `weights` is bucket_weights(), computed once per
+        batch for both sides."""
+        return self.ft(x, self.bucket_weights() if weights is None else weights)
 
     def forward(self, xw, xb, stm, count=None):
         """count: pieces on the board, (B,); only needed with output buckets."""
@@ -273,8 +268,12 @@ class NNUE(torch.nn.Module):
         # units (moving those around cost about a third of a training step).
         black_to_move = (stm == 1).unsqueeze(1)
         us, them = torch.where(black_to_move, xb, xw), torch.where(black_to_move, xw, xb)
-        a = torch.clamp(self.transform(us), 0, 1)
-        b = torch.clamp(self.transform(them), 0, 1)
+        # With the factoriser: each bucket's own weights plus the shared ones,
+        # formed once per batch (3M additions; looking up a second row per
+        # piece instead cost 60% more time an epoch).
+        weights = self.bucket_weights()
+        a = torch.clamp(self.transform(us, weights), 0, 1)
+        b = torch.clamp(self.transform(them, weights), 0, 1)
         if self.screlu:
             a, b = a * a, b * b
         hidden = self.ft.out_features
@@ -304,8 +303,7 @@ class NNUE(torch.nn.Module):
 def batch_loss(model, records, device, wdl, k=K):
     """records: a batch of records, or decode() of them (prefetched)."""
     pieces, stm, score, result = decode(records) if isinstance(records, np.ndarray) else records
-    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1),
-                      factorize=model.factorize)
+    xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1))
     stm_t = torch.from_numpy(stm).to(device)
     score = torch.from_numpy(score).to(device)
     result = torch.from_numpy(result).to(device) / 2  # White's side: 0 loss, 0.5 draw, 1 win

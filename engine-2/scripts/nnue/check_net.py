@@ -35,7 +35,7 @@ def main():
     model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
-    xw, xb = features(pieces, "cpu", king_buckets, sparse=king_buckets > 1, factorize=factorize)
+    xw, xb = features(pieces, "cpu", king_buckets, sparse=king_buckets > 1)
     with torch.no_grad():
         piece_count = torch.from_numpy((pieces >= 0).sum(axis=1))
         float_eval = (model(xw, xb, torch.from_numpy(stm), piece_count) * SCALE).numpy()
