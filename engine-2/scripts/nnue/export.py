@@ -46,7 +46,7 @@ def main():
     print(f"{args.out}: epoch {saved.get('epoch', '?')}, {model.ft.out_features} hidden units, "
           f"{'SCReLU' if model.screlu else 'clipped'}{' (fine output)' if args.fine_output else ''}, "
           f"{model.buckets} output layer(s), {king_buckets} king bucket(s){' (factorised)' if factorize else ''}"
-          f"{f', extra layers {model.layers}' if model.layers else ''}"
+          f"{f', extra layers {model.layers}' if model.layers else ''}{' on pairwise products' if model.pairwise else ''}"
           f"{f', evaluations x{args.scale}' if args.scale != 1.0 else ''}")
 
 
