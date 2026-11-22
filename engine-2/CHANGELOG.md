@@ -5,6 +5,28 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.2.1: king buckets
+
+7.2 with king input buckets: the owner's run v14b (v13's command plus
+`--king-buckets 4`, warm-started from v13's checkpoint with
+`--init-from`), epoch 10 of 20, built in as `nets/engine-7.2.1.nnue`
+(network file version 3: hidden 1024, SCReLU, 8 output buckets, 4 king
+zones, mirrored). Each side's half of the first layer uses weights for its
+own king's zone (castled corner, c-f back rank, second rank, further up);
+a king move into another zone refreshes that side from a per-thread cache.
+About 5% slower per node than 7.2.
+
+**Against 7.2** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 8+0.08 | 646 | +102 -126 =418 | -13 +/- 15 | 4.4% | -2.96, H0 (0/10) |
+| 40+0.4 | 1,638 | +218 -198 =1222 | **+4 +/- 8** | 84.8% | 0.51 (0/5), running |
+
+Pentanomial [6, 85, 168, 55, 9] and [12, 132, 511, 152, 12]. Released by
+the owner on the 40+0.4 result while it was still running, as a base for
+the finished v14b net (epoch 20). Bench **1248929** (7.2: 1224793).
+
 ## 7.2: output buckets
 
 7.1.1's code with the owner's run v13 network (`--hidden 1024 --wdl 0.4
