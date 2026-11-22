@@ -340,7 +340,42 @@ struct NnzTable {
 };
 constexpr NnzTable nnz_table;
 
-#if defined(__AVX2__)
+#if defined(__AVX512BW__)
+// AVX-512: 32 units (16 pairs) a step, the list made with a compress
+// instead of a table, and one register for all 16 outputs. Same results.
+inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
+                       const std::int16_t* __restrict w, std::int32_t* sums) {
+  alignas(64) std::int32_t act[HIDDEN];  // input pairs (2i, 2i + 1), low half first
+  alignas(64) std::int32_t list[HIDDEN + 16];
+  std::int32_t* ap = act;
+  std::int32_t* lp = list;
+  const __m512i zero = _mm512_setzero_si512(), top = _mm512_set1_epi16(QA), sixteen = _mm512_set1_epi32(16);
+  __m512i base = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+  for (const std::int16_t* v : {us, them})
+    for (const std::int16_t* end = v + HIDDEN; v < end; v += 32, ap += 16) {
+      const __m512i c = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(v), zero), top);
+      const __m512i a = _mm512_srli_epi16(_mm512_mullo_epi16(c, c), L1_SHIFT);
+      _mm512_store_si512(ap, a);
+      const __mmask16 mask = _mm512_cmpgt_epi32_mask(a, zero);
+      _mm512_storeu_si512(lp, _mm512_maskz_compress_epi32(mask, base));
+      lp += __builtin_popcount(unsigned(mask));
+      base = _mm512_add_epi32(base, sixteen);
+    }
+  const std::int32_t* const list_end = lp;
+  __m512i s0 = zero, s1 = zero;
+  const std::int32_t* k = list;
+  for (; k + 1 < list_end; k += 2) {
+    const std::uint32_t p = std::uint32_t(k[0]), q = std::uint32_t(k[1]);
+    s0 = _mm512_add_epi32(_mm512_madd_epi16(_mm512_set1_epi32(act[p]), _mm512_loadu_si512(w + std::size_t(p) * (L1 * 2))), s0);
+    s1 = _mm512_add_epi32(_mm512_madd_epi16(_mm512_set1_epi32(act[q]), _mm512_loadu_si512(w + std::size_t(q) * (L1 * 2))), s1);
+  }
+  if (k < list_end) {
+    const std::uint32_t p = std::uint32_t(k[0]);
+    s0 = _mm512_add_epi32(_mm512_madd_epi16(_mm512_set1_epi32(act[p]), _mm512_loadu_si512(w + std::size_t(p) * (L1 * 2))), s0);
+  }
+  _mm512_storeu_si512(sums, _mm512_add_epi32(s0, s1));
+}
+#elif defined(__AVX2__)
 // The same table with 32-bit entries, for AVX2's 8-lane lists.
 struct NnzTable32 {
   alignas(32) std::int32_t idx[256][8];
