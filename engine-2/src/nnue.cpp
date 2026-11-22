@@ -326,16 +326,6 @@ inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
 // weight[o][i], skipping the pairs of inputs that are both 0 (most are:
 // 7.2's units are 0 89% of the time). Integer sums, so every version gives
 // the same result.
-#if defined(__AVX2__)
-inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
-  const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA);
-  for (int j = 0; j < HIDDEN; j += 16) {
-    const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v + j)), zero), top);
-    // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
-    _mm256_store_si256(reinterpret_cast<__m256i*>(out + j), _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT));
-  }
-}
-
 // For each 8-bit mask, the positions of its set bits (the rest 0): turns a
 // comparison's mask into a list of non-zero pairs without a branch per bit.
 struct NnzTable {
@@ -349,6 +339,17 @@ struct NnzTable {
   }
 };
 constexpr NnzTable nnz_table;
+
+#if defined(__AVX2__)
+inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
+  const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA);
+  for (int j = 0; j < HIDDEN; j += 16) {
+    const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v + j)), zero), top);
+    // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
+    _mm256_store_si256(reinterpret_cast<__m256i*>(out + j), _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT));
+  }
+}
+
 
 inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
   // First the list of pairs of inputs that are not both 0 (as 32-bit
@@ -387,16 +388,27 @@ inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict 
 }
 
 inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
-  v128_t s[4] = {wasm_i32x4_splat(0), wasm_i32x4_splat(0), wasm_i32x4_splat(0), wasm_i32x4_splat(0)};
-  for (int p = 0; p < HIDDEN; p++) {
+  // As with AVX2: the non-zero pairs first, 4 a step (a 4-bit mask), then
+  // each listed pair's weights for all 16 outputs, 4 registers.
+  alignas(16) std::uint16_t list[HIDDEN + 8];
+  int n = 0;
+  const v128_t zero = wasm_i32x4_splat(0);
+  for (int p0 = 0; p0 < HIDDEN; p0 += 4) {
+    const unsigned mask = wasm_i32x4_bitmask(wasm_i32x4_gt(wasm_v128_load(act + 2 * p0), zero));
+    const v128_t idx = wasm_i16x8_add(wasm_v128_load(nnz_table.idx[mask]), wasm_i16x8_splat(std::int16_t(p0)));
+    wasm_v128_store64_lane(list + n, idx, 0);
+    n += __builtin_popcount(mask);
+  }
+  v128_t s[4] = {zero, zero, zero, zero};
+  for (int k = 0; k < n; k++) {
+    const int p = list[k];
     std::int32_t pair;
     std::memcpy(&pair, act + 2 * p, 4);
-    if (!pair) continue;
     const v128_t b = wasm_i32x4_splat(pair);
     const std::int16_t* row = w + std::size_t(p) * L1 * 2;
-    for (int k = 0; k < 4; k++) s[k] = wasm_i32x4_add(s[k], wasm_i32x4_dot_i16x8(b, wasm_v128_load(row + 8 * k)));
+    for (int j = 0; j < 4; j++) s[j] = wasm_i32x4_add(s[j], wasm_i32x4_dot_i16x8(b, wasm_v128_load(row + 8 * j)));
   }
-  for (int k = 0; k < 4; k++) wasm_v128_store(sums + 4 * k, s[k]);
+  for (int j = 0; j < 4; j++) wasm_v128_store(sums + 4 * j, s[j]);
 }
 #else
 inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
