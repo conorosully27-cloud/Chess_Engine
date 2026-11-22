@@ -101,6 +101,17 @@ match the build's `-DENGINE_NNUE_HIDDEN`, 1024 by default).
   net-20 was +20: undertrained nets lose. Always test the last epoch.
 - The schedule has been a cosine falling 10x since 2.4.
   `--lr-end 0.01` (a 100x fall) is planned for v15.
+- CPU tests (10.4M positions, 256 units, no king buckets, 8 epochs):
+
+| Schedule | Validation |
+|---|---|
+| `--lr-end 0.1` (as now) | 0.021212 |
+| `--lr-end 0.01` | 0.021193 |
+| `--lr-end 0.01 --ema 0.25` (exported moving average) | **0.021176** |
+
+  Small gains, but free: no change to the engine or to training time.
+  The moving average is far ahead mid-run (epoch 2: 0.02195 against
+  0.02224), so every `net-N` file is a better net.
 
 ### Result weight (`--wdl`, the game result's share of the target)
 - 0.25 -> 0.4 (run 9): **-2 +/- 10** at 8+0.08 (H0, 1,670 games), but
@@ -284,9 +295,9 @@ integer evaluation against the trainer's, to catch export bugs).
 | Nov 21 | TF32 opt-in (`--tf32`) | No speed left to gain with the sparse first layer |
 | Nov 22 | Factoriser folds the shared weights into the buckets once per batch | Same losses to the last digit; no second lookup per piece |
 | Nov 22 | `scripts/nnue/diagnose.py`: data and network health report | See below |
-| Nov 22 | `--ema F`: a moving average of the weights over about F of an epoch, exported | Testing |
+| Nov 22 | `--ema F`: a moving average of the weights over about F of an epoch, exported | 0.08% better validation at the end (10.4M positions, with `--lr-end 0.01`); the average's epoch 6 matched the live weights' epoch 8 |
 | Nov 22 | `export.py --scale F` | Puts a net on another net's scale (section 3) |
-| Nov 22 | `--ft-clip C` (first-layer limit, 1.98 as before, up to 3.89) | 7.2 has 2,730 first-layer weights (0.35%, in 584 of 1,024 units) pinned at 1.98, yet its largest possible sum is 16,009 of the 32,767 a 16-bit accumulator holds. The 1.98 was the output layer's x64 limit. Engine checked with weights up to 3.85; testing |
+| Nov 22 | `--ft-clip C` (first-layer limit, 1.98 as before, up to 3.89) | 7.2 has 2,730 first-layer weights (0.35%, in 584 of 1,024 units) pinned at 1.98, yet its largest possible sum is 16,009 of the 32,767 a 16-bit accumulator holds. The 1.98 was the output layer's x64 limit. Engine checked with weights up to 3.85. Not testable on CPU: the test nets' largest first-layer weights were 0.8-1.1, so the limit never bound (identical losses) |
 | Nov 22 | `--ft sparse` (the default) for every net | The king-bucket merge had left plain nets on the dense path: a plain 1024-unit epoch 22 s -> 10 s on CPU, same losses |
 
 ### Diagnosing a network before playing it
@@ -388,7 +399,7 @@ The owner's roadmap (one unproven network change per run):
 |---|---|---|
 | v14 | 4 king buckets, mirrored | **Failed** (section 4) |
 | **7.2.1** | **v13's checkpoint re-exported with `--fine-output`** | No training: `export.py`, then an SPRT against 7.2. Needs this engine |
-| v15a | v13's design + `--lr-end 0.01`, exported with `--fine-output` | One change from v13; small but consistent gain in every CPU test |
+| v15a | v13's design + `--lr-end 0.01 --ema 0.25`, exported with `--fine-output` | Training-only tweaks: 0.17% better validation together at 10.4M positions; add `--ft-clip 3.85` if testing it too |
 | v15b | 4 king buckets + `--factorize --bucket-decay 1`, same schedule | King buckets again, with the fix for what sank v14 (section 4); 0.97% better validation than no buckets at 10.4M positions |
 | data | **Fresh data from 7.2**, as much as possible, added to the 660M | The most reliable gain in this project's history; king buckets need it most. `keep 4` searches 4 quiet positions for each 1 it keeps; `keep 2` doubles the positions per hour (neighbouring positions are more alike, so worth a comparison) |
 | later | `--k` from `data.py`'s fit; 8 king buckets or 1536-2048 units (fine output first); extra hidden layers, threat inputs | |
@@ -419,11 +430,18 @@ it is the right checkpoint:
 python scripts/nnue/export.py <v13 run>/checkpoint.pt nets/candidate-7.2.1-fine.nnue --fine-output
 ```
 ```bash
-python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15a --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output
+python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15a --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --ema 0.25 --fine-output
 ```
 ```bash
-python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15b --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --fine-output --king-buckets 4 --factorize --bucket-decay 1
+python scripts/nnue/train.py "C:/Users/conor/nnue-data/*.bin" --out C:/Users/conor/nnue-nets/v15b --hidden 1024 --wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --ema 0.25 --fine-output --king-buckets 4 --factorize --bucket-decay 1
 ```
+Before an SPRT, check each candidate's scale against 7.2 on fresh data:
+```bash
+python scripts/nnue/diagnose.py <fresh 7.2 data>.bin --net nets/engine-7.2.nnue --net <run>/net-20.nnue
+```
+If the printed F is outside about 0.97-1.03, re-export with
+`export.py <run>/checkpoint.pt <out> --fine-output --scale F` and test that
+file, so the search's tuned margins still fit.
 Fine nets need an engine from Nov 21 on (older ones refuse them).
 
 **To check an exported net against the engine:**
