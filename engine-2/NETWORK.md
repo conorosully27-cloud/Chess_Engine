@@ -234,6 +234,34 @@ integer evaluation against the trainer's, to catch export bugs).
 | Nov 21 | `--k K` and a K fit in `data.py` | Score -> win probability scale; 300 fits 7.2's games better than 400 |
 | Nov 21 | `--wdl-end W` | Result weight moving from `--wdl` to W over the run |
 | Nov 21 | TF32 opt-in (`--tf32`) | No speed left to gain with the sparse first layer |
+| Nov 22 | Factoriser folds the shared weights into the buckets once per batch | Same losses to the last digit; no second lookup per piece |
+| Nov 22 | `scripts/nnue/diagnose.py`: data and network health report | See below |
+
+### Diagnosing a network before playing it
+
+```bash
+python scripts/nnue/diagnose.py <fresh data>.bin --net nets/engine-7.2.nnue --net <candidate>.nnue
+```
+
+- **For the data:** the best K, the piece-count mix, and how many
+  examples each first-layer row gets with 1, 4 or 8 king buckets, scaled
+  to the dataset's size.
+- **For each net (any file version):** eval against search score and
+  against game results for each output bucket, plus the output-layer
+  rounding error.
+- Use data the nets were not trained on, ideally fresh games from the
+  current engine.
+- 7.2 against 7.1 on 7.2's games: the median eval-to-search error is lower
+  in every bucket from 18 pieces up (e.g. 40.7 vs 46.7 cp at 26-29
+  pieces), where the output buckets were expected to help.
+
+### Training speed on the GPU
+- With king buckets, each step reads about 20 rows of 1024 floats per
+  position per side: about 2.7 GB forward and as much again backward at
+  batch 16,384. That is most of an ~80 ms step on the A2000.
+- **Worth one test: `--ft dense --tf32`.** The dense product runs on
+  tensor cores, and sparse and dense agree to 3e-7. Compare the `pos/s`
+  lines over a few hundred batches.
 
 ### The Nov 20 speedups in detail
 
@@ -278,6 +306,7 @@ because the removed tensor shuffling was limited by memory traffic.
 | Nov 20 | `-DENGINE_AVX512=ON` (off by default) | Same moves; roughly +5-15% nodes/s on an AVX-512 Xeon (noisy cloud VM) |
 | Nov 21 | Refresh cache: one register-blocked pass for all changed pieces instead of one pass per piece plus a copy | -2.9% instructions for the bench with a king-bucket net, same moves |
 | Nov 21 | **Fine output weights** (activation 2): a rounding multiply-high (`pmulhrsw`) keeps unit x weight in 16 bits with weights x1024 | Output rounding error on 7.2's net 6.5 -> 0.7 cp (simulated); +1.2% instructions per node |
+| Nov 22 | WebAssembly SIMD path for the fine output (`q15mulr_sat`, `dot_i16x8`) | The plain loop made the app 10% slower with a fine net; written out, a fine net runs at least as fast as an x64 one (same node counts as native) |
 
 **Output-layer precision (Nov 21).** The output weights are rounded to
 1/64. On 7.2's real weights that adds about **6.5 cp of evaluation error
@@ -308,7 +337,7 @@ The owner's roadmap (one unproven network change per run):
 | **7.2.1** | **v13's checkpoint re-exported with `--fine-output`** | No training: `export.py`, then an SPRT against 7.2. Needs this engine |
 | v15a | v13's design + `--lr-end 0.01`, exported with `--fine-output` | One change from v13; small but consistent gain in every CPU test |
 | v15b | 4 king buckets + `--factorize --bucket-decay 10`, same schedule | King buckets again, with the fix for what sank v14 (section 4) |
-| data | **Fresh data from 7.2**, as much as possible, added to the 660M | The most reliable gain in this project's history; king buckets need it most |
+| data | **Fresh data from 7.2**, as much as possible, added to the 660M | The most reliable gain in this project's history; king buckets need it most. `keep 4` searches 4 quiet positions for each 1 it keeps; `keep 2` doubles the positions per hour (neighbouring positions are more alike, so worth a comparison) |
 | later | `--k` from `data.py`'s fit; 8 king buckets or 1536-2048 units (fine output first); extra hidden layers, threat inputs | |
 
 To test a bundle against 7.2, one change per run is still the rule; the

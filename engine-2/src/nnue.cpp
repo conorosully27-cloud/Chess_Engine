@@ -9,6 +9,8 @@
 
 #if defined(__AVX2__) || defined(__AVX512BW__)
 #include <immintrin.h>
+#elif defined(__wasm_simd128__)
+#include <wasm_simd128.h>
 #endif
 
 namespace chess::nnue {
@@ -258,6 +260,26 @@ inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
   h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0x4E));
   h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0xB1));
   return _mm_cvtsi128_si32(h);
+}
+#elif defined(__wasm_simd128__)
+// WebAssembly SIMD (the app): q15mulr_sat is the rounding multiply-high
+// (saturating only for -32768 x -32768, which a shifted unit, at least 0,
+// never is), dot_i16x8 the 16-bit multiply-add. The compiler does not find
+// these from the plain loop below, which ran 10% slower overall.
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  const v128_t zero = wasm_i16x8_splat(0), qa = wasm_i16x8_splat(QA);
+  v128_t s0 = wasm_i32x4_splat(0), s1 = s0;
+  for (int j = 0; j < HIDDEN; j += 8) {
+    const v128_t u = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(us + j), zero), qa);
+    const v128_t t = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(them + j), zero), qa);
+    const v128_t uw = wasm_i16x8_q15mulr_sat(wasm_i16x8_shl(u, FINE_SHIFT), wasm_v128_load(w + j));
+    const v128_t tw = wasm_i16x8_q15mulr_sat(wasm_i16x8_shl(t, FINE_SHIFT), wasm_v128_load(w + HIDDEN + j));
+    s0 = wasm_i32x4_add(s0, wasm_i32x4_dot_i16x8(uw, u));
+    s1 = wasm_i32x4_add(s1, wasm_i32x4_dot_i16x8(tw, t));
+  }
+  const v128_t s = wasm_i32x4_add(s0, s1);
+  return wasm_i32x4_extract_lane(s, 0) + wasm_i32x4_extract_lane(s, 1) + wasm_i32x4_extract_lane(s, 2) +
+         wasm_i32x4_extract_lane(s, 3);
 }
 #else
 // The rounding multiply-high (x86 pmulhrsw, WebAssembly i16x8.q15mulr_sat_s)
