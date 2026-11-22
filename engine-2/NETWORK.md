@@ -227,6 +227,20 @@ units, 8 epochs; final validation loss):
 - This is 260x less data than v14 had, so it shows the mechanism, not the
   size of the effect at 660M. More data should need a weaker decay.
 
+**At 4x the data** (10.4M positions, same settings; a different
+validation set, so compare within this table):
+
+| Net | Validation after 8 epochs | vs no buckets |
+|---|---|---|
+| No king buckets | 0.021212 | |
+| **4 king buckets + factoriser, `--bucket-decay 10`** | **0.021015** | **0.93% better** |
+
+- The advantage grew with the data (0.7% at 2.5M positions).
+- The king-bucket net was still improving at epoch 8, while the plain
+  net had stopped (0.021212 at epochs 7 and 8).
+- `--bucket-decay 1` was ahead of 10 after 2 epochs (0.021938 vs
+  0.022286), as expected with more data; its final figure is still to come.
+
 ## 5. The trainer and training algorithm
 
 `scripts/nnue/train.py` (PyTorch), `scripts/nnue/data.py` (data format,
