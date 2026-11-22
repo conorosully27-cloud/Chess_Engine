@@ -341,42 +341,66 @@ struct NnzTable {
 constexpr NnzTable nnz_table;
 
 #if defined(__AVX2__)
-inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
-  const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA);
-  for (int j = 0; j < HIDDEN; j += 16) {
-    const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v + j)), zero), top);
-    // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
-    _mm256_store_si256(reinterpret_cast<__m256i*>(out + j), _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT));
+// The same table with 32-bit entries, for AVX2's 8-lane lists.
+struct NnzTable32 {
+  alignas(32) std::int32_t idx[256][8];
+  constexpr NnzTable32() : idx() {
+    for (int m = 0; m < 256; m++) {
+      int n = 0;
+      for (int b = 0; b < 8; b++)
+        if (m & (1 << b)) idx[m][n++] = b;
+    }
   }
-}
+};
+constexpr NnzTable32 nnz_table32;
 
-
-inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
-  // First the list of pairs of inputs that are not both 0 (as 32-bit
-  // numbers, pairs are never negative), 8 pairs a step...
-  alignas(32) std::uint16_t list[HIDDEN + 8];
-  int n = 0;
-  const __m256i zero = _mm256_setzero_si256();
-  for (int p0 = 0; p0 < HIDDEN; p0 += 8) {
-    const __m256i v = _mm256_load_si256(reinterpret_cast<const __m256i*>(act + 2 * p0));
-    const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(v, zero))));
-    const __m128i idx = _mm_load_si128(reinterpret_cast<const __m128i*>(nnz_table.idx[mask]));
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(list + n), _mm_add_epi16(idx, _mm_set1_epi16(std::int16_t(p0))));
-    n += __builtin_popcount(mask);
+// One pass over both sides' units computes the inputs, kept as 32-bit
+// pairs, and lists the non-zero pairs (16 units, 8 pairs, a step); then
+// each listed pair's weights for all 16 outputs, two pairs at a time.
+inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
+                       const std::int16_t* __restrict w, std::int32_t* sums) {
+  alignas(64) std::int32_t act[HIDDEN];  // input pairs (2i, 2i + 1), low half first
+  alignas(32) std::int32_t list[HIDDEN + 8];
+  std::int32_t* ap = act;
+  std::int32_t* lp = list;
+  const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA), eight = _mm256_set1_epi32(8);
+  __m256i base = zero;
+  for (const std::int16_t* v : {us, them}) {
+    for (const std::int16_t* end = v + HIDDEN; v < end; v += 16, ap += 8) {
+      const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v)), zero), top);
+      // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
+      const __m256i a = _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT);
+      _mm256_store_si256(reinterpret_cast<__m256i*>(ap), a);
+      // As 32-bit numbers the pairs are never negative: > 0 means not both 0.
+      const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(a, zero))));
+      const __m256i idx = _mm256_load_si256(reinterpret_cast<const __m256i*>(nnz_table32.idx[mask]));
+      _mm256_storeu_si256(reinterpret_cast<__m256i*>(lp), _mm256_add_epi32(idx, base));
+      lp += __builtin_popcount(mask);
+      base = _mm256_add_epi32(base, eight);
+    }
   }
-  // ...then each listed pair's weights for all 16 outputs, 2 registers.
-  __m256i s0 = _mm256_setzero_si256(), s1 = _mm256_setzero_si256();
-  for (int k = 0; k < n; k++) {
-    const int p = list[k];
-    std::int32_t pair;
-    std::memcpy(&pair, act + 2 * p, 4);
-    const __m256i b = _mm256_set1_epi32(pair);
-    const __m256i* row = reinterpret_cast<const __m256i*>(w + std::size_t(p) * L1 * 2);
-    s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(b, _mm256_loadu_si256(row)));
-    s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(b, _mm256_loadu_si256(row + 1)));
+  const std::int32_t* const list_end = lp;
+  __m256i s0 = zero, s1 = zero, s2 = zero, s3 = zero;
+  const std::int32_t* k = list;
+  for (; k + 1 < list_end; k += 2) {
+    const std::uint32_t p = std::uint32_t(k[0]), q = std::uint32_t(k[1]);
+    const __m256i bp = _mm256_set1_epi32(act[p]), bq = _mm256_set1_epi32(act[q]);
+    const __m256i* rp = reinterpret_cast<const __m256i*>(w + std::size_t(p) * (L1 * 2));
+    const __m256i* rq = reinterpret_cast<const __m256i*>(w + std::size_t(q) * (L1 * 2));
+    s0 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp)), s0);
+    s1 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp + 1)), s1);
+    s2 = _mm256_add_epi32(_mm256_madd_epi16(bq, _mm256_loadu_si256(rq)), s2);
+    s3 = _mm256_add_epi32(_mm256_madd_epi16(bq, _mm256_loadu_si256(rq + 1)), s3);
   }
-  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums), s0);
-  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums + 8), s1);
+  if (k < list_end) {
+    const std::uint32_t p = std::uint32_t(k[0]);
+    const __m256i bp = _mm256_set1_epi32(act[p]);
+    const __m256i* rp = reinterpret_cast<const __m256i*>(w + std::size_t(p) * (L1 * 2));
+    s0 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp)), s0);
+    s1 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp + 1)), s1);
+  }
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums), _mm256_add_epi32(s0, s2));
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums + 8), _mm256_add_epi32(s1, s3));
 }
 #elif defined(__wasm_simd128__)
 inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
@@ -428,13 +452,20 @@ inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __re
 }
 #endif
 
-// The extra layers' evaluation, in units of SCALE centipawns.
-float evaluate_layers(const std::int16_t* us, const std::int16_t* them, int bucket) {
+#if !defined(__AVX2__)
+inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
+                       const std::int16_t* __restrict w, std::int32_t* sums) {
   alignas(64) std::int16_t act[2 * HIDDEN];
   activate(us, act);
   activate(them, act + HIDDEN);
+  l1_sums(act, w, sums);
+}
+#endif
+
+// The extra layers' evaluation, in units of SCALE centipawns.
+float evaluate_layers(const std::int16_t* us, const std::int16_t* them, int bucket) {
   std::int32_t sums[L1];
-  l1_sums(act, &net.l1_weight[std::size_t(bucket) * HIDDEN * L1 * 2], sums);
+  l1_forward(us, them, &net.l1_weight[std::size_t(bucket) * HIDDEN * L1 * 2], sums);
   float h1[L1];
   for (int o = 0; o < L1; o++)
     h1[o] = std::clamp(float(sums[o] + net.l1_bias[bucket][o]) * (1.0f / L1_UNIT), 0.0f, 1.0f);
