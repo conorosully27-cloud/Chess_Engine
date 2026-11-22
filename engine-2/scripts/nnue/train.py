@@ -30,7 +30,8 @@ the network file, so no rebuild is needed):
                       input weights are copied into every bucket, so the
                       new run starts as the old network and learns from there
 Loss: squared error between win probabilities, sigmoid(eval / K), and a
-blend of the search score's and the game result's (--wdl of the result).
+blend of the search score's and the game result's (--wdl of the result);
+--loss-power P raises the error to P instead of squaring it.
 
 Data are read from memory-mapped files, a batch at a time, so a dataset
 larger than memory works. Every epoch saves a checkpoint (resume with
@@ -148,6 +149,32 @@ def decode(records):
     return pieces, records["stm"].astype(np.int64), records["score"].astype(np.float32), records["result"].astype(np.float32)
 
 
+def decode_torch(records, device):
+    """decode() done with torch on `device`, returning tensors there. Only
+    the raw 32-byte records cross to the device (512 KB a batch of 16,384),
+    so on a GPU the CPU's whole share of a batch is the shuffle. `records`:
+    a record array, or its bytes as a (B, 32) uint8 tensor. The same
+    values as decode()."""
+    raw = records if isinstance(records, torch.Tensor) else \
+        torch.from_numpy(np.ascontiguousarray(records).view(np.uint8).reshape(-1, RECORD.itemsize))
+    raw = raw.to(device, non_blocking=True)
+    bits = torch.arange(8, device=raw.device, dtype=torch.uint8)
+    mask = ((raw[:, :8].unsqueeze(2) >> bits) & 1).reshape(-1, 64).bool()  # bit i of byte j = square 8j + i
+    nib = raw[:, 8:24]
+    nibbles = torch.stack((nib & 15, nib >> 4), dim=2).reshape(-1, 32).to(torch.int64)
+    rank = torch.clamp(torch.cumsum(mask, dim=1) - 1, 0, 31)
+    pieces = torch.gather(nibbles, 1, rank).masked_fill(~mask, -1)
+    score = raw[:, 24].to(torch.int32) | (raw[:, 25].to(torch.int32) << 8)
+    score = (score - (score >= 32768).to(torch.int32) * 65536).to(torch.float32)
+    return pieces, raw[:, 27].to(torch.int64), score, raw[:, 26].to(torch.float32)
+
+
+def raw_bytes(records):
+    """A batch's bytes as a pinned (B, 32) uint8 tensor, ready for
+    decode_torch on a GPU (pinned memory copies to the GPU asynchronously)."""
+    return torch.from_numpy(np.ascontiguousarray(records).view(np.uint8).reshape(-1, RECORD.itemsize)).pin_memory()
+
+
 SQUARES = torch.arange(64)
 
 
@@ -157,7 +184,7 @@ def feature_indices(pieces, device, king_buckets=1):
     where the square is empty. With king buckets each side's index is offset
     by its own king's bucket, and the squares are mirrored left-right when
     that king is on files e-h (the engine's src/nnue.cpp does the same)."""
-    pieces = torch.from_numpy(pieces).to(device=device, dtype=torch.int64)
+    pieces = (torch.from_numpy(pieces) if isinstance(pieces, np.ndarray) else pieces).to(device=device, dtype=torch.int64)
     on = pieces >= 0
     sq = SQUARES.to(device)
     total = INPUTS * king_buckets
@@ -311,32 +338,42 @@ class NNUE(torch.nn.Module):
                 self.out.weight.clamp_(-OUT_CLIP, OUT_CLIP)
 
 
-def batch_loss(model, records, device, wdl, k=K):
-    """records: a batch of records, or decode() of them (prefetched)."""
-    pieces, stm, score, result = decode(records) if isinstance(records, np.ndarray) else records
+def batch_loss(model, records, device, wdl, k=K, power=2.0):
+    """records: a batch of records, decode() of them (prefetched), or their
+    raw_bytes() (prefetched for a GPU, decoded there).
+    power: the exponent of the error (2 = squared error, as always; 2.5
+    weights large errors more, as Stockfish's trainer does)."""
+    if isinstance(records, torch.Tensor):
+        records = decode_torch(records, device)
+    elif isinstance(records, np.ndarray):
+        records = decode_torch(records, device) if str(device).startswith("cuda") else decode(records)
+    pieces, stm, score, result = (torch.from_numpy(x) if isinstance(x, np.ndarray) else x for x in records)
     xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", True))
-    stm_t = torch.from_numpy(stm).to(device)
-    score = torch.from_numpy(score).to(device)
-    result = torch.from_numpy(result).to(device) / 2  # White's side: 0 loss, 0.5 draw, 1 win
+    stm_t = stm.to(device)
+    score = score.to(device)
+    result = result.to(device) / 2  # White's side: 0 loss, 0.5 draw, 1 win
     white = stm_t == 0
     score_stm = torch.where(white, score, -score)
     result_stm = torch.where(white, result, 1 - result)
     target = (1 - wdl) * torch.sigmoid(score_stm / k) + wdl * result_stm
-    count = torch.from_numpy((pieces >= 0).sum(axis=1)).to(device)
+    count = (pieces >= 0).sum(dim=1).to(device)
     pred = torch.sigmoid(model(xw, xb, stm_t, count) * SCALE / k)
-    return torch.mean((pred - target) ** 2)
+    if power == 2.0:
+        return torch.mean((pred - target) ** 2)
+    return torch.mean(torch.abs(pred - target) ** power)
 
 
-def prefetch(batches, depth=4):
-    """decode() the batches in a background thread, a few ahead, so the
-    GPU need not wait for the CPU's share of each batch."""
+def prefetch(batches, depth=4, prepare=decode):
+    """prepare() the batches in a background thread, a few ahead, so the
+    GPU need not wait for the CPU's share of each batch: decode() on the
+    CPU, raw_bytes() for decoding on a GPU."""
     q = queue.Queue(maxsize=depth)
     done = object()
 
     def work():
         try:
             for records in batches:
-                q.put(decode(records))
+                q.put(prepare(records))
         finally:
             q.put(done)
 
@@ -429,6 +466,11 @@ def main():
     ap.add_argument("--ft-clip", type=float, default=FT_CLIP, metavar="C",
                     help=f"first-layer weight and bias limit ({FT_CLIP} as before; up to {FT_CLIP_MAX:.2f} still fits "
                          "the engine's 16-bit sums, and 7.2 has 0.35%% of its weights pinned at 1.98)")
+    ap.add_argument("--loss-power", type=float, default=2.0, metavar="P",
+                    help="train on |error|^P (2 = squared error, as before); validation also prints the squared "
+                         "error so runs with different P compare")
+    ap.add_argument("--cpu-decode", action="store_true",
+                    help="on a GPU, unpack the records on the CPU as before Nov 22 (default: on the GPU)")
     ap.add_argument("--tf32", action="store_true",
                     help="TF32 matrix products on NVIDIA GPUs (Ampere on): faster for --ft dense, less precise")
     args = ap.parse_args()
@@ -451,6 +493,9 @@ def main():
     # left is the small output layer, so TF32 saves little, and it rounds
     # inputs to 10 bits of mantissa.
     torch.backends.cuda.matmul.allow_tf32 = args.tf32
+    # On a GPU the records are unpacked there: decode() takes one CPU core
+    # 20-30 ms a batch, as long as a whole GPU step can take.
+    gpu_decode = device == "cuda" and not args.cpu_decode
     data = Dataset(paths)
     val = data.validation()
     os.makedirs(args.out, exist_ok=True)
@@ -535,9 +580,11 @@ def main():
         model.train()
         wdl = args.wdl if args.wdl_end is None or args.epochs == 1 else \
             args.wdl + (args.wdl_end - args.wdl) * (epoch - 1) / (args.epochs - 1)
-        t0, total, n = time.time(), 0.0, 0
-        for records in prefetch(data.batches(args.batch, rng)):
-            loss = batch_loss(model, records, device, wdl, args.k)
+        # The loss is summed on the device: .item() every batch would make the
+        # CPU wait for the GPU each step instead of queueing the next one.
+        t0, total, n = time.time(), torch.zeros((), dtype=torch.float64, device=device), 0
+        for records in prefetch(data.batches(args.batch, rng), prepare=raw_bytes if gpu_decode else decode):
+            loss = batch_loss(model, records, device, wdl, args.k, args.loss_power)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -548,21 +595,23 @@ def main():
             if ema is not None:
                 with torch.no_grad():
                     torch._foreach_lerp_(list(ema.parameters()), list(model.parameters()), 1 - ema_decay)
-            total += loss.item()
+            total += loss.detach()
             n += 1
             if args.limit and n * args.batch >= args.limit:
                 break
             if n % 500 == 0:
-                print(f"  epoch {epoch} batch {n}: loss {total / n:.6f} ({n * args.batch / (time.time() - t0):,.0f} pos/s)", flush=True)
+                print(f"  epoch {epoch} batch {n}: loss {total.item() / n:.6f} ({n * args.batch / (time.time() - t0):,.0f} pos/s)", flush=True)
         sched.step()
         model.eval()
         with torch.no_grad():
-            val_loss = batch_loss(model, val, device, wdl, args.k).item()
+            val_loss = batch_loss(model, val, device, wdl, args.k, args.loss_power).item()
             ema_note = ""
             if ema is not None:
                 ema.eval()
-                ema_note = f", moving average {batch_loss(ema, val, device, wdl, args.k).item():.6f}"
-        print(f"epoch {epoch}: train {total / max(n, 1):.6f}, validation {val_loss:.6f}{ema_note}, "
+                ema_note = f", moving average {batch_loss(ema, val, device, wdl, args.k, args.loss_power).item():.6f}"
+            if args.loss_power != 2.0:
+                ema_note += f" (squared error {batch_loss(model if ema is None else ema, val, device, wdl, args.k).item():.6f})"
+        print(f"epoch {epoch}: train {total.item() / max(n, 1):.6f}, validation {val_loss:.6f}{ema_note}, "
               f"{time.time() - t0:.0f} s", flush=True)
         saved = {"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": epoch,
                  "screlu": args.screlu, "king_buckets": args.king_buckets, "ft_input_major": True,

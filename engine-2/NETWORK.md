@@ -320,6 +320,8 @@ integer evaluation against the trainer's, to catch export bugs).
 | Nov 22 | `export.py --scale F` | Puts a net on another net's scale (section 3) |
 | Nov 22 | `--ft-clip C` (first-layer limit, 1.98 as before, up to 3.89) | 7.2 has 2,730 first-layer weights (0.35%, in 584 of 1,024 units) pinned at 1.98, yet its largest possible sum is 16,009 of the 32,767 a 16-bit accumulator holds. The 1.98 was the output layer's x64 limit. Engine checked with weights up to 3.85. Not testable on CPU: the test nets' largest first-layer weights were 0.8-1.1, so the limit never bound (identical losses) |
 | Nov 22 | `--ft sparse` (the default) for every net | The king-bucket merge had left plain nets on the dense path: a plain 1024-unit epoch 22 s -> 10 s on CPU, same losses |
+| Nov 22 | `--loss-power P`: train on \|error\|^P (2 = squared error, as before; Stockfish's trainer uses 2.5). Validation then also prints the squared error, so runs compare | CPU test below |
+| Nov 22 | On a GPU the records are unpacked on the GPU (`--cpu-decode` for the old way), and the training loss is summed there instead of read back every batch | Same losses, byte-identical net (CPU check). Unpacking a 16,384 batch takes a CPU core 25-30 ms, about a third of a laptop step now and as long as a whole step with a faster first layer; on the GPU it is a 512 KB copy |
 
 ### Diagnosing a network before playing it
 
