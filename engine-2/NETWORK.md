@@ -221,8 +221,16 @@ bucket (the "layer stacks" most top engines use).
   mispredicted constantly. Listing the pairs through a lookup table,
   then one tight loop over the list (Stockfish's method), fixed that;
   fusing the activation into the listing pass and 32-bit pairs took the
-  layer from 5,160 to 4,460 instructions an evaluation. About half is
-  the activation pass over all 2,048 units, half the multiplies.
+  layer from 5,160 to 4,340 instructions an evaluation.
+- **Where the time goes** (cycle counter, per evaluation, speed net):
+  the activation pass over all 2,048 units ~480 ticks, the multiplies for
+  the ~198 non-zero pairs ~710, L2 and the output ~230; one output layer
+  was ~200 in all. Tried and not kept:
+  - 8-bit L1 weights (x128; the limit already fits): the multiplies 18%
+    faster (one bucket's weights 32 KB instead of 64, inside the L1
+    cache), the layers 8%, for +0.8 cp of rounding (5.6 vs 4.8 cp).
+    Worth it only if speed turns out to decide the matter.
+  - AVX-512 (in the code, same results): no faster on the cloud CPU.
 - Games at 256 units: below, when played.
 
 ### Speed is strength
