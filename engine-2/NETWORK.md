@@ -175,7 +175,7 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
 | Change | Best | End | Notes |
 |---|---|---|---|
 | `--loss-power 2.5` | **0.020811** | **0.020826** | Better *squared* error than training on squared error, and less overfitting late. Colder: scale 0.895 vs 0.960. **Games: +17.0 +/- 11.4** (below) |
-| `--init-from` the finished plain net (v15a-style), 4 epochs | **0.020574** (epoch 2) | 0.020636 | 1.2% better than v15b from scratch after 2 epochs. Same scale. Games below |
+| `--init-from` the finished plain net (v15a-style), 4 epochs | **0.020574** (epoch 2) | 0.020636 | 1.2% better than v15b from scratch after 2 epochs. Same scale. **Games: +13.0 +/- 12.0** (below) |
 | `--king-buckets 8` | 0.020779 | 0.020858 | 0.2% better, but about **7% fewer nodes/s** than 4 buckets (1024 units; a 12.6 MB first layer) |
 | `--k 300` | (other target) | | Much colder: scale 0.830. Games below, re-exported on v15b's scale |
 
@@ -183,6 +183,12 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
   a finished plain net beat v15b from scratch after one epoch. For v15b
   that means `--init-from <v13>/checkpoint.pt` with fewer epochs, which
   could halve the run (about 17 h for 20 epochs on 660M).
+- **Warm start in games:** v15b's recipe for 4 epochs started from the
+  finished plain net, against v15b trained 8 epochs from scratch, both
+  256 units, same scale: **+13.0 +/- 12.0 over 1,500 games** (stopped
+  early). Half the king-bucket epochs and still stronger. For the next
+  king-bucket run: `--init-from <v13 or v15a>/checkpoint.pt` with about
+  half the epochs (10 instead of 20).
 - **Power loss in games:** the `--loss-power 2.5` net, re-exported on the
   v15b net's scale (`export.py --scale 1.073`), against v15b, both 256
   units, 8+0.08: **+17.0 +/- 11.4 over 1,620 games**, +420 -341 =859,

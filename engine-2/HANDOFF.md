@@ -140,7 +140,8 @@ positions) lost to 7.2.
   v15.
 - **Warm start** (`--init-from` a finished plain net, v15b recipe): 1.2%
   better validation than v15b from scratch after 2 epochs. For v15b:
-  start from v13's checkpoint and train fewer epochs. Games in progress.
+  start from v13's checkpoint and train fewer epochs. **Games: +13.0 +/-
+  12.0 over 1,500** (4 warm epochs vs 8 from scratch).
 - **`--loss-power 2.5`**: **+17.0 +/- 11.4 over 1,620 games**; lower
   squared error too. The net comes out colder, so match the scale. In the
   owner's v15 run.
