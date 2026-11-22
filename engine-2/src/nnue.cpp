@@ -21,9 +21,12 @@ constexpr int QB = 64;
 constexpr int SCALE = 400;
 
 constexpr int MAX_BUCKETS = 8;
+constexpr int MAX_KING_BUCKETS = 16;
 
 struct Network {
-  alignas(64) std::int16_t ft_weight[INPUTS][HIDDEN];
+  // First layer: one block of INPUTS rows per king bucket (one block without
+  // king buckets), each row HIDDEN weights.
+  std::vector<std::int16_t> ft_weight;
   alignas(64) std::int16_t ft_bias[HIDDEN];
   // One output layer per bucket (only the first `buckets` are used); in
   // each, the side to move's units first.
@@ -31,6 +34,13 @@ struct Network {
   std::int32_t out_bias[MAX_BUCKETS];
   int buckets = 1;      // output layers, chosen by piece count
   bool screlu = false;  // the clipped units are squared before the output layer
+  // King buckets (network file version 3): each side's inputs depend on its
+  // own king's square, seen from that side: king_map gives the bucket, and
+  // with `mirror` a king on files e-h flips every square left-right (so the
+  // map only needs the a-d half). One bucket and no mirror = plain inputs.
+  int king_buckets = 1;
+  bool mirror = false;
+  std::uint8_t king_map[64] = {};
 };
 
 Network net;
@@ -53,7 +63,18 @@ inline int feature(Piece pc, Square s, Color side) {
   return side == WHITE ? pc * 64 + s : ((pc + 6) % 12) * 64 + (s ^ 56);
 }
 
-inline const std::int16_t* weights(Piece pc, Square s, Color side) { return net.ft_weight[feature(pc, s, side)]; }
+// The side's king state: its bucket times 2, plus 1 if the board is mirrored.
+// The inputs (and so the update) depend on it; while it stays the same the
+// side's accumulator is updated move by move.
+inline int king_state(Color side, Square king) {
+  const int rel = side == WHITE ? king : king ^ 56;
+  return net.king_map[rel] * 2 + (net.mirror && file_of(Square(rel)) >= 4);
+}
+
+inline const std::int16_t* weights(Piece pc, Square s, Color side, int state) {
+  const int f = feature(pc, s, side) ^ (state & 1 ? 7 : 0);  // mirrored: the file flips (bits 0-2 of the square)
+  return &net.ft_weight[std::size_t((state >> 1) * INPUTS + f) * HIDDEN];
+}
 
 // The update loops: out = in + the added rows - the removed rows. Sums wrap
 // like the 16-bit lanes they vectorize to; the trainer's weight limit keeps
@@ -193,86 +214,146 @@ inline std::int32_t output_squared(Row us, Row them, Row w) {
 }
 #endif
 
-// next = prev changed by next.dirty, from both sides.
-void apply(const Accumulator& prev, Accumulator& next) {
+// next = prev changed by next.dirty, from one side, whose king state
+// (king_state) is the same in both.
+void apply(const Accumulator& prev, Accumulator& next, Color side, int st) {
   const DirtyPieces& d = next.dirty;
-  for (Color side : {WHITE, BLACK}) {
-    const std::int16_t* in = prev.values[side];
-    std::int16_t* out = next.values[side];
-    if (d.removed == 1) {  // a quiet move or a promotion
-      add1_sub1(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.remove_piece[0], d.remove_sq[0], side));
-    } else if (d.added == 1) {  // a capture
-      add1_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.remove_piece[0], d.remove_sq[0], side),
-                weights(d.remove_piece[1], d.remove_sq[1], side));
-    } else if (d.added == 2) {  // castling
-      add2_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.add_piece[1], d.add_sq[1], side),
-                weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side));
-    } else {  // a null move
-      std::memcpy(out, in, sizeof(prev.values[side]));
-    }
+  const std::int16_t* in = prev.values[side];
+  std::int16_t* out = next.values[side];
+  if (d.removed == 1) {  // a quiet move or a promotion
+    add1_sub1(out, in, weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.remove_piece[0], d.remove_sq[0], side, st));
+  } else if (d.added == 1) {  // a capture
+    add1_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.remove_piece[0], d.remove_sq[0], side, st),
+              weights(d.remove_piece[1], d.remove_sq[1], side, st));
+  } else if (d.added == 2) {  // castling
+    add2_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.add_piece[1], d.add_sq[1], side, st),
+              weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.remove_piece[1], d.remove_sq[1], side, st));
+  } else {  // a null move
+    std::memcpy(out, in, sizeof(prev.values[side]));
   }
-  next.net = net_id;
+  next.net[side] = net_id;
 }
 
-// prev = next with next.dirty undone, from both sides: the pieces it added
+// prev = next with next.dirty undone, from one side: the pieces it added
 // come off and the ones it removed go back.
-void unapply(const Accumulator& next, Accumulator& prev) {
+void unapply(const Accumulator& next, Accumulator& prev, Color side, int st) {
   const DirtyPieces& d = next.dirty;
-  for (Color side : {WHITE, BLACK}) {
-    const std::int16_t* in = next.values[side];
-    std::int16_t* out = prev.values[side];
-    if (d.removed == 1) {
-      add1_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.add_piece[0], d.add_sq[0], side));
-    } else if (d.added == 1) {
-      add2_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side),
-                weights(d.add_piece[0], d.add_sq[0], side));
-    } else if (d.added == 2) {
-      add2_sub2(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side),
-                weights(d.add_piece[0], d.add_sq[0], side), weights(d.add_piece[1], d.add_sq[1], side));
-    } else {
-      std::memcpy(out, in, sizeof(next.values[side]));
-    }
+  const std::int16_t* in = next.values[side];
+  std::int16_t* out = prev.values[side];
+  if (d.removed == 1) {
+    add1_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.add_piece[0], d.add_sq[0], side, st));
+  } else if (d.added == 1) {
+    add2_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.remove_piece[1], d.remove_sq[1], side, st),
+              weights(d.add_piece[0], d.add_sq[0], side, st));
+  } else if (d.added == 2) {
+    add2_sub2(out, in, weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.remove_piece[1], d.remove_sq[1], side, st),
+              weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.add_piece[1], d.add_sq[1], side, st));
+  } else {
+    std::memcpy(out, in, sizeof(next.values[side]));
   }
-  prev.net = net_id;
+  prev.net[side] = net_id;
 }
 
-void refresh(const Position& pos, Accumulator& acc) {
-  std::memcpy(acc.values[WHITE], net.ft_bias, sizeof(net.ft_bias));
-  std::memcpy(acc.values[BLACK], net.ft_bias, sizeof(net.ft_bias));
-  for (Bitboard b = pos.pieces(); b;) {
-    const Square s = pop_lsb(b);
-    const Piece pc = pos.piece_on(s);
-    const std::int16_t* w = weights(pc, s, WHITE);
-    const std::int16_t* k = weights(pc, s, BLACK);
-    for (int j = 0; j < HIDDEN; j++) {
-      acc.values[WHITE][j] += w[j];
-      acc.values[BLACK][j] += k[j];
+// Accumulator cache ("Finny table"), for king buckets: per side and king
+// state, the sums last computed there and the pieces they were for. A side
+// whose king changes zone (or crosses between files d and e) needs its
+// sums for other inputs; starting from the cached ones only the pieces that
+// changed since are added or removed, instead of all of them. One per
+// thread (each search thread has its own).
+struct CacheEntry {
+  alignas(64) std::int16_t values[HIDDEN];
+  Bitboard pieces[PIECE_NB];
+  std::uint32_t net = 0;  // the network the entry belongs to; 0 = empty
+};
+thread_local std::vector<CacheEntry> cache;
+
+void refresh(const Position& pos, Accumulator& acc, Color side, int st) {
+  std::int16_t* v = acc.values[side];
+  if (net.king_buckets == 1 && !net.mirror) {  // plain inputs: from scratch, as before king buckets
+    std::memcpy(v, net.ft_bias, sizeof(net.ft_bias));
+    for (Bitboard b = pos.pieces(); b;) {
+      const Square s = pop_lsb(b);
+      const std::int16_t* w = weights(pos.piece_on(s), s, side, st);
+      for (int j = 0; j < HIDDEN; j++) v[j] += w[j];
     }
+    acc.net[side] = net_id;
+    return;
   }
-  acc.net = net_id;
+  const std::size_t states = std::size_t(net.king_buckets) * 2;
+  if (cache.size() < COLOR_NB * states) cache.resize(COLOR_NB * MAX_KING_BUCKETS * 2);
+  CacheEntry& e = cache[side * MAX_KING_BUCKETS * 2 + st];
+  if (e.net != net_id) {
+    std::memcpy(e.values, net.ft_bias, sizeof(net.ft_bias));
+    std::fill(std::begin(e.pieces), std::end(e.pieces), Bitboard(0));
+    e.net = net_id;
+  }
+  for (int p = 0; p < PIECE_NB; p++) {
+    const Piece pc = Piece(p);
+    const Bitboard now = pos.pieces(color_of(pc), type_of(pc));
+    for (Bitboard add = now & ~e.pieces[p]; add;) {
+      const std::int16_t* w = weights(pc, pop_lsb(add), side, st);
+      for (int j = 0; j < HIDDEN; j++) e.values[j] += w[j];
+    }
+    for (Bitboard sub = e.pieces[p] & ~now; sub;) {
+      const std::int16_t* w = weights(pc, pop_lsb(sub), side, st);
+      for (int j = 0; j < HIDDEN; j++) e.values[j] -= w[j];
+    }
+    e.pieces[p] = now;
+  }
+  std::memcpy(v, e.values, sizeof(e.values));
+  acc.net[side] = net_id;
 }
 
-// Brings the current position's accumulator up to date: forward from the
-// nearest computed one before it, or from scratch when the updates on the
-// way would add and remove more pieces than the board holds. After a
-// refresh the positions before it that were passed over are filled in
-// backward, one update each: otherwise every sibling of this position
-// (and their children) would find no computed parent and refresh too.
-void update(const Position& pos) {
+// Where `side`'s king stood before the move recorded in d, given where it
+// stands after it.
+inline Square king_before(const DirtyPieces& d, Color side, Square after) {
+  const Piece king = make_piece(side, KING);
+  for (int a = 0; a < d.added; a++)
+    if (d.add_piece[a] == king && d.add_sq[a] == after)
+      for (int r = 0; r < d.removed; r++)
+        if (d.remove_piece[r] == king) return d.remove_sq[r];
+  return after;
+}
+
+// Brings one side of the current position's accumulator up to date: forward
+// from the nearest position before it whose side is computed, or from
+// scratch when the updates on the way would add and remove more pieces than
+// the board holds, or when that side's king state changes on the way (its
+// inputs are then different ones). After a refresh the positions before it
+// that were passed over are filled in backward, one update each, while the
+// king state allows: otherwise every sibling of this position (and their
+// children) would find no computed parent and refresh too.
+void update(const Position& pos, Color side) {
   Accumulator* stack = pos.accumulators();
   const int top = pos.game_ply();
   const int limit = popcount(pos.pieces());
+  const Square top_king = pos.king_square(side);
+  const int st = king_state(side, top_king);
+  Square king = top_king;
   int i = top, cost = 0;
-  while (stack[i].net != net_id) {
+  while (stack[i].net[side] != net_id) {
     cost += stack[i].dirty.added + stack[i].dirty.removed;
-    if (i == 0 || cost > limit) {
-      refresh(pos, stack[top]);
-      for (int j = top - 1; j >= i; j--) unapply(stack[j + 1], stack[j]);
+    const Square before = i > 0 ? king_before(stack[i].dirty, side, king) : king;
+    if (i == 0 || cost > limit || king_state(side, before) != st) {
+      refresh(pos, stack[top], side, st);
+      Square k = top_king;
+      for (int j = top - 1; j >= i; j--) {
+        k = king_before(stack[j + 1].dirty, side, k);
+        if (king_state(side, k) != st) break;
+        unapply(stack[j + 1], stack[j], side, st);
+      }
       return;
     }
+    king = before;
     i--;
   }
-  for (int j = i + 1; j <= top; j++) apply(stack[j - 1], stack[j]);
+  for (int j = i + 1; j <= top; j++) apply(stack[j - 1], stack[j], side, st);
+}
+
+void update(const Position& pos) {
+  const Accumulator& acc = pos.accumulators()[pos.game_ply()];
+  for (Color side : {WHITE, BLACK})
+    if (acc.net[side] != net_id) update(pos, side);
 }
 
 }  // namespace
@@ -287,19 +368,31 @@ bool load(const unsigned char* data, std::size_t size) {
   std::size_t pos = 0;
   if (!take(data, size, pos, magic, 4) || !take(data, size, pos, &version, 4) || !take(data, size, pos, &hidden, 4))
     return false;
-  if (std::memcmp(magic, "E2NN", 4) != 0 || (version != 1 && version != 2) || hidden != HIDDEN) return false;
+  if (std::memcmp(magic, "E2NN", 4) != 0 || version < 1 || version > 3 || hidden != HIDDEN) return false;
   // Version 2 adds the activation and the number of output layers; version
-  // 1 is plain clipped units and one output.
-  std::uint32_t screlu = 0, buckets = 1;
-  if (version == 2 && (!take(data, size, pos, &screlu, 4) || !take(data, size, pos, &buckets, 4))) return false;
-  if (screlu > 1 || buckets < 1 || buckets > MAX_BUCKETS) return false;
-  if (!take(data, size, pos, net.ft_weight, sizeof(net.ft_weight)) ||
+  // 3 also king buckets (their count, the mirror flag and the 64-square
+  // map); version 1 is plain clipped units and one output.
+  std::uint32_t screlu = 0, buckets = 1, king_buckets = 1, mirror = 0;
+  std::uint8_t king_map[64] = {};
+  if (version >= 2 && (!take(data, size, pos, &screlu, 4) || !take(data, size, pos, &buckets, 4))) return false;
+  if (version >= 3 && (!take(data, size, pos, &king_buckets, 4) || !take(data, size, pos, &mirror, 4) ||
+                       !take(data, size, pos, king_map, 64)))
+    return false;
+  if (screlu > 1 || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
+    return false;
+  for (std::uint8_t b : king_map)
+    if (b >= king_buckets) return false;
+  net.ft_weight.resize(std::size_t(king_buckets) * INPUTS * HIDDEN);
+  if (!take(data, size, pos, net.ft_weight.data(), net.ft_weight.size() * sizeof(std::int16_t)) ||
       !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)) ||
       !take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
       !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size)
     return false;
   net.screlu = screlu == 1;
   net.buckets = int(buckets);
+  net.king_buckets = int(king_buckets);
+  net.mirror = mirror == 1;
+  std::memcpy(net.king_map, king_map, 64);
   if (++net_id == 0) net_id = 1;
   have_net = true;
   return true;
@@ -322,7 +415,7 @@ bool loaded() { return have_net; }
 
 int evaluate(const Position& pos) {
   const Accumulator& acc = pos.accumulators()[pos.game_ply()];
-  if (acc.net != net_id) update(pos);
+  if (acc.net[WHITE] != net_id || acc.net[BLACK] != net_id) update(pos);
   // Accumulators fit in 16 bits: the trainer keeps first-layer weights and
   // biases within 1.98, so 33 terms of at most 1.98 * QA stay under 32767.
   const Color us = pos.side_to_move();
