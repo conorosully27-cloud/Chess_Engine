@@ -21,10 +21,11 @@ About 5% slower per node than 7.2.
 | time control | games | result | Elo | LOS | LLR (bounds) |
 |---|---|---|---|---|---|
 | 8+0.08 | 646 | +102 -126 =418 | -13 +/- 15 | 4.4% | -2.96, H0 (0/10) |
-| 40+0.4 | 1,638 | +218 -198 =1222 | **+4 +/- 8** | 84.8% | 0.51 (0/5), running |
+| 40+0.4 | 1,760 | +235 -220 =1305 | **+3 +/- 8** | 77.2% | 0.15 (0/5), stopped |
 
-Pentanomial [6, 85, 168, 55, 9] and [12, 132, 511, 152, 12]. Released by
-the owner on the 40+0.4 result while it was still running, as a base for
+Pentanomial [6, 85, 168, 55, 9] and [12, 148, 545, 163, 12]. Released by
+the owner on the 40+0.4 result (+4 at 1,638 games; stopped at 1,760 to
+build the release), as a base for
 the finished v14b net (epoch 20). Bench **1248929** (7.2: 1224793).
 
 ## 7.2: output buckets
@@ -46,6 +47,21 @@ Pentanomial [1, 29, 119, 51, 6] and [5, 120, 475, 137, 13]. The 40+0.4
 SPRT was stopped by the owner (it read +16 at 518 games, +3 at 1,200,
 then +8), who released on both together, as with 7.1. Bench **1224793**
 (7.1.1: 1382932).
+
+**Against outside engines at 8+0.08** (Nov 20; Hash 64, 1 thread, 4 at a
+time, as 7.0's runs):
+
+| opponent | games | result | Elo | notes |
+|---|---|---|---|---|
+| Renegade 1.1.0 | 850 | +176 -157 =517 | +8 +/- 14 | H1 (-10/+10); 13 wins on Renegade time losses, about +2.5 without them |
+| Thrawn 3.2 | 100 | +29 -19 =52 | +35 +/- 47 | stopped by the owner |
+
+7.0 had -58 +/- 40 against Renegade at the same settings (H0 after 126
+games), so 7.2 is roughly level with it where 7.0 was well behind.
+
+**In the app** (Nov 20): WebAssembly rebuilt from 7.2 (wasm bench
+1224793, the native bench), Android `versionCode` 10 / `versionName`
+"7.2".
 
 ## 7.1.1: dead experiment code removed
 

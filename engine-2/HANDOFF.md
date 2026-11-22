@@ -100,14 +100,44 @@ of the hidden layer uses weights for its own king's zone and sees all 32
 pieces, so the opponent's king safety (our attackers near their king) is
 learned in their half, not only our own.
 
+**Network speed and trainer review (Nov 20, cloud):**
+- **train.py is faster, same results.** The first layer sums the 32 rows
+  of the pieces on the board (`embedding_bag`) instead of multiplying a
+  (B, 768) one-hot matrix, and the side to move is put first by swapping
+  the (B, 32) inputs rather than the (B, 2048) hidden units (that
+  `where` + `cat` was a third of a step). Decoding runs a few batches
+  ahead in a thread; TF32 is on for CUDA matrix products. 2 epochs on
+  600k test positions (1024, SCReLU, 8 buckets, CPU): **identical losses
+  and byte-identical net files** to the old trainer, **31 s vs 52 s**.
+  Not yet timed on the laptop GPU: compare the `pos/s` lines of a short
+  `--limit` run against the old ~220-280k. Checkpoints are compatible.
+  New `--lr-end F` (default 0.1 = as before; 0.01 for v15's 100x fall).
+- **`-DENGINE_AVX512=ON`**: AVX-512 network code, same bench (1224793),
+  all tests pass; on this cloud Xeon roughly +5-15% nodes/s (noisy VM,
+  medians 1.78M vs 1.55M). Off by default (CPUs without AVX-512 crash).
+- **Profile (callgrind, bench):** network ~37% of instructions (updates
+  24%, output layer 12%), so a further network speedup of x% gives about
+  0.4x% nodes/s.
+- **Overflow headroom for v16:** the SCReLU output sum is int32. With
+  7.2's weights the worst case is 0.90 of the int32 range (bucket 0), so
+  1024 units are safe, but **2048 units could overflow**: sum each half
+  separately and divide by QA before adding, or clamp, before v16.
+- **Output-weight clip:** 23 of bucket 0's 2048 weights (2-5 pieces) sit
+  at the +/-127 limit SCReLU's 16-bit multiply needs; other buckets 0-7.
+  Mildly limiting in bare endgames only.
+- **Merged with king buckets (7.2.1, Nov 22):** the king-bucket trainer's
+  own sparse first layer (`FeatureTransformer`, input-major, any number of
+  zones) was kept in place of the 32-row `embedding_bag` path above, which
+  only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
+
 **Current best: ChessMcEngineFace 7.2.1** (Nov 22) = 7.2's code plus king
 input buckets (branch `claude/king-buckets` merged) with the owner's v14b
 net, epoch 10 (`nets/engine-7.2.1.nnue`: version 3, hidden 1024, screlu 1,
 buckets 8, king buckets 4, mirror 1; warm-started from v13 with
 `--init-from`). vs 7.2: 8+0.08 **H0**, -13 +/- 15 at 646 games
-(`~/sprt-72-kb14b10-stc.log`); 40+0.4 **+4 +/- 8** at 1,638 games, LOS
-84.8%, LLR 0.51 (bounds 0 / 5, `~/sprt-72-kb14b10-ltc.log`), released by
-the owner while it ran. Bench **1248929**, 1.37M nodes/s. Engine matches an
+(`~/sprt-72-kb14b10-stc.log`); 40+0.4 **+3 +/- 8** at 1,760 games, LOS
+77.2%, LLR 0.15 (bounds 0 / 5, `~/sprt-72-kb14b10-ltc.log`), released by
+the owner, then stopped. Bench **1248929**, 1.37M nodes/s. Engine matches an
 independent numpy evaluator within 1 cp (mean 0.5) on 2,000 positions;
 `nnue_test` passes. Earlier king-bucket nets trained from scratch (v14,
 epochs 6/16/20) all lost to 7.2 (-64, -36, -18 at 8+0.08; -12 at 40+0.4
@@ -198,7 +228,15 @@ time losses: about 3565 by this pairing. **All three at 40+0.4: about
 =62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
 losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
 100 Elo of swing), as Berserk did the other way. Short-TC results against
-outside engines say little about CCRL Blitz (2+1). **7.0 vs Renegade 1.1.0 at
+outside engines say little about CCRL Blitz (2+1). **7.2 vs Renegade 1.1.0 at 8+0.08** (Nov 20, SPRT -10/+10, Hash 64,
+1 thread, 4 at a time): **H1 after 850 games**, +176 -157 =517 (51.1%),
+**+8 +/- 14**, pentanomial [14, 88, 203, 105, 15], but **13 of the 176
+wins were Renegade losing on time** (100 ms overruns at its default Move
+Overhead 50); scored as draws, about **+2.5** and LLR about 1.0 (no
+verdict): level with Renegade at 8+0.08, about 60 above 7.0's -58 below.
+Next time give Renegade `option.Move Overhead=100`. 7.2 vs Thrawn 3.2 at
+8+0.08 was stopped by the owner at 100 games: +29 -19 =52, +35 +/- 47.
+**7.0 vs Renegade 1.1.0 at
 8+0.08** (`~/matches/70-renegade-stc.log`): **H0 after 126 games**, +18
 -39 =69 (41.7%), **-58 +/- 40**, pentanomial [7, 19, 25, 12, 0], no time
 losses (Nov 15's -54 +/- 39 at the same time control agrees). From the
@@ -1045,7 +1083,15 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
+- **Phone app: ChessMcEngineFace 7.2** (Nov 20; WebAssembly rebuilt from
+  7.2, Android `versionCode` 10 / `versionName` "7.2"). `node
+  scripts/wasm_bench.mjs`: 1224793, the native bench. APK built with
+  `npm run apk` (one Maven Central 429 on the first try, then fine with
+  `./gradlew --max-workers=1 assembleDebug`), 5.6 MB, signed with
+  `keys/debug.keystore` (SHA-256 `45c53a1f...a36bb`); checked in Chromium
+  at phone size (labels "ChessMcEngineFace 7.2", engine opened 1. c4, no
+  console errors) and sent to the owner.
+- Before: **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
   6.0, Android `versionCode` 9 / `versionName` "6.0"). `node
   scripts/wasm_bench.mjs`: 2285231, the native bench. APK built with
   `npm run apk` (`--max-workers=1`), 5.6 MB, signed with the repo's

@@ -32,6 +32,8 @@ larger than memory works. Every epoch saves a checkpoint (resume with
 export()).
 """
 import argparse
+import queue
+import threading
 import glob
 import math
 import os
@@ -249,7 +251,8 @@ class NNUE(torch.nn.Module):
 
 
 def batch_loss(model, records, device, wdl):
-    pieces, stm, score, result = decode(records)
+    """records: a batch of records, or decode() of them (prefetched)."""
+    pieces, stm, score, result = decode(records) if isinstance(records, np.ndarray) else records
     xw, xb = features(pieces, device, model.king_buckets, sparse=getattr(model, "sparse_ft", model.king_buckets > 1))
     stm_t = torch.from_numpy(stm).to(device)
     score = torch.from_numpy(score).to(device)
@@ -294,6 +297,24 @@ def export(model, path):
         f.write(out_b.astype("<i4").tobytes())
 
 
+def prefetch(batches, depth=4):
+    """decode() the batches in a background thread, a few ahead, so the
+    GPU need not wait for the CPU's share of each batch."""
+    q = queue.Queue(maxsize=depth)
+    done = object()
+
+    def work():
+        try:
+            for records in batches:
+                q.put(decode(records))
+        finally:
+            q.put(done)
+
+    threading.Thread(target=work, daemon=True).start()
+    while (item := q.get()) is not done:
+        yield item
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("data", nargs="+", help="datagen files (wildcards allowed)")
@@ -301,6 +322,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--batch", type=int, default=16384)
     ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--lr-end", type=float, default=0.1, metavar="F",
+                    help="the learning rate ends at F x --lr, on a cosine (0.1 as before; 0.01 falls 100x)")
     ap.add_argument("--wdl", type=float, default=0.25, help="weight of the game result in the target")
     ap.add_argument("--limit", type=int, default=0, help="use only this many positions per epoch (for a quick test)")
     ap.add_argument("--resume", help="checkpoint to continue from")
@@ -332,6 +355,9 @@ def main():
           f"{args.output_buckets} output layer{'s' if args.output_buckets > 1 else ''}, "
           f"{args.king_buckets} king bucket{'s' if args.king_buckets > 1 else ''}, device {device}")
 
+    # TF32 for the output layer's matrix products on recent NVIDIA GPUs
+    # (Ampere on): several times faster than full float32.
+    torch.backends.cuda.matmul.allow_tf32 = True
     torch.manual_seed(args.seed)
     model = NNUE(args.hidden, args.screlu, args.output_buckets, args.king_buckets).to(device)
     model.sparse_ft = args.king_buckets > 1 and args.ft == "sparse"
@@ -354,8 +380,8 @@ def main():
             model.out.bias.copy_(sm["out.bias"])
         print(f"started from {args.init_from} (epoch {src.get('epoch', '?')})")
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
-    # The learning rate falls by 10x over the run, on a cosine.
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs, eta_min=args.lr / 10)
+    # The learning rate falls by 1 / --lr-end (10x by default) over the run, on a cosine.
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs, eta_min=args.lr * args.lr_end)
     start_epoch = 1
     if args.resume:
         state = torch.load(args.resume, map_location=device)
@@ -383,7 +409,7 @@ def main():
     for epoch in range(start_epoch, args.epochs + 1):
         model.train()
         t0, total, n = time.time(), 0.0, 0
-        for records in data.batches(args.batch, rng):
+        for records in prefetch(data.batches(args.batch, rng)):
             loss = batch_loss(model, records, device, args.wdl)
             opt.zero_grad()
             loss.backward()

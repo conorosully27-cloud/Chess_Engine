@@ -9,6 +9,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(ENGINE_AVX2 "Compile with AVX2 (vectorizes the NNUE)" ON)
+# AVX-512 (AVX512F + AVX512BW): the NNUE 64 units a step instead of 32,
+# same moves (same bench). About 9% more nodes/s on a Xeon with AVX-512.
+# Off by default: the binary would not run on CPUs without it (most AMD
+# before Zen 4, Intel desktop chips from 12th generation).
+option(ENGINE_AVX512 "Compile with AVX-512 (needs a CPU with AVX512BW)" OFF)
 
 # Link-time optimization (inlining across source files): about 2% faster,
 # same moves (same bench). ENGINE_LTO=OFF builds without it.
@@ -29,6 +34,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(engine2_options INTERFACE -Wall -Wextra -Wshadow)
   if(ENGINE_AVX2)
     target_compile_options(engine2_options INTERFACE -mavx2 -mpopcnt)
+  endif()
+  if(ENGINE_AVX512)
+    target_compile_options(engine2_options INTERFACE -mavx2 -mpopcnt -mavx512f -mavx512bw)
   endif()
   if(WIN32)
     # MinGW: link the runtime in so engine2.exe runs without extra DLLs.
