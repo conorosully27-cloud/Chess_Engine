@@ -365,20 +365,23 @@ inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __
   std::int32_t* lp = list;
   const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA), eight = _mm256_set1_epi32(8);
   __m256i base = zero;
-  for (const std::int16_t* v : {us, them}) {
-    for (const std::int16_t* end = v + HIDDEN; v < end; v += 16, ap += 8) {
-      const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v)), zero), top);
-      // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
-      const __m256i a = _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT);
-      _mm256_store_si256(reinterpret_cast<__m256i*>(ap), a);
-      // As 32-bit numbers the pairs are never negative: > 0 means not both 0.
-      const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(a, zero))));
-      const __m256i idx = _mm256_load_si256(reinterpret_cast<const __m256i*>(nnz_table32.idx[mask]));
-      _mm256_storeu_si256(reinterpret_cast<__m256i*>(lp), _mm256_add_epi32(idx, base));
-      lp += __builtin_popcount(mask);
-      base = _mm256_add_epi32(base, eight);
+  const auto step = [&](const std::int16_t* v, std::int32_t* out) {
+    const __m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v)), zero), top);
+    // c * c < 65536 fits the 16 bits as an unsigned number; shift it as one.
+    const __m256i a = _mm256_srli_epi16(_mm256_mullo_epi16(c, c), L1_SHIFT);
+    _mm256_store_si256(reinterpret_cast<__m256i*>(out), a);
+    // As 32-bit numbers the pairs are never negative: > 0 means not both 0.
+    const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(a, zero))));
+    const __m256i idx = _mm256_load_si256(reinterpret_cast<const __m256i*>(nnz_table32.idx[mask]));
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(lp), _mm256_add_epi32(idx, base));
+    lp += __builtin_popcount(mask);
+    base = _mm256_add_epi32(base, eight);
+  };
+  for (const std::int16_t* v : {us, them})
+    for (const std::int16_t* end = v + HIDDEN; v < end; v += 32, ap += 16) {
+      step(v, ap);
+      step(v + 16, ap + 8);
     }
-  }
   const std::int32_t* const list_end = lp;
   __m256i s0 = zero, s1 = zero, s2 = zero, s3 = zero;
   const std::int32_t* k = list;
