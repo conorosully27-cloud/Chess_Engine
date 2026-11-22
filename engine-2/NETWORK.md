@@ -196,17 +196,23 @@ bucket (the "layer stacks" most top engines use).
 |---|---|---|---|
 | One output layer (v15b) | 0.020820 | 5 | 0.020880 |
 | **`--layers 16,32`** | **0.019997** | 3 | 0.020640 |
+| `--layers 16,32`, a 4-epoch schedule | 0.020129 | 3 | 0.020305 (4) |
+| `--layers 16,32` fed plain clipped units (no squaring), 4 epochs | 0.020507 | 2 | 0.020762 (4) |
 
 - **4.0% better at its best**, more than king buckets' 1.4% (which was
   +34 Elo in games). It overfits fast at this size (training loss 0.0148
   against 0.0168), so on 660M positions it should keep improving longer.
+- **The squaring matters:** without it the inputs would fit 8 bits and
+  the first extra layer could use 8-bit weights (Stockfish's way, about
+  40% cheaper), but validation is 1.9% worse. The 16-bit inputs stay.
 - **Engine:** the first extra layer works on integers, skipping the
   pairs of inputs that are both 0 (7.2's units are 0 89% of the time);
   the other two are in float, added up in a fixed order and compiled with
   `-ffp-contract=off`, so AVX2, AVX-512, plain, WebAssembly SIMD and plain
-  WebAssembly builds give the same bench node count. Engine vs trainer:
-  about 5.5 cp on average on a trained net (simulated), most of it the
-  first layer's rounding.
+  WebAssembly builds give the same bench node count. Engine vs trainer
+  on the trained 4-epoch net (`check_net.py`): **4.8 cp on average**,
+  33 cp at most, most of it the first layer's rounding passed through
+  two more layers (one output layer: about 3.5 cp).
 - **Speed:** on a test file with 7.2's first layer (so 7.2's sparsity:
   about 205 of 1,024 input pairs are non-zero) whose extra layers pass
   7.2's evaluation through (so the search trees are 7.2's), the node rate
