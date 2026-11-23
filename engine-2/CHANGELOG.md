@@ -5,7 +5,11 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
-## 7.2.1: king buckets
+## 7.2.1: king buckets (withdrawn Nov 23)
+
+Withdrawn by the owner: main is back on 7.2's network and name, waiting
+for a better-trained king-bucket net. The king-bucket code stays (it loads
+7.2's net and plays the same moves, bench 1224793).
 
 7.2 with king input buckets: the owner's run v14b (v13's command plus
 `--king-buckets 4`, warm-started from v13's checkpoint with
