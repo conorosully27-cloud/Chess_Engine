@@ -28,7 +28,36 @@ The same run's earlier nets, each on 7.2's scale: epoch 5 -33 +/- 22
 (8+0.08, H0, 388 games); epoch 10 +6 +/- 12 (8+0.08, 1,260 games) and
 -4 +/- 18 (40+0.4, 360 games); epoch 15 -2 +/- 17 (40+0.4, 420 games),
 all stopped when the next net was ready. Most of the gain came in the last
-five epochs, at the lowest learning rate.
+five epochs, at the lowest learning rate. For comparison, the withdrawn
+7.2.1 (v14b, king buckets without the factoriser, epoch 10) was +3 +/- 8
+over 7.2 at 40+0.4.
+
+## 7.2.1: king buckets (withdrawn Nov 23)
+
+Withdrawn by the owner: main is back on 7.2's network and name, waiting
+for a better-trained king-bucket net. The king-bucket code stays (it loads
+7.2's net and plays the same moves, bench 1224793).
+
+7.2 with king input buckets: the owner's run v14b (v13's command plus
+`--king-buckets 4`, warm-started from v13's checkpoint with
+`--init-from`), epoch 10 of 20, built in as `nets/engine-7.2.1.nnue`
+(network file version 3: hidden 1024, SCReLU, 8 output buckets, 4 king
+zones, mirrored). Each side's half of the first layer uses weights for its
+own king's zone (castled corner, c-f back rank, second rank, further up);
+a king move into another zone refreshes that side from a per-thread cache.
+About 5% slower per node than 7.2.
+
+**Against 7.2** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 8+0.08 | 646 | +102 -126 =418 | -13 +/- 15 | 4.4% | -2.96, H0 (0/10) |
+| 40+0.4 | 1,760 | +235 -220 =1305 | **+3 +/- 8** | 77.2% | 0.15 (0/5), stopped |
+
+Pentanomial [6, 85, 168, 55, 9] and [12, 148, 545, 163, 12]. Released by
+the owner on the 40+0.4 result (+4 at 1,638 games; stopped at 1,760 to
+build the release), as a base for
+the finished v14b net (epoch 20). Bench **1248929** (7.2: 1224793).
 
 ## 7.2: output buckets
 

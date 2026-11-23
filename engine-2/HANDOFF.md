@@ -87,7 +87,7 @@ waits until the network settles, so the margins are tuned once.
 |---|---|---|---|
 | v12 (7.1) | SCReLU | loader (done) | +14 at 8+0.08, +6 at 40+0.4 |
 | v13 (7.2) | + 8 output buckets by piece count | none | +27 at 8+0.08, +8 at 40+0.4 |
-| **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares). Code on branch `claude/king-buckets` (Nov 19), waiting for the owner's training run** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
+| **v14 (7.2.1)** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares). Code on branch `claude/king-buckets` (Nov 19), waiting for the owner's training run** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
 | v15 | training schedule: more epochs, learning rate falling 100x (now 10x), maybe a `--wdl` schedule | none | cheap, works with any architecture; can ride on v14's architecture |
 | v16 | more king zones (8-16) and/or a bigger hidden layer (1536-2048), with more data | small (file format) | only once 4 zones is proven; both want more data |
 | later | small extra hidden layers after the first (int8, SIMD), pairwise multiplication, threat inputs | large | biggest engine projects; after the simpler gains run out |
@@ -177,6 +177,10 @@ positions) lost to 7.2.
 - **Output-weight clip:** 23 of bucket 0's 2048 weights (2-5 pieces) sit
   at the +/-127 limit SCReLU's 16-bit multiply needs; other buckets 0-7.
   Mildly limiting in bare endgames only.
+- **Merged with king buckets (7.2.1, Nov 22):** the king-bucket trainer's
+  own sparse first layer (`FeatureTransformer`, input-major, any number of
+  zones) was kept in place of the 32-row `embedding_bag` path above, which
+  only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
 
 **Current best: ChessMcEngineFace 7.3** (Nov 23; branch
 `claude/sweet-ptolemy-sp040f`, PR to `main` pending) = 7.2's code with the
@@ -191,7 +195,27 @@ checkpoints for epochs 5-20, logs) are in `~/matches/v15` on the laptop.
 Next: the owner plans to retune the search margins (the v15 nets come out
 5-10% colder than 7.2's; 7.3 is scaled to 7.2 until then), then v16.
 
-**Before 7.3: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
+**Before 7.3: ChessMcEngineFace 7.2** again (Nov 23): 7.2.1 was
+withdrawn by the owner, who was waiting for a better king-bucket net (v15,
+now 7.3). Main had 7.2's net and name with the king-bucket code (bench
+1224793). Baseline for SPRTs then: `~/engines/engine2-7.2`.
+
+**Withdrawn: ChessMcEngineFace 7.2.1** (Nov 22) = 7.2's code plus king
+input buckets (branch `claude/king-buckets` merged) with the owner's v14b
+net, epoch 10 (`nets/engine-7.2.1.nnue`: version 3, hidden 1024, screlu 1,
+buckets 8, king buckets 4, mirror 1; warm-started from v13 with
+`--init-from`). vs 7.2: 8+0.08 **H0**, -13 +/- 15 at 646 games
+(`~/sprt-72-kb14b10-stc.log`); 40+0.4 **+3 +/- 8** at 1,760 games, LOS
+77.2%, LLR 0.15 (bounds 0 / 5, `~/sprt-72-kb14b10-ltc.log`), released by
+the owner, then stopped. Bench **1248929**, 1.37M nodes/s. Engine matches an
+independent numpy evaluator within 1 cp (mean 0.5) on 2,000 positions;
+`nnue_test` passes. Earlier king-bucket nets trained from scratch (v14,
+epochs 6/16/20) all lost to 7.2 (-64, -36, -18 at 8+0.08; -12 at 40+0.4
+for epoch 20): under-trained. Baseline for SPRTs: build it, copy to
+`~/engines/engine2-7.2.1`. Next: v14b's later epochs (20), then the
+roadmap (v15 schedule).
+
+**Before 7.2.1: ChessMcEngineFace 7.2** (Nov 19) = 7.1.1 with
 the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
 +27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
 LOS 96.6%, stopped by the owner and released on both). Bench **1224793**.

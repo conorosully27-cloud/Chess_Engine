@@ -81,6 +81,108 @@ per-epoch validation losses next to v13's are not recorded here yet.
   bucket adds to) with `--bucket-decay 1`. It was 0.97% *better* than no
   buckets at 10.4M positions; that is the v15b recipe.
 
+## Singular memo retried at 40+0.4, on 7.2 (Nov 2026)
+
+**Change** (commit b2aaed9, reverted in f5fd0e1): the singular memo from
+6.6 (below, "Volatility history and singular memo"), ported onto 7.2 at
+its best setting there, `SING_MEMO_PLIES` 1 and `SING_MEMO_MARGIN` 100.
+Picked as the failed experiment most likely to gain at a long time
+control: singular tests start at depth 8, so deeper searches repeat
+more of them. Bench 1224793 -> 1210422.
+
+**Result:** vs 7.2 (cloud, 40+0.4, 4 at a time, SPRT 0/5): **stopped by
+the owner at 400 games**, +23 -32 =345 (48.9%), **-7.8 +/- 10.6**, LOS
+7.4%, LLR -1.72 (`~/sprt-72-memo-ltc.log`).
+
+**Prior:** 4/10 (+7 +/- 12 at 8+0.08 on 6.6, never confirmed).
+
+**Commentary:** the 6.6 gain doesn't carry over to 7.2 or to the longer
+time control. Repeating the extension without a fresh test seems to cost
+more than the saved test searches: a deeper search often sees that the
+move is no longer singular.
+
+## History helper and single LMR table, on 7.2 (Nov 2026)
+
+**Change** (commit 7086161, reverted in 6a08bb1): a clean-up that plays
+the same moves (bench 1224793 unchanged). The main + continuation
+history sum, written out three times, became one helper
+(`quiet_history()`), and quiet late move reductions read `LMR100 / 100`
+instead of their own table (identical values over the whole tuning
+range).
+
+**Result** (vs 7.2, cloud, 4 at a time): 8+0.08 (SPRT 0/10) stopped at
+560 games, +72 -84 =404, -7.5 +/- 14.3, LLR -2.26
+(`~/sprt-72-overlap-stc.log`); 40+0.4 (SPRT 0/5) stopped at 580 games,
++54 -70 =456, -9.6 +/- 11.7, LLR -1.69 (`~/sprt-72-overlap-ltc.log`).
+
+**Prior:** not scored beforehand (from the codebase review).
+
+**Commentary:** with the same moves, only speed can differ, and the
+change should be about neutral there. Both runs leaning negative is most
+likely noise, but it was not kept without a pass.
+
+## Hash table buckets, on 7.1 (Nov 2026)
+
+**Change** (commit 299804c, reverted in ecdfe8e): the hash table went
+from one always-replace slot per index to buckets of five 12-byte
+entries per 64-byte cache line. Each entry gets a 6-bit search
+generation, and the slot replaced is the one with the lowest depth
+minus 8 x age, using empty slots first. The bucket index is a
+multiply-shift, so any table size is used in full (the power-of-two
+size had wasted up to 25%). Bench: 1382932 -> 1373504.
+
+**Result** (cloud, 4 at a time; 8+0.08 SPRT 0/10, 40+0.4 SPRT 0/5):
+
+| TC | Result |
+|---|---|
+| 8+0.08 | **H0 accepted**, 572 games, -7.9 +/- 12.8 |
+| 40+0.4 | stopped at 1760 games, -1.2 +/- 5.9, LLR -2.04 |
+
+Logs: `~/sprt-71-tt-stc.log`, `~/sprt-71-tt-ltc.log`.
+
+**Prior:** 6/10 (the biggest item in the codebase review).
+
+**Commentary:** a better hash table mostly pays off when the table is
+full. At these time controls and hash size the old table was probably
+not under much pressure, so keeping deep entries mattered little, and
+scanning 5 entries costs a little on every probe. Worth retrying: at
+longer time controls or a smaller hash, or with fewer entries per
+bucket (2 to 3).
+
+## Reductions that learn within a node, on 6.9 and 7.0 (Nov 2026)
+
+**Change** (`LMR_SURPRISES`, commit 9b60145; `LMR_SURPRISE_MAX_DEPTH`,
+commit 2702a60; in the code, 0 = off): when a late move was reduced,
+beat alpha, and the full-depth re-search confirmed it, the move ordering
+at that node is taken to be unreliable, so every later move at the node
+is reduced a ply less. `LMR_SURPRISES` is how many such surprises it
+takes (1 or 2); `LMR_SURPRISE_MAX_DEPTH` limits it to depth <= that
+value. Bench on 7.0: 1277145 -> 1199743 (=1), 1259794 (=2), 1198961
+(=1, depth <= 8).
+
+**Result** (cloud, 4 at a time; 8+0.08 SPRT 0/10, 40+0.4 SPRT 0/5):
+
+| Version | 8+0.08 | 40+0.4 |
+|---|---|---|
+| =1 on 6.9 | **H1 accepted**, 1810 games, +9.8 +/- 7.8 | no result: 3 runs stopped by restarts, 1756 games together about +4.6 |
+| =1 on 7.0 | stopped at 1138 games, +7.9 +/- 10.1, LOS 95.6% | stopped at 960 games, **-7.6 +/- 8.7**, LLR -2.54 |
+| =2 on 7.0 | **H0 accepted**, 904 games, -3.5 +/- 10.4 | not run |
+| =1, depth <= 8, on 7.0 | 2 runs stopped by restarts, 1542 games together about -0.5 | stopped by a restart at 2160 games, +2.4 +/- 5.8, LLR -0.05 |
+
+Logs: `~/sprt-surprise-*.log`, `~/sprt-610-surprise-*.log`,
+`~/sprt-610-s2-stc.log`, `~/sprt-610-d8-*.log`.
+
+**Prior:** not scored beforehand (the owner's idea).
+
+**Commentary:** the plain version gains at 8+0.08 but loses at 40+0.4
+on 7.0: longer games search deeper, so it triggers at many more nodes
+and the widened search costs depth. Needing 2 surprises lost the short
+time control gain. Capping it at depth 8 fixed the long time control
+loss but also removed the short one, leaving both about level. Not
+tried: a cap between 8 and none (10 or 12), applying it to quiet moves
+only, or triggering on the share of reduced moves that were surprises
+instead of a count. Its code is not in 7.2; the commits above have it.
+
 ## Near-miss reductions, on 6.7 (Nov 2026)
 
 **Change** (`NEAR_LMR_CP` 15, `FAR_LMR_CP` 300; in the code, 0 = off):
