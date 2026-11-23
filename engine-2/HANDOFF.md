@@ -130,7 +130,13 @@ learned in their half, not only our own.
   zones) was kept in place of the 32-row `embedding_bag` path above, which
   only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
 
-**Current best: ChessMcEngineFace 7.2.1** (Nov 22) = 7.2's code plus king
+**Current best: ChessMcEngineFace 7.2** again (Nov 23): 7.2.1 was
+withdrawn by the owner, who is waiting for a better king-bucket net. Main
+has 7.2's net and name with the king-bucket code (bench 1224793), so the
+next king-bucket net only needs `-DENGINE_NET=<net>`. Baseline for SPRTs:
+`~/engines/engine2-7.2`.
+
+**Withdrawn: ChessMcEngineFace 7.2.1** (Nov 22) = 7.2's code plus king
 input buckets (branch `claude/king-buckets` merged) with the owner's v14b
 net, epoch 10 (`nets/engine-7.2.1.nnue`: version 3, hidden 1024, screlu 1,
 buckets 8, king buckets 4, mirror 1; warm-started from v13 with
@@ -145,7 +151,7 @@ for epoch 20): under-trained. Baseline for SPRTs: build it, copy to
 `~/engines/engine2-7.2.1`. Next: v14b's later epochs (20), then the
 roadmap (v15 schedule).
 
-**Before 7.2.1: ChessMcEngineFace 7.2** (Nov 19) = 7.1.1 with
+**ChessMcEngineFace 7.2** (Nov 19) = 7.1.1 with
 the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
 +27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
 LOS 96.6%, stopped by the owner and released on both). Bench **1224793**.
