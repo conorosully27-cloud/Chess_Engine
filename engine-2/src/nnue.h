@@ -3,14 +3,19 @@
 //   768 inputs per side (piece kind x square, seen from that side)
 //   -> HIDDEN hidden units (accumulator.h; 1024 by default since 5.6, 512 before), clipped to [0, QA]
 //   -> both sides' units, side to move first -> 1 output.
-// A network file may also ask for the clipped units to be squared (SCReLU)
-// and for up to 8 output layers chosen by piece count (train.py's --screlu
-// and --output-buckets); the engine reads which from the file.
+// A network file may also ask for the clipped units to be squared (SCReLU),
+// for up to 8 output layers chosen by piece count, and for king buckets: up
+// to 16 sets of input weights, each side's chosen by its own king's square
+// (mirrored left-right when that king is on files e-h), with a map in the
+// file (train.py's --screlu, --output-buckets and --king-buckets); the
+// engine reads which from the file. With king buckets a king move into
+// another bucket recomputes that side's sums, from a per-thread cache of the
+// sums last seen in each bucket, so only the pieces that changed are redone.
 // Integer arithmetic throughout. The hidden layer's sums (accumulator.h) are
 // updated from the position before rather than recomputed: each move only
 // adds and removes a few pieces.
 //
-// The engine carries a default network (nets/engine-7.2.nnue, built in by
+// The engine carries a default network (nets/engine-7.3.nnue, built in by
 // cmake/embed_net.cmake). The engine program loads it at startup; library
 // users (tests, tools) start with none, i.e. the hand-written evaluation.
 #pragma once

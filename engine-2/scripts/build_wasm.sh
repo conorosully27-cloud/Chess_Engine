@@ -19,7 +19,7 @@ mkdir -p "$out"
 # Plus the built-in NNUE network, as the native build embeds it.
 gen="$(mktemp -d)"
 trap 'rm -rf "$gen"' EXIT
-cmake -DNET="$here/nets/engine-7.2.nnue" -DOUT="$gen/default_net.cpp" -P "$here/cmake/embed_net.cmake"
+cmake -DNET="$here/nets/engine-7.3.nnue" -DOUT="$gen/default_net.cpp" -P "$here/cmake/embed_net.cmake"
 sources=("$gen/default_net.cpp")
 for f in "$here"/src/*.cpp; do
   [ "$(basename "$f")" = "main.cpp" ] || sources+=("$f")
@@ -30,7 +30,7 @@ done
 # 16.4+) vectorizes the NNUE: 1.5x the speed of plain WebAssembly. The
 # search recurses up to 100 plies with move lists on the stack, far past
 # Emscripten's 64 KB default stack.
-em++ -std=c++20 -O3 -DNDEBUG -msimd128 -I"$here/src" "${sources[@]}" \
+em++ -std=c++20 -O3 -DNDEBUG -msimd128 -ffp-contract=off -I"$here/src" "${sources[@]}" \
   -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createEngine2 \
   -sENVIRONMENT=web,worker,node \
   -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=8MB \

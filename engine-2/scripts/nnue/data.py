@@ -60,6 +60,26 @@ def fen(record):
     return "/".join(rows) + (" w" if record["stm"] == 0 else " b") + " - - 0 1"
 
 
+def k_mse(records, k):
+    """Squared error between sigmoid(score / k) and the game result, both
+    from White's side, over positions with |score| under 2000."""
+    score = records["score"].astype(np.float64)
+    keep = np.abs(score) < 2000
+    p = 1 / (1 + np.exp(-score[keep] / k))
+    return float(np.mean((p - records["result"][keep] / 2) ** 2))
+
+
+def fit_k(records, sample=2_000_000):
+    """The K (in steps of 10) for which sigmoid(score / K) best predicts the
+    game result: train.py's --k, which keeps the search-score and result
+    parts of the training target on the same scale."""
+    if len(records) > sample:
+        records = records[np.random.default_rng(0).choice(len(records), sample, replace=False)]
+    errors = {k: k_mse(records, k) for k in range(150, 801, 10)}
+    best = min(errors, key=errors.get)
+    return best, errors[best]
+
+
 def summary(path, fens=0):
     records = load(path)
     n = len(records)
@@ -72,6 +92,9 @@ def summary(path, fens=0):
     print("score: mean %.0f, |score| median %.0f, 95th percentile %.0f" % (
         scores.mean(), np.median(np.abs(scores)), np.percentile(np.abs(scores), 95)))
     print("side to move: %.1f%% White" % (100 * np.mean(records["stm"] == 0)))
+    k, mse = fit_k(records)
+    print(f"best sigmoid scale for score -> result: K = {k} (train.py --k; MSE {mse:.5f}, at K = 400 "
+          f"{k_mse(records, 400):.5f})")
     pieces = np.array([bin(int(o)).count("1") for o in records["occupancy"][:100000]])
     print("pieces on the board: mean %.1f, min %d, max %d" % (pieces.mean(), pieces.min(), pieces.max()))
     for r in records[:fens]:

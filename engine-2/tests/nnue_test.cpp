@@ -94,10 +94,21 @@ void test_network_change() {
   bias += 255 * 64 / 4;
   std::memcpy(bytes.data() + bytes.size() - 4, &bias, 4);
   // And the first-layer row of "own king on e1" (both kings are home, so
-  // both sides' sums use it) raised, so stale accumulators would show.
+  // both sides' sums use it) raised, so stale accumulators would show. The
+  // header is 12 bytes in version 1, 20 in version 2 and 92 in version 3,
+  // whose king buckets put the row in the bucket of the king's square (e1,
+  // mirrored to d1 if the file says so).
+  std::uint32_t version, mirror = 0;
+  std::memcpy(&version, bytes.data() + 4, 4);
+  const std::size_t header = version == 1 ? 12 : version == 2 ? 20 : 92;
+  int row = KING * 64 + 4;
+  if (version == 3) {
+    std::memcpy(&mirror, bytes.data() + 24, 4);
+    row = bytes[28 + 4] * 768 + KING * 64 + (mirror ? 3 : 4);
+  }
   for (int j = 0; j < nnue::HIDDEN; j++) {
     std::int16_t w;
-    unsigned char* p = bytes.data() + 12 + ((KING * 64 + 4) * nnue::HIDDEN + j) * 2;
+    unsigned char* p = bytes.data() + header + (std::size_t(row) * nnue::HIDDEN + j) * 2;
     std::memcpy(&w, p, 2);
     w += 20;
     std::memcpy(p, &w, 2);

@@ -5,6 +5,67 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.3: king buckets, trained longer
+
+7.2's code (the v15 trainer and engine work: king input buckets, fine output
+weights, refresh cache) with the owner's run v15 network (`--hidden 1024
+--wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --ema 0.25
+--fine-output --king-buckets 4 --factorize --bucket-decay 1 --loss-power
+2.5`, 661.8M positions): 7.2's net plus 4 king buckets (factorised, pulled
+toward the shared weights), the learning rate falling 100x, a moving average
+of the weights, power-2.5 loss and fine output weights. The net came out
+colder than 7.2's, so net-20 was re-exported on 7.2's scale
+(`export.py --fine-output --scale 1.061`). Built in as
+`nets/engine-7.3.nnue` (network file version 3). Bench **1290299**
+(7.2: 1224793).
+
+**Against 7.2** (owner's laptop, 8moves_v3; 7.2 = this build with
+`EvalFile` 7.2's net, bench 1224793):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 40+0.4 | 1,112 | +179 -124 =809 | **+17.2 +/- 9.8** | 99.97% | 2.94, H1 (0/5) |
+| 8+0.08 | 354 | +80 -40 =234 | **+39.4 +/- 20.6** | 99.99% | 2.96, H1 (0/10) |
+
+Pentanomial [3, 83, 336, 124, 10] and [2, 27, 84, 57, 7]; no time
+losses. 40+0.4: the first 198 games at 3 games at a time (+28), the rest
+at 12 (about +14). 8+0.08: 10 at a time, 13 minutes.
+
+The same run's earlier nets, each on 7.2's scale: epoch 5 -33 +/- 22
+(8+0.08, H0, 388 games); epoch 10 +6 +/- 12 (8+0.08, 1,260 games) and
+-4 +/- 18 (40+0.4, 360 games); epoch 15 -2 +/- 17 (40+0.4, 420 games),
+all stopped when the next net was ready. Most of the gain came in the last
+five epochs, at the lowest learning rate. For comparison, the withdrawn
+7.2.1 (v14b, king buckets without the factoriser, epoch 10) was +3 +/- 8
+over 7.2 at 40+0.4.
+
+## 7.2.1: king buckets (withdrawn Nov 23)
+
+Withdrawn by the owner: main is back on 7.2's network and name, waiting
+for a better-trained king-bucket net. The king-bucket code stays (it loads
+7.2's net and plays the same moves, bench 1224793).
+
+7.2 with king input buckets: the owner's run v14b (v13's command plus
+`--king-buckets 4`, warm-started from v13's checkpoint with
+`--init-from`), epoch 10 of 20, built in as `nets/engine-7.2.1.nnue`
+(network file version 3: hidden 1024, SCReLU, 8 output buckets, 4 king
+zones, mirrored). Each side's half of the first layer uses weights for its
+own king's zone (castled corner, c-f back rank, second rank, further up);
+a king move into another zone refreshes that side from a per-thread cache.
+About 5% slower per node than 7.2.
+
+**Against 7.2** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 8+0.08 | 646 | +102 -126 =418 | -13 +/- 15 | 4.4% | -2.96, H0 (0/10) |
+| 40+0.4 | 1,760 | +235 -220 =1305 | **+3 +/- 8** | 77.2% | 0.15 (0/5), stopped |
+
+Pentanomial [6, 85, 168, 55, 9] and [12, 148, 545, 163, 12]. Released by
+the owner on the 40+0.4 result (+4 at 1,638 games; stopped at 1,760 to
+build the release), as a base for
+the finished v14b net (epoch 20). Bench **1248929** (7.2: 1224793).
+
 ## 7.2: output buckets
 
 7.1.1's code with the owner's run v13 network (`--hidden 1024 --wdl 0.4
@@ -24,6 +85,21 @@ Pentanomial [1, 29, 119, 51, 6] and [5, 120, 475, 137, 13]. The 40+0.4
 SPRT was stopped by the owner (it read +16 at 518 games, +3 at 1,200,
 then +8), who released on both together, as with 7.1. Bench **1224793**
 (7.1.1: 1382932).
+
+**Against outside engines at 8+0.08** (Nov 20; Hash 64, 1 thread, 4 at a
+time, as 7.0's runs):
+
+| opponent | games | result | Elo | notes |
+|---|---|---|---|---|
+| Renegade 1.1.0 | 850 | +176 -157 =517 | +8 +/- 14 | H1 (-10/+10); 13 wins on Renegade time losses, about +2.5 without them |
+| Thrawn 3.2 | 100 | +29 -19 =52 | +35 +/- 47 | stopped by the owner |
+
+7.0 had -58 +/- 40 against Renegade at the same settings (H0 after 126
+games), so 7.2 is roughly level with it where 7.0 was well behind.
+
+**In the app** (Nov 20): WebAssembly rebuilt from 7.2 (wasm bench
+1224793, the native bench), Android `versionCode` 10 / `versionName`
+"7.2".
 
 ## 7.1.1: dead experiment code removed
 

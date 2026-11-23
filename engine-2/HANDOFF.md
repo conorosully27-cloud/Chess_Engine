@@ -1,7 +1,7 @@
 # Engine 2 handoff
 
 Start here when picking up Engine 2 in a new session. Companion files:
-`README.md` (build, layout, tools), `CHANGELOG.md` (every accepted change and
+`README.md` (build, layout, tools), `NETWORK.md` (everything about the neural network and its training), `CHANGELOG.md` (every accepted change and
 its measured Elo), `FAILED_EXPERIMENTS.md` (every rejected one), and Engine 1's
 `../engine-1/HANDOFF.md` and `../engine-1/FAILED_EXPERIMENTS.md` for the
 history behind the search and evaluation.
@@ -45,6 +45,39 @@ Bench **1382932**. Baseline for SPRTs: build it, copy to
 `~/matches/engine2-7.1`. Next network (owner's run v13): the same with
 `--output-buckets 8`, to test against 7.1.
 
+### King buckets: the code (Nov 19, branch `claude/king-buckets`)
+
+- **Trainer** (`scripts/nnue/train.py`): `--king-buckets 4` (or 8): each
+  side's inputs offset by its own king's bucket (`KING_MAPS`; 4 = castled
+  short corner a/b, centre or long c/d, rank 2, anything higher, all after
+  mirroring), the squares mirrored left-right when that king is on files
+  e-h. Mirroring folds kingside and queenside together, so the 4 zones are
+  by how far the king is from its corner, not which side. The first layer
+  is now stored input-major (`FeatureTransformer`, (inputs, hidden)) and,
+  with king buckets, sparse (embedding_bag over the ~32 active inputs):
+  through a transposed view the backward pass was ~70x slower; this way a
+  4-bucket epoch costs about what a plain one did. Old checkpoints are
+  transposed on load (`upgrade_state`; also their Adam moments on
+  `--resume`). `--init-from CKPT` starts from another run's checkpoint,
+  copying its input weights into every bucket (so v14 can start as v13).
+  Network file version 3: version 2's header plus u32 king_buckets, u32
+  mirror, u8 king_map[64]; first layer king_buckets x 768 rows.
+- **Engine** (`src/nnue.cpp`): reads versions 1-3. Accumulators are kept
+  per side (`Accumulator::net[2]`): a king move into another bucket (or
+  across files d/e) recomputes that side only, from a per-thread cache of
+  the sums last seen per side and bucket ("Finny table"), adding and
+  removing only the pieces that differ. Plain nets take the old path: 7.2
+  still benches **1224793**.
+- **Checks:** dense and sparse first layers agree (1e-7); `check_net.py`
+  engine vs trainer on fresh nets: mean 3.9 cp (4 buckets), 3.6 cp (8), as
+  close as a plain net (6.3); `nnue_test` (60,707 incremental evaluations vs
+  from scratch, through king moves, castling, null moves) passes with a
+  4-bucket net built in; 7.2's net copied into 4 buckets (no mirror) benches
+  1224793 exactly. Cost: +2.8% instructions, about 5% fewer nodes/s (the
+  4x larger first layer misses the cache more).
+- **To train v14:** the v13 command plus `--king-buckets 4`, optionally
+  `--init-from <v13 run>/checkpoint.pt`; the net file is about 6.3 MB.
+
 ### Network roadmap (owner, Nov 19)
 
 One unproven network change per training run, so a flat or worse net
@@ -58,7 +91,7 @@ waits until the network settles, so the margins are tuned once.
 |---|---|---|---|
 | v12 (7.1) | SCReLU | loader (done) | +14 at 8+0.08, +6 at 40+0.4 |
 | v13 (7.2) | + 8 output buckets by piece count | none | +27 at 8+0.08, +8 at 40+0.4 |
-| **v14** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares)** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
+| **v14 (7.2.1)** | **+ king input buckets: 4 zones for the side's own king, mirrored (king on files e-h uses flipped squares). Code on branch `claude/king-buckets` (Nov 19), waiting for the owner's training run** | accumulator per zone, refresh cache ("Finny tables") on zone changes; `train.py --king-buckets 4`; old nets still load | biggest expected gain (+20 to +50 in other engines); same data and 20 epochs as v13 for a clean comparison |
 | v15 | training schedule: more epochs, learning rate falling 100x (now 10x), maybe a `--wdl` schedule | none | cheap, works with any architecture; can ride on v14's architecture |
 | v16 | more king zones (8-16) and/or a bigger hidden layer (1536-2048), with more data | small (file format) | only once 4 zones is proven; both want more data |
 | later | small extra hidden layers after the first (int8, SIMD), pairwise multiplication, threat inputs | large | biggest engine projects; after the simpler gains run out |
@@ -71,7 +104,123 @@ of the hidden layer uses weights for its own king's zone and sees all 32
 pieces, so the opponent's king safety (our attackers near their king) is
 learned in their half, not only our own.
 
-**Current best: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
+**v14 post-mortem and v15 work (Nov 21-22, cloud; full detail in
+`NETWORK.md` sections 4, 5 and 6):** v14 (4 king buckets, 660M
+positions) lost to 7.2.
+- **No bugs found** in the king-bucket trainer or engine code, or in the
+  pause and resume.
+- **The weakness:** too little data per bucket. The median first-layer
+  row sees 1.9M positions instead of 8.3M, and the nets overfit.
+- **New trainer options:**
+  - `--factorize`: shared input weights that every bucket adds to.
+  - `--bucket-decay L`: pulls the buckets' own weights toward the shared
+    ones. On CPU tests, king buckets went from 4.2% worse than no buckets
+    to **0.7% better** at 2.5M positions (`--bucket-decay 10`) and
+    **0.97% better** at 10.4M (`--bucket-decay 1`, the setting for v15b).
+    In games, a v15b-style net beat a v15a-style one by **+34 +/- 12 Elo
+    over 1,640 games** (256 units, 10.4M positions, 8+0.08).
+  - `--k`: the score -> win probability scale; `data.py` fits it (300 on
+    7.2's games, against the 400 used so far).
+  - `--wdl-end` (result weight schedule); `--tf32` is now opt-in.
+- **Fine output weights** (activation 2, `--fine-output`,
+  `scripts/nnue/export.py`): output rounding error 6.5 -> 0.7 cp on 7.2's
+  net, +1.2% instructions per node.
+- **Refresh cache** in one pass: -2.9% instructions with king-bucket nets.
+- **Next:**
+  1. Re-export v13's checkpoint with `--fine-output` as a 7.2.1 candidate
+     (no training) and SPRT it against 7.2.
+  2. v15a (v13 + `--lr-end 0.01`) and v15b (+ king buckets, factoriser,
+     bucket decay); commands in `NETWORK.md` section 8.
+  3. Fresh data from 7.2.
+
+**Nov 22 (cloud), more v15 work** (detail in `NETWORK.md` section 3):
+- **7.2 without its endgame scaling: H0, -12 +/- 10** (1,272 games): the
+  output buckets do not replace it; keep it.
+- **Extra hidden layers** (`train.py --layers 16,32`, network file
+  version 4, engine support on AVX2 / AVX-512 / WebAssembly / plain with
+  identical bench counts): **4.0% better validation** than one output
+  layer on CPU (256 units, 10.4M positions), at about **0.7x the node
+  rate** (1024 units), **but -38 +/- 22 in games** at 256 units. Not for
+  v15.
+- **Warm start** (`--init-from` a finished plain net, v15b recipe): 1.2%
+  better validation than v15b from scratch after 2 epochs. For v15b:
+  start from v13's checkpoint and train fewer epochs. **Games: +13.0 +/-
+  12.0 over 1,500** (4 warm epochs vs 8 from scratch).
+- **`--loss-power 2.5`**: **+17.0 +/- 11.4 over 1,620 games**; lower
+  squared error too. The net comes out colder, so match the scale. In the
+  owner's v15 run.
+- **8 king buckets**: 0.2% better validation, about 7% fewer nodes/s than
+  4. Not for v15.
+- **`--k 300`**: much colder net (scale 0.83). Games queued.
+- Trainer: records unpacked on the GPU, loss summed on the device;
+  `diagnose.py` reports dead and sparse hidden units (7.2: none dead, 89%
+  of values 0).
+
+**Network speed and trainer review (Nov 20, cloud):**
+- **train.py is faster, same results.** The first layer sums the 32 rows
+  of the pieces on the board (`embedding_bag`) instead of multiplying a
+  (B, 768) one-hot matrix, and the side to move is put first by swapping
+  the (B, 32) inputs rather than the (B, 2048) hidden units (that
+  `where` + `cat` was a third of a step). Decoding runs a few batches
+  ahead in a thread; TF32 is on for CUDA matrix products. 2 epochs on
+  600k test positions (1024, SCReLU, 8 buckets, CPU): **identical losses
+  and byte-identical net files** to the old trainer, **31 s vs 52 s**.
+  Not yet timed on the laptop GPU: compare the `pos/s` lines of a short
+  `--limit` run against the old ~220-280k. Checkpoints are compatible.
+  New `--lr-end F` (default 0.1 = as before; 0.01 for v15's 100x fall).
+- **`-DENGINE_AVX512=ON`**: AVX-512 network code, same bench (1224793),
+  all tests pass; on this cloud Xeon roughly +5-15% nodes/s (noisy VM,
+  medians 1.78M vs 1.55M). Off by default (CPUs without AVX-512 crash).
+- **Profile (callgrind, bench):** network ~37% of instructions (updates
+  24%, output layer 12%), so a further network speedup of x% gives about
+  0.4x% nodes/s.
+- **Overflow headroom for v16:** the SCReLU output sum is int32. With
+  7.2's weights the worst case is 0.90 of the int32 range (bucket 0), so
+  1024 units are safe, but **2048 units could overflow**: sum each half
+  separately and divide by QA before adding, or clamp, before v16.
+- **Output-weight clip:** 23 of bucket 0's 2048 weights (2-5 pieces) sit
+  at the +/-127 limit SCReLU's 16-bit multiply needs; other buckets 0-7.
+  Mildly limiting in bare endgames only.
+- **Merged with king buckets (7.2.1, Nov 22):** the king-bucket trainer's
+  own sparse first layer (`FeatureTransformer`, input-major, any number of
+  zones) was kept in place of the 32-row `embedding_bag` path above, which
+  only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
+
+**Current best: ChessMcEngineFace 7.3** (Nov 23; branch
+`claude/sweet-ptolemy-sp040f`, PR to `main` pending) = 7.2's code with the
+owner's run v15 network (v15b recipe plus `--loss-power 2.5`: 4 king
+buckets, factorised, `--bucket-decay 1`, `--lr-end 0.01`, `--ema 0.25`,
+fine output; command in `CHANGELOG.md`), net-20 re-exported on 7.2's scale
+(`--scale 1.061`) as `nets/engine-7.3.nnue`: **+17.2 +/- 9.8 over 7.2 at
+40+0.4, H1 (0 / 5) after 1,112 games**, LOS 99.97%, on the owner's laptop
+(mostly 12 games at a time), and **+39.4 +/- 20.6 at 8+0.08, H1 (0 / 10)
+after 354 games** (10 at a time). Bench **1290299**. Baseline for SPRTs: build
+it, copy to `~/matches/engine2-7.3`. The match files (every epoch's net,
+checkpoints for epochs 5-20, logs) are in `~/matches/v15` on the laptop.
+Next: the owner plans to retune the search margins (the v15 nets come out
+5-10% colder than 7.2's; 7.3 is scaled to 7.2 until then), then v16.
+
+**Before 7.3: ChessMcEngineFace 7.2** again (Nov 23): 7.2.1 was
+withdrawn by the owner, who was waiting for a better king-bucket net (v15,
+now 7.3). Main had 7.2's net and name with the king-bucket code (bench
+1224793). Baseline for SPRTs then: `~/engines/engine2-7.2`.
+
+**Withdrawn: ChessMcEngineFace 7.2.1** (Nov 22) = 7.2's code plus king
+input buckets (branch `claude/king-buckets` merged) with the owner's v14b
+net, epoch 10 (`nets/engine-7.2.1.nnue`: version 3, hidden 1024, screlu 1,
+buckets 8, king buckets 4, mirror 1; warm-started from v13 with
+`--init-from`). vs 7.2: 8+0.08 **H0**, -13 +/- 15 at 646 games
+(`~/sprt-72-kb14b10-stc.log`); 40+0.4 **+3 +/- 8** at 1,760 games, LOS
+77.2%, LLR 0.15 (bounds 0 / 5, `~/sprt-72-kb14b10-ltc.log`), released by
+the owner, then stopped. Bench **1248929**, 1.37M nodes/s. Engine matches an
+independent numpy evaluator within 1 cp (mean 0.5) on 2,000 positions;
+`nnue_test` passes. Earlier king-bucket nets trained from scratch (v14,
+epochs 6/16/20) all lost to 7.2 (-64, -36, -18 at 8+0.08; -12 at 40+0.4
+for epoch 20): under-trained. Baseline for SPRTs: build it, copy to
+`~/engines/engine2-7.2.1`. Next: v14b's later epochs (20), then the
+roadmap (v15 schedule).
+
+**Before 7.2.1: ChessMcEngineFace 7.2** (Nov 19) = 7.1.1 with
 the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
 +27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
 LOS 96.6%, stopped by the owner and released on both). Bench **1224793**.
@@ -154,7 +303,15 @@ time losses: about 3565 by this pairing. **All three at 40+0.4: about
 =62 (61.5%), **+82 +/- 43**, pentanomial [0, 6, 23, 16, 7], no time
 losses: Thrawn scales much better than us from 8+0.08 to 40+0.4 (about
 100 Elo of swing), as Berserk did the other way. Short-TC results against
-outside engines say little about CCRL Blitz (2+1). **7.0 vs Renegade 1.1.0 at
+outside engines say little about CCRL Blitz (2+1). **7.2 vs Renegade 1.1.0 at 8+0.08** (Nov 20, SPRT -10/+10, Hash 64,
+1 thread, 4 at a time): **H1 after 850 games**, +176 -157 =517 (51.1%),
+**+8 +/- 14**, pentanomial [14, 88, 203, 105, 15], but **13 of the 176
+wins were Renegade losing on time** (100 ms overruns at its default Move
+Overhead 50); scored as draws, about **+2.5** and LLR about 1.0 (no
+verdict): level with Renegade at 8+0.08, about 60 above 7.0's -58 below.
+Next time give Renegade `option.Move Overhead=100`. 7.2 vs Thrawn 3.2 at
+8+0.08 was stopped by the owner at 100 games: +29 -19 =52, +35 +/- 47.
+**7.0 vs Renegade 1.1.0 at
 8+0.08** (`~/matches/70-renegade-stc.log`): **H0 after 126 games**, +18
 -39 =69 (41.7%), **-58 +/- 40**, pentanomial [7, 19, 25, 12, 0], no time
 losses (Nov 15's -54 +/- 39 at the same time control agrees). From the
@@ -1042,7 +1199,15 @@ overloaded: +28 at 2 MB, -4 to -6 at 64 MB); TT score refining the eval
   <engine> <X00>` (Stockfish 18 at `UCI_Elo` X00, SPRT -10/+10, 10+0.1,
   `8moves_v3`). Changes that beat the previous version by SPRT in between
   get minor numbers (3.3, 3.4, ...).
-- **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
+- **Phone app: ChessMcEngineFace 7.2** (Nov 20; WebAssembly rebuilt from
+  7.2, Android `versionCode` 10 / `versionName` "7.2"). `node
+  scripts/wasm_bench.mjs`: 1224793, the native bench. APK built with
+  `npm run apk` (one Maven Central 429 on the first try, then fine with
+  `./gradlew --max-workers=1 assembleDebug`), 5.6 MB, signed with
+  `keys/debug.keystore` (SHA-256 `45c53a1f...a36bb`); checked in Chromium
+  at phone size (labels "ChessMcEngineFace 7.2", engine opened 1. c4, no
+  console errors) and sent to the owner.
+- Before: **Phone app: ChessMcEngineFace 6.0** (Nov 9; WebAssembly rebuilt from
   6.0, Android `versionCode` 9 / `versionName` "6.0"). `node
   scripts/wasm_bench.mjs`: 2285231, the native bench. APK built with
   `npm run apk` (`--max-workers=1`), 5.6 MB, signed with the repo's

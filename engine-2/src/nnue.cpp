@@ -7,8 +7,10 @@
 #include <iterator>
 #include <vector>
 
-#if defined(__AVX2__)
+#if defined(__AVX2__) || defined(__AVX512BW__)
 #include <immintrin.h>
+#elif defined(__wasm_simd128__)
+#include <wasm_simd128.h>
 #endif
 
 namespace chess::nnue {
@@ -18,12 +20,33 @@ namespace {
 constexpr int INPUTS = 768;
 constexpr int QA = 255;
 constexpr int QB = 64;
+// Output weights of "fine" SCReLU networks (activation 2 in the file):
+// x1024 instead of x64, so the output layer's rounding error is 16x smaller
+// (about 0.7 cp on average instead of 6 on 7.2's network).
+constexpr int QB_FINE = 1024;
 constexpr int SCALE = 400;
 
 constexpr int MAX_BUCKETS = 8;
+constexpr int MAX_KING_BUCKETS = 16;
+
+// Extra layers (network file version 4, train.py --layers 16,32): both
+// sides' squared units -> L1 clipped units -> L2 clipped units -> output,
+// one set per output bucket. L1's inputs are (c * c) >> 4 for each unit c
+// in [0, QA] (0-4064), its weights x L1_Q, so its sums are in units of
+// L1_UNIT; the trainer's limit on those weights (253 / 256) keeps 2 x 1024
+// products in 32 bits. L2 and the output are in float, added up in a fixed
+// order (and built with -ffp-contract=off), so every build gives the same
+// evaluations.
+constexpr int L1 = 16;
+constexpr int L2 = 32;
+constexpr int L1_SHIFT = 4;
+constexpr int L1_Q = 256;
+constexpr float L1_UNIT = float(QA * QA) / (1 << L1_SHIFT) * L1_Q;  // 1,040,400
 
 struct Network {
-  alignas(64) std::int16_t ft_weight[INPUTS][HIDDEN];
+  // First layer: one block of INPUTS rows per king bucket (one block without
+  // king buckets), each row HIDDEN weights.
+  std::vector<std::int16_t> ft_weight;
   alignas(64) std::int16_t ft_bias[HIDDEN];
   // One output layer per bucket (only the first `buckets` are used); in
   // each, the side to move's units first.
@@ -31,6 +54,25 @@ struct Network {
   std::int32_t out_bias[MAX_BUCKETS];
   int buckets = 1;      // output layers, chosen by piece count
   bool screlu = false;  // the clipped units are squared before the output layer
+  bool fine = false;    // ...and the output weights are x QB_FINE (output_squared_fine)
+  // King buckets (network file version 3): each side's inputs depend on its
+  // own king's square, seen from that side: king_map gives the bucket, and
+  // with `mirror` a king on files e-h flips every square left-right (so the
+  // map only needs the a-d half). One bucket and no mirror = plain inputs.
+  int king_buckets = 1;
+  bool mirror = false;
+  std::uint8_t king_map[64] = {};
+  // Extra layers (version 4): `layers` replaces out_weight / out_bias.
+  // l1_weight is [bucket][pair of inputs][L1][2], so one pair's weights for
+  // all 16 outputs are 64 consecutive bytes (the file has [bucket][L1][input]).
+  bool layers = false;
+  bool pairwise = false;  // activation 3: the first extra layer's inputs are products of two units
+  std::vector<std::int16_t> l1_weight;
+  std::int32_t l1_bias[MAX_BUCKETS][L1] = {};
+  float l2_weight[MAX_BUCKETS][L1][L2] = {};  // [input][output] (the file has [output][input])
+  float l2_bias[MAX_BUCKETS][L2] = {};
+  float l3_weight[MAX_BUCKETS][L2] = {};
+  float l3_bias[MAX_BUCKETS] = {};
 };
 
 Network net;
@@ -53,7 +95,18 @@ inline int feature(Piece pc, Square s, Color side) {
   return side == WHITE ? pc * 64 + s : ((pc + 6) % 12) * 64 + (s ^ 56);
 }
 
-inline const std::int16_t* weights(Piece pc, Square s, Color side) { return net.ft_weight[feature(pc, s, side)]; }
+// The side's king state: its bucket times 2, plus 1 if the board is mirrored.
+// The inputs (and so the update) depend on it; while it stays the same the
+// side's accumulator is updated move by move.
+inline int king_state(Color side, Square king) {
+  const int rel = side == WHITE ? king : king ^ 56;
+  return net.king_map[rel] * 2 + (net.mirror && file_of(Square(rel)) >= 4);
+}
+
+inline const std::int16_t* weights(Piece pc, Square s, Color side, int state) {
+  const int f = feature(pc, s, side) ^ (state & 1 ? 7 : 0);  // mirrored: the file flips (bits 0-2 of the square)
+  return &net.ft_weight[std::size_t((state >> 1) * INPUTS + f) * HIDDEN];
+}
 
 // The update loops: out = in + the added rows - the removed rows. Sums wrap
 // like the 16-bit lanes they vectorize to; the trainer's weight limit keeps
@@ -61,7 +114,24 @@ inline const std::int16_t* weights(Piece pc, Square s, Color side) { return net.
 // from-scratch computation's.
 using Row = const std::int16_t* __restrict;
 
-#if defined(__AVX2__)
+#if defined(__AVX512BW__)
+// AVX-512 (ENGINE_AVX512 builds): 64 units a step. Same results.
+template <int Adds, int Subs>
+inline void add_sub(std::int16_t* __restrict out, Row in, const std::int16_t* const (&rows)[Adds + Subs]) {
+  for (int j = 0; j < HIDDEN; j += 64) {
+    __m512i v0 = _mm512_loadu_si512(in + j);
+    __m512i v1 = _mm512_loadu_si512(in + j + 32);
+    for (int k = 0; k < Adds + Subs; k++) {
+      const __m512i w0 = _mm512_loadu_si512(rows[k] + j);
+      const __m512i w1 = _mm512_loadu_si512(rows[k] + j + 32);
+      v0 = k < Adds ? _mm512_add_epi16(v0, w0) : _mm512_sub_epi16(v0, w0);
+      v1 = k < Adds ? _mm512_add_epi16(v1, w1) : _mm512_sub_epi16(v1, w1);
+    }
+    _mm512_storeu_si512(out + j, v0);
+    _mm512_storeu_si512(out + j + 32, v1);
+  }
+}
+#elif defined(__AVX2__)
 // Written out with AVX2, 32 units a step: the compiler's own vectorization
 // of the plain loops below steps 16 at a time, and at 512 units the loop
 // overhead was a sizeable share of the network's cost. Same results.
@@ -133,7 +203,19 @@ inline std::int32_t output(Row us, Row them, Row w) {
 // unit x weight is formed first and fits 16 bits (the trainer keeps these
 // output weights within +/-127), so the 16-bit multiply-add still applies.
 // The sum is in units of QA x QA x QB.
-#if defined(__AVX2__)
+#if defined(__AVX512BW__)
+inline std::int32_t output_squared(Row us, Row them, Row w) {
+  const __m512i zero = _mm512_setzero_si512(), qa = _mm512_set1_epi16(QA);
+  __m512i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 32) {
+    const __m512i u = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(us + j), zero), qa);
+    const __m512i t = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(them + j), zero), qa);
+    s0 = _mm512_add_epi32(s0, _mm512_madd_epi16(_mm512_mullo_epi16(u, _mm512_loadu_si512(w + j)), u));
+    s1 = _mm512_add_epi32(s1, _mm512_madd_epi16(_mm512_mullo_epi16(t, _mm512_loadu_si512(w + HIDDEN + j)), t));
+  }
+  return _mm512_reduce_add_epi32(_mm512_add_epi32(s0, s1));
+}
+#elif defined(__AVX2__)
 inline std::int32_t output_squared(Row us, Row them, Row w) {
   const __m256i zero = _mm256_setzero_si256(), qa = _mm256_set1_epi16(QA);
   __m256i s0 = zero, s1 = zero;
@@ -164,86 +246,493 @@ inline std::int32_t output_squared(Row us, Row them, Row w) {
 }
 #endif
 
-// next = prev changed by next.dirty, from both sides.
-void apply(const Accumulator& prev, Accumulator& next) {
-  const DirtyPieces& d = next.dirty;
-  for (Color side : {WHITE, BLACK}) {
-    const std::int16_t* in = prev.values[side];
-    std::int16_t* out = next.values[side];
-    if (d.removed == 1) {  // a quiet move or a promotion
-      add1_sub1(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.remove_piece[0], d.remove_sq[0], side));
-    } else if (d.added == 1) {  // a capture
-      add1_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.remove_piece[0], d.remove_sq[0], side),
-                weights(d.remove_piece[1], d.remove_sq[1], side));
-    } else if (d.added == 2) {  // castling
-      add2_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side), weights(d.add_piece[1], d.add_sq[1], side),
-                weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side));
-    } else {  // a null move
-      std::memcpy(out, in, sizeof(prev.values[side]));
+// SCReLU with fine output weights (x QB_FINE): unit x weight no longer fits
+// 16 bits, so it is formed with a rounding multiply-high instead:
+//   v = round((unit << 7) x weight / 2^15) = round(unit x weight / 256),
+// at most about |weight| (unit <= 255), and then v x unit is summed by the
+// 16-bit multiply-add as before. The sum is in units of QA x QA x QB_FINE /
+// 256. Same instruction count as output_squared but one shift.
+constexpr int FINE_SHIFT = 7;
+#if defined(__AVX512BW__)
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  const __m512i zero = _mm512_setzero_si512(), qa = _mm512_set1_epi16(QA);
+  __m512i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 32) {
+    const __m512i u = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(us + j), zero), qa);
+    const __m512i t = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(them + j), zero), qa);
+    const __m512i uw = _mm512_mulhrs_epi16(_mm512_slli_epi16(u, FINE_SHIFT), _mm512_loadu_si512(w + j));
+    const __m512i tw = _mm512_mulhrs_epi16(_mm512_slli_epi16(t, FINE_SHIFT), _mm512_loadu_si512(w + HIDDEN + j));
+    s0 = _mm512_add_epi32(s0, _mm512_madd_epi16(uw, u));
+    s1 = _mm512_add_epi32(s1, _mm512_madd_epi16(tw, t));
+  }
+  return _mm512_reduce_add_epi32(_mm512_add_epi32(s0, s1));
+}
+#elif defined(__AVX2__)
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  const __m256i zero = _mm256_setzero_si256(), qa = _mm256_set1_epi16(QA);
+  __m256i s0 = zero, s1 = zero;
+  for (int j = 0; j < HIDDEN; j += 16) {
+    const __m256i u = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(us + j)), zero), qa);
+    const __m256i t = _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(them + j)), zero), qa);
+    const __m256i uw = _mm256_mulhrs_epi16(_mm256_slli_epi16(u, FINE_SHIFT), _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + j)));
+    const __m256i tw =
+        _mm256_mulhrs_epi16(_mm256_slli_epi16(t, FINE_SHIFT), _mm256_loadu_si256(reinterpret_cast<const __m256i*>(w + HIDDEN + j)));
+    s0 = _mm256_add_epi32(s0, _mm256_madd_epi16(uw, u));
+    s1 = _mm256_add_epi32(s1, _mm256_madd_epi16(tw, t));
+  }
+  __m256i s = _mm256_add_epi32(s0, s1);
+  __m128i h = _mm_add_epi32(_mm256_castsi256_si128(s), _mm256_extracti128_si256(s, 1));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0x4E));
+  h = _mm_add_epi32(h, _mm_shuffle_epi32(h, 0xB1));
+  return _mm_cvtsi128_si32(h);
+}
+#elif defined(__wasm_simd128__)
+// WebAssembly SIMD (the app): q15mulr_sat is the rounding multiply-high
+// (saturating only for -32768 x -32768, which a shifted unit, at least 0,
+// never is), dot_i16x8 the 16-bit multiply-add. The compiler does not find
+// these from the plain loop below, which ran 10% slower overall.
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  const v128_t zero = wasm_i16x8_splat(0), qa = wasm_i16x8_splat(QA);
+  v128_t s0 = wasm_i32x4_splat(0), s1 = s0;
+  for (int j = 0; j < HIDDEN; j += 8) {
+    const v128_t u = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(us + j), zero), qa);
+    const v128_t t = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(them + j), zero), qa);
+    const v128_t uw = wasm_i16x8_q15mulr_sat(wasm_i16x8_shl(u, FINE_SHIFT), wasm_v128_load(w + j));
+    const v128_t tw = wasm_i16x8_q15mulr_sat(wasm_i16x8_shl(t, FINE_SHIFT), wasm_v128_load(w + HIDDEN + j));
+    s0 = wasm_i32x4_add(s0, wasm_i32x4_dot_i16x8(uw, u));
+    s1 = wasm_i32x4_add(s1, wasm_i32x4_dot_i16x8(tw, t));
+  }
+  const v128_t s = wasm_i32x4_add(s0, s1);
+  return wasm_i32x4_extract_lane(s, 0) + wasm_i32x4_extract_lane(s, 1) + wasm_i32x4_extract_lane(s, 2) +
+         wasm_i32x4_extract_lane(s, 3);
+}
+#else
+// The rounding multiply-high (x86 pmulhrsw, WebAssembly i16x8.q15mulr_sat_s)
+// written out: (a x b + 2^14) >> 15.
+inline std::int32_t mulhrs(std::int32_t a, std::int32_t b) { return (a * b + (1 << 14)) >> 15; }
+inline std::int32_t output_squared_fine(Row us, Row them, Row w) {
+  std::int32_t sum = 0;
+  for (int j = 0; j < HIDDEN; j++) {
+    const std::int32_t u = std::min<std::int16_t>(std::max<std::int16_t>(us[j], 0), QA);
+    const std::int32_t t = std::min<std::int16_t>(std::max<std::int16_t>(them[j], 0), QA);
+    sum += mulhrs(u << FINE_SHIFT, w[j]) * u;
+    sum += mulhrs(t << FINE_SHIFT, w[HIDDEN + j]) * t;
+  }
+  return sum;
+}
+#endif
+
+// Extra layers. The first extra layer's inputs, for each side, side to
+// move first: (c * c) >> L1_SHIFT for each of its HIDDEN units c (clipped
+// to [0, QA]), or with Pairwise (activation 3 in the file) the products
+// (c[i] * c[i + HIDDEN / 2]) >> L1_SHIFT, half as many. The layer adds up
+// input x weight for its 16 outputs, skipping pairs of inputs that are
+// both 0 (most are: 7.2's units are 0 89% of the time; a product is 0 when
+// either unit is). Integer sums, so every version gives the same result.
+static_assert(HIDDEN % 64 == 0, "the extra layers step 32 units at a time on each half");
+
+template <bool Pairwise>
+constexpr int L1_INPUTS = Pairwise ? HIDDEN : 2 * HIDDEN;  // = 2 x the pairs
+
+// For each 8-bit mask, the positions of its set bits (the rest 0): turns a
+// comparison's mask into a list of non-zero pairs without a branch per bit.
+struct NnzTable {
+  alignas(16) std::uint16_t idx[256][8];
+  constexpr NnzTable() : idx() {
+    for (int m = 0; m < 256; m++) {
+      int n = 0;
+      for (int b = 0; b < 8; b++)
+        if (m & (1 << b)) idx[m][n++] = std::uint16_t(b);
     }
   }
-  next.net = net_id;
+};
+constexpr NnzTable nnz_table;
+
+#if defined(__AVX512BW__)
+// AVX-512: 32 inputs (16 pairs) a step, the list made with a compress
+// instead of a table, and one register for all 16 outputs. Same results.
+template <bool Pairwise>
+inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
+                       const std::int16_t* __restrict w, std::int32_t* sums) {
+  constexpr int PER_SIDE = L1_INPUTS<Pairwise> / 2, OTHER = Pairwise ? HIDDEN / 2 : 0;
+  alignas(64) std::int32_t act[L1_INPUTS<Pairwise> / 2];  // input pairs (2i, 2i + 1), low half first
+  alignas(64) std::int32_t list[L1_INPUTS<Pairwise> / 2 + 16];
+  std::int32_t* ap = act;
+  std::int32_t* lp = list;
+  const __m512i zero = _mm512_setzero_si512(), top = _mm512_set1_epi16(QA), sixteen = _mm512_set1_epi32(16);
+  __m512i base = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+  for (const std::int16_t* v : {us, them})
+    for (int j = 0; j < PER_SIDE; j += 32, ap += 16) {
+      const __m512i c = _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(v + j), zero), top);
+      const __m512i d = Pairwise ? _mm512_min_epi16(_mm512_max_epi16(_mm512_loadu_si512(v + j + OTHER), zero), top) : c;
+      const __m512i a = _mm512_srli_epi16(_mm512_mullo_epi16(c, d), L1_SHIFT);
+      _mm512_store_si512(ap, a);
+      const __mmask16 mask = _mm512_cmpgt_epi32_mask(a, zero);
+      _mm512_storeu_si512(lp, _mm512_maskz_compress_epi32(mask, base));
+      lp += __builtin_popcount(unsigned(mask));
+      base = _mm512_add_epi32(base, sixteen);
+    }
+  const std::int32_t* const list_end = lp;
+  __m512i s0 = zero, s1 = zero;
+  const std::int32_t* k = list;
+  for (; k + 1 < list_end; k += 2) {
+    const std::uint32_t p = std::uint32_t(k[0]), q = std::uint32_t(k[1]);
+    s0 = _mm512_add_epi32(_mm512_madd_epi16(_mm512_set1_epi32(act[p]), _mm512_loadu_si512(w + std::size_t(p) * (L1 * 2))), s0);
+    s1 = _mm512_add_epi32(_mm512_madd_epi16(_mm512_set1_epi32(act[q]), _mm512_loadu_si512(w + std::size_t(q) * (L1 * 2))), s1);
+  }
+  if (k < list_end) {
+    const std::uint32_t p = std::uint32_t(k[0]);
+    s0 = _mm512_add_epi32(_mm512_madd_epi16(_mm512_set1_epi32(act[p]), _mm512_loadu_si512(w + std::size_t(p) * (L1 * 2))), s0);
+  }
+  _mm512_storeu_si512(sums, _mm512_add_epi32(s0, s1));
+}
+#elif defined(__AVX2__)
+// The same table with 32-bit entries, for AVX2's 8-lane lists.
+struct NnzTable32 {
+  alignas(32) std::int32_t idx[256][8];
+  constexpr NnzTable32() : idx() {
+    for (int m = 0; m < 256; m++) {
+      int n = 0;
+      for (int b = 0; b < 8; b++)
+        if (m & (1 << b)) idx[m][n++] = b;
+    }
+  }
+};
+constexpr NnzTable32 nnz_table32;
+
+// One pass over both sides' units computes the inputs, kept as 32-bit
+// pairs, and lists the non-zero pairs (16 inputs, 8 pairs, a step); then
+// each listed pair's weights for all 16 outputs, two pairs at a time.
+template <bool Pairwise>
+inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
+                       const std::int16_t* __restrict w, std::int32_t* sums) {
+  constexpr int PER_SIDE = L1_INPUTS<Pairwise> / 2, OTHER = Pairwise ? HIDDEN / 2 : 0;
+  alignas(64) std::int32_t act[L1_INPUTS<Pairwise> / 2];  // input pairs (2i, 2i + 1), low half first
+  alignas(32) std::int32_t list[L1_INPUTS<Pairwise> / 2 + 8];
+  std::int32_t* ap = act;
+  std::int32_t* lp = list;
+  const __m256i zero = _mm256_setzero_si256(), top = _mm256_set1_epi16(QA), eight = _mm256_set1_epi32(8);
+  __m256i base = zero;
+  const auto clipped = [&](const std::int16_t* v) {
+    return _mm256_min_epi16(_mm256_max_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(v)), zero), top);
+  };
+  const auto step = [&](const std::int16_t* v, std::int32_t* out) {
+    const __m256i c = clipped(v);
+    // c * d < 65536 fits the 16 bits as an unsigned number; shift it as one.
+    const __m256i a = _mm256_srli_epi16(_mm256_mullo_epi16(c, Pairwise ? clipped(v + OTHER) : c), L1_SHIFT);
+    _mm256_store_si256(reinterpret_cast<__m256i*>(out), a);
+    // As 32-bit numbers the pairs are never negative: > 0 means not both 0.
+    const unsigned mask = unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(a, zero))));
+    const __m256i idx = _mm256_load_si256(reinterpret_cast<const __m256i*>(nnz_table32.idx[mask]));
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(lp), _mm256_add_epi32(idx, base));
+    lp += __builtin_popcount(mask);
+    base = _mm256_add_epi32(base, eight);
+  };
+  for (const std::int16_t* v : {us, them})
+    for (int j = 0; j < PER_SIDE; j += 32, ap += 16) {
+      step(v + j, ap);
+      step(v + j + 16, ap + 8);
+    }
+  const std::int32_t* const list_end = lp;
+  __m256i s0 = zero, s1 = zero, s2 = zero, s3 = zero;
+  const std::int32_t* k = list;
+  for (; k + 1 < list_end; k += 2) {
+    const std::uint32_t p = std::uint32_t(k[0]), q = std::uint32_t(k[1]);
+    const __m256i bp = _mm256_set1_epi32(act[p]), bq = _mm256_set1_epi32(act[q]);
+    const __m256i* rp = reinterpret_cast<const __m256i*>(w + std::size_t(p) * (L1 * 2));
+    const __m256i* rq = reinterpret_cast<const __m256i*>(w + std::size_t(q) * (L1 * 2));
+    s0 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp)), s0);
+    s1 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp + 1)), s1);
+    s2 = _mm256_add_epi32(_mm256_madd_epi16(bq, _mm256_loadu_si256(rq)), s2);
+    s3 = _mm256_add_epi32(_mm256_madd_epi16(bq, _mm256_loadu_si256(rq + 1)), s3);
+  }
+  if (k < list_end) {
+    const std::uint32_t p = std::uint32_t(k[0]);
+    const __m256i bp = _mm256_set1_epi32(act[p]);
+    const __m256i* rp = reinterpret_cast<const __m256i*>(w + std::size_t(p) * (L1 * 2));
+    s0 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp)), s0);
+    s1 = _mm256_add_epi32(_mm256_madd_epi16(bp, _mm256_loadu_si256(rp + 1)), s1);
+  }
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums), _mm256_add_epi32(s0, s2));
+  _mm256_storeu_si256(reinterpret_cast<__m256i*>(sums + 8), _mm256_add_epi32(s1, s3));
+}
+#else
+// One side's inputs into out (L1_INPUTS / 2 of them).
+template <bool Pairwise>
+inline void activate(const std::int16_t* __restrict v, std::int16_t* __restrict out) {
+  constexpr int PER_SIDE = L1_INPUTS<Pairwise> / 2, OTHER = Pairwise ? HIDDEN / 2 : 0;
+#if defined(__wasm_simd128__)
+  const v128_t zero = wasm_i16x8_splat(0), top = wasm_i16x8_splat(QA);
+  for (int j = 0; j < PER_SIDE; j += 8) {
+    const v128_t c = wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(v + j), zero), top);
+    const v128_t d = Pairwise ? wasm_i16x8_min(wasm_i16x8_max(wasm_v128_load(v + j + OTHER), zero), top) : c;
+    wasm_v128_store(out + j, wasm_u16x8_shr(wasm_i16x8_mul(c, d), L1_SHIFT));
+  }
+#else
+  for (int j = 0; j < PER_SIDE; j++) {
+    const int c = std::clamp(int(v[j]), 0, QA), d = Pairwise ? std::clamp(int(v[j + OTHER]), 0, QA) : c;
+    out[j] = std::int16_t((c * d) >> L1_SHIFT);
+  }
+#endif
 }
 
-// prev = next with next.dirty undone, from both sides: the pieces it added
+template <bool Pairwise>
+inline void l1_sums(const std::int16_t* __restrict act, const std::int16_t* __restrict w, std::int32_t* sums) {
+  constexpr int PAIRS = L1_INPUTS<Pairwise> / 2;
+#if defined(__wasm_simd128__)
+  // As with AVX2: the non-zero pairs first, 4 a step (a 4-bit mask), then
+  // each listed pair's weights for all 16 outputs, 4 registers.
+  alignas(16) std::uint16_t list[PAIRS + 8];
+  int n = 0;
+  const v128_t zero = wasm_i32x4_splat(0);
+  for (int p0 = 0; p0 < PAIRS; p0 += 4) {
+    const unsigned mask = wasm_i32x4_bitmask(wasm_i32x4_gt(wasm_v128_load(act + 2 * p0), zero));
+    const v128_t idx = wasm_i16x8_add(wasm_v128_load(nnz_table.idx[mask]), wasm_i16x8_splat(std::int16_t(p0)));
+    wasm_v128_store64_lane(list + n, idx, 0);
+    n += __builtin_popcount(mask);
+  }
+  v128_t s[4] = {zero, zero, zero, zero};
+  for (int k = 0; k < n; k++) {
+    const int p = list[k];
+    std::int32_t pair;
+    std::memcpy(&pair, act + 2 * p, 4);
+    const v128_t b = wasm_i32x4_splat(pair);
+    const std::int16_t* row = w + std::size_t(p) * L1 * 2;
+    for (int j = 0; j < 4; j++) s[j] = wasm_i32x4_add(s[j], wasm_i32x4_dot_i16x8(b, wasm_v128_load(row + 8 * j)));
+  }
+  for (int j = 0; j < 4; j++) wasm_v128_store(sums + 4 * j, s[j]);
+#else
+  for (int o = 0; o < L1; o++) sums[o] = 0;
+  for (int i = 0; i < 2 * PAIRS; i++) {
+    if (!act[i]) continue;
+    const std::int16_t* row = w + std::size_t(i / 2) * L1 * 2 + (i & 1);
+    for (int o = 0; o < L1; o++) sums[o] += act[i] * row[2 * o];
+  }
+#endif
+}
+
+template <bool Pairwise>
+inline void l1_forward(const std::int16_t* __restrict us, const std::int16_t* __restrict them,
+                       const std::int16_t* __restrict w, std::int32_t* sums) {
+  alignas(64) std::int16_t act[L1_INPUTS<Pairwise>];
+  activate<Pairwise>(us, act);
+  activate<Pairwise>(them, act + L1_INPUTS<Pairwise> / 2);
+  l1_sums<Pairwise>(act, w, sums);
+}
+#endif
+
+// The extra layers' evaluation, in units of SCALE centipawns.
+float evaluate_layers(const std::int16_t* us, const std::int16_t* them, int bucket) {
+  std::int32_t sums[L1];
+  if (net.pairwise)
+    l1_forward<true>(us, them, &net.l1_weight[std::size_t(bucket) * L1_INPUTS<true> * L1], sums);
+  else
+    l1_forward<false>(us, them, &net.l1_weight[std::size_t(bucket) * L1_INPUTS<false> * L1], sums);
+  float h1[L1];
+  for (int o = 0; o < L1; o++)
+    h1[o] = std::clamp(float(sums[o] + net.l1_bias[bucket][o]) * (1.0f / L1_UNIT), 0.0f, 1.0f);
+  // The sums are split into a fixed set of partial sums, added in a fixed
+  // order: shorter chains of dependent additions (a float addition waits
+  // ~4 cycles for the one before), and the same result whether or not the
+  // compiler vectorizes the loops (it may not reorder float additions).
+  // L2: inputs 0-7 and 8-15 separately, input by input over all outputs.
+  float lo[L2], hi[L2];
+  for (int o = 0; o < L2; o++) lo[o] = net.l2_bias[bucket][o], hi[o] = 0.0f;
+  for (int i = 0; i < L1 / 2; i++)
+    for (int o = 0; o < L2; o++) {
+      lo[o] += h1[i] * net.l2_weight[bucket][i][o];
+      hi[o] += h1[i + L1 / 2] * net.l2_weight[bucket][i + L1 / 2][o];
+    }
+  // Output: 8 partial sums (output o into o % 8), then a fixed tree.
+  float part[8] = {};
+  for (int o = 0; o < L2; o += 8)
+    for (int j = 0; j < 8; j++) part[j] += std::clamp(lo[o + j] + hi[o + j], 0.0f, 1.0f) * net.l3_weight[bucket][o + j];
+  return net.l3_bias[bucket] + (((part[0] + part[1]) + (part[2] + part[3])) + ((part[4] + part[5]) + (part[6] + part[7])));
+}
+
+// next = prev changed by next.dirty, from one side, whose king state
+// (king_state) is the same in both.
+void apply(const Accumulator& prev, Accumulator& next, Color side, int st) {
+  const DirtyPieces& d = next.dirty;
+  const std::int16_t* in = prev.values[side];
+  std::int16_t* out = next.values[side];
+  if (d.removed == 1) {  // a quiet move or a promotion
+    add1_sub1(out, in, weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.remove_piece[0], d.remove_sq[0], side, st));
+  } else if (d.added == 1) {  // a capture
+    add1_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.remove_piece[0], d.remove_sq[0], side, st),
+              weights(d.remove_piece[1], d.remove_sq[1], side, st));
+  } else if (d.added == 2) {  // castling
+    add2_sub2(out, in, weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.add_piece[1], d.add_sq[1], side, st),
+              weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.remove_piece[1], d.remove_sq[1], side, st));
+  } else {  // a null move
+    std::memcpy(out, in, sizeof(prev.values[side]));
+  }
+  next.net[side] = net_id;
+}
+
+// prev = next with next.dirty undone, from one side: the pieces it added
 // come off and the ones it removed go back.
-void unapply(const Accumulator& next, Accumulator& prev) {
+void unapply(const Accumulator& next, Accumulator& prev, Color side, int st) {
   const DirtyPieces& d = next.dirty;
-  for (Color side : {WHITE, BLACK}) {
-    const std::int16_t* in = next.values[side];
-    std::int16_t* out = prev.values[side];
-    if (d.removed == 1) {
-      add1_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.add_piece[0], d.add_sq[0], side));
-    } else if (d.added == 1) {
-      add2_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side),
-                weights(d.add_piece[0], d.add_sq[0], side));
-    } else if (d.added == 2) {
-      add2_sub2(out, in, weights(d.remove_piece[0], d.remove_sq[0], side), weights(d.remove_piece[1], d.remove_sq[1], side),
-                weights(d.add_piece[0], d.add_sq[0], side), weights(d.add_piece[1], d.add_sq[1], side));
-    } else {
-      std::memcpy(out, in, sizeof(next.values[side]));
-    }
+  const std::int16_t* in = next.values[side];
+  std::int16_t* out = prev.values[side];
+  if (d.removed == 1) {
+    add1_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.add_piece[0], d.add_sq[0], side, st));
+  } else if (d.added == 1) {
+    add2_sub1(out, in, weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.remove_piece[1], d.remove_sq[1], side, st),
+              weights(d.add_piece[0], d.add_sq[0], side, st));
+  } else if (d.added == 2) {
+    add2_sub2(out, in, weights(d.remove_piece[0], d.remove_sq[0], side, st), weights(d.remove_piece[1], d.remove_sq[1], side, st),
+              weights(d.add_piece[0], d.add_sq[0], side, st), weights(d.add_piece[1], d.add_sq[1], side, st));
+  } else {
+    std::memcpy(out, in, sizeof(next.values[side]));
   }
-  prev.net = net_id;
+  prev.net[side] = net_id;
 }
 
-void refresh(const Position& pos, Accumulator& acc) {
-  std::memcpy(acc.values[WHITE], net.ft_bias, sizeof(net.ft_bias));
-  std::memcpy(acc.values[BLACK], net.ft_bias, sizeof(net.ft_bias));
-  for (Bitboard b = pos.pieces(); b;) {
-    const Square s = pop_lsb(b);
-    const Piece pc = pos.piece_on(s);
-    const std::int16_t* w = weights(pc, s, WHITE);
-    const std::int16_t* k = weights(pc, s, BLACK);
-    for (int j = 0; j < HIDDEN; j++) {
-      acc.values[WHITE][j] += w[j];
-      acc.values[BLACK][j] += k[j];
+// sums += the `na` rows in adds - the `ns` rows in subs, written to both
+// `sums` and `out`; a block of units at a time, kept in registers while
+// every row is applied. Wraps like add_sub (same results in any order).
+#if defined(__AVX2__) && !defined(__AVX512BW__)
+inline void add_sub_many(std::int16_t* sums, std::int16_t* out, const std::int16_t* const* adds, int na,
+                         const std::int16_t* const* subs, int ns) {
+  constexpr int REGS = 8, BLOCK = REGS * 16;
+  static_assert(HIDDEN % BLOCK == 0, "refresh blocks of 128 units");
+  for (int j = 0; j < HIDDEN; j += BLOCK) {
+    __m256i r[REGS];
+    for (int k = 0; k < REGS; k++) r[k] = _mm256_load_si256(reinterpret_cast<const __m256i*>(sums + j + 16 * k));
+    for (int a = 0; a < na; a++)
+      for (int k = 0; k < REGS; k++)
+        r[k] = _mm256_add_epi16(r[k], _mm256_loadu_si256(reinterpret_cast<const __m256i*>(adds[a] + j + 16 * k)));
+    for (int a = 0; a < ns; a++)
+      for (int k = 0; k < REGS; k++)
+        r[k] = _mm256_sub_epi16(r[k], _mm256_loadu_si256(reinterpret_cast<const __m256i*>(subs[a] + j + 16 * k)));
+    for (int k = 0; k < REGS; k++) {
+      _mm256_store_si256(reinterpret_cast<__m256i*>(sums + j + 16 * k), r[k]);
+      _mm256_store_si256(reinterpret_cast<__m256i*>(out + j + 16 * k), r[k]);
     }
   }
-  acc.net = net_id;
+}
+#else
+// Plain loops in blocks (the compiler vectorizes them; AVX-512 and
+// WebAssembly builds).
+inline void add_sub_many(std::int16_t* sums, std::int16_t* out, const std::int16_t* const* adds, int na,
+                         const std::int16_t* const* subs, int ns) {
+  constexpr int BLOCK = 128;
+  static_assert(HIDDEN % BLOCK == 0, "refresh blocks of 128 units");
+  for (int j = 0; j < HIDDEN; j += BLOCK) {
+    std::int16_t r[BLOCK];
+    std::memcpy(r, sums + j, sizeof(r));
+    for (int a = 0; a < na; a++)
+      for (int k = 0; k < BLOCK; k++) r[k] = std::int16_t(r[k] + adds[a][j + k]);
+    for (int a = 0; a < ns; a++)
+      for (int k = 0; k < BLOCK; k++) r[k] = std::int16_t(r[k] - subs[a][j + k]);
+    std::memcpy(sums + j, r, sizeof(r));
+    std::memcpy(out + j, r, sizeof(r));
+  }
+}
+#endif
+
+// Accumulator cache ("Finny table"), for king buckets: per side and king
+// state, the sums last computed there and the pieces they were for. A side
+// whose king changes zone (or crosses between files d and e) needs its
+// sums for other inputs; starting from the cached ones only the pieces that
+// changed since are added or removed, instead of all of them. One per
+// thread (each search thread has its own).
+struct CacheEntry {
+  alignas(64) std::int16_t values[HIDDEN];
+  Bitboard pieces[PIECE_NB];
+  std::uint32_t net = 0;  // the network the entry belongs to; 0 = empty
+};
+thread_local std::vector<CacheEntry> cache;
+
+void refresh(const Position& pos, Accumulator& acc, Color side, int st) {
+  std::int16_t* v = acc.values[side];
+  if (net.king_buckets == 1 && !net.mirror) {  // plain inputs: from scratch, as before king buckets
+    std::memcpy(v, net.ft_bias, sizeof(net.ft_bias));
+    for (Bitboard b = pos.pieces(); b;) {
+      const Square s = pop_lsb(b);
+      const std::int16_t* w = weights(pos.piece_on(s), s, side, st);
+      for (int j = 0; j < HIDDEN; j++) v[j] += w[j];
+    }
+    acc.net[side] = net_id;
+    return;
+  }
+  const std::size_t states = std::size_t(net.king_buckets) * 2;
+  if (cache.size() < COLOR_NB * states) cache.resize(COLOR_NB * MAX_KING_BUCKETS * 2);
+  CacheEntry& e = cache[side * MAX_KING_BUCKETS * 2 + st];
+  if (e.net != net_id) {
+    std::memcpy(e.values, net.ft_bias, sizeof(net.ft_bias));
+    std::fill(std::begin(e.pieces), std::end(e.pieces), Bitboard(0));
+    e.net = net_id;
+  }
+  // The rows to add and remove, then one pass over the sums for all of them,
+  // writing the entry and the accumulator together (a pass per piece, and a
+  // copy after, cost about 4% of the bench with a king-bucket network).
+  const std::int16_t* adds[32];
+  const std::int16_t* subs[32];
+  int na = 0, ns = 0;
+  for (int p = 0; p < PIECE_NB; p++) {
+    const Piece pc = Piece(p);
+    const Bitboard now = pos.pieces(color_of(pc), type_of(pc));
+    for (Bitboard add = now & ~e.pieces[p]; add;) adds[na++] = weights(pc, pop_lsb(add), side, st);
+    for (Bitboard sub = e.pieces[p] & ~now; sub;) subs[ns++] = weights(pc, pop_lsb(sub), side, st);
+    e.pieces[p] = now;
+  }
+  add_sub_many(e.values, v, adds, na, subs, ns);
+  acc.net[side] = net_id;
 }
 
-// Brings the current position's accumulator up to date: forward from the
-// nearest computed one before it, or from scratch when the updates on the
-// way would add and remove more pieces than the board holds. After a
-// refresh the positions before it that were passed over are filled in
-// backward, one update each: otherwise every sibling of this position
-// (and their children) would find no computed parent and refresh too.
-void update(const Position& pos) {
+// Where `side`'s king stood before the move recorded in d, given where it
+// stands after it.
+inline Square king_before(const DirtyPieces& d, Color side, Square after) {
+  const Piece king = make_piece(side, KING);
+  for (int a = 0; a < d.added; a++)
+    if (d.add_piece[a] == king && d.add_sq[a] == after)
+      for (int r = 0; r < d.removed; r++)
+        if (d.remove_piece[r] == king) return d.remove_sq[r];
+  return after;
+}
+
+// Brings one side of the current position's accumulator up to date: forward
+// from the nearest position before it whose side is computed, or from
+// scratch when the updates on the way would add and remove more pieces than
+// the board holds, or when that side's king state changes on the way (its
+// inputs are then different ones). After a refresh the positions before it
+// that were passed over are filled in backward, one update each, while the
+// king state allows: otherwise every sibling of this position (and their
+// children) would find no computed parent and refresh too.
+void update(const Position& pos, Color side) {
   Accumulator* stack = pos.accumulators();
   const int top = pos.game_ply();
   const int limit = popcount(pos.pieces());
+  const Square top_king = pos.king_square(side);
+  const int st = king_state(side, top_king);
+  Square king = top_king;
   int i = top, cost = 0;
-  while (stack[i].net != net_id) {
+  while (stack[i].net[side] != net_id) {
     cost += stack[i].dirty.added + stack[i].dirty.removed;
-    if (i == 0 || cost > limit) {
-      refresh(pos, stack[top]);
-      for (int j = top - 1; j >= i; j--) unapply(stack[j + 1], stack[j]);
+    const Square before = i > 0 ? king_before(stack[i].dirty, side, king) : king;
+    if (i == 0 || cost > limit || king_state(side, before) != st) {
+      refresh(pos, stack[top], side, st);
+      Square k = top_king;
+      for (int j = top - 1; j >= i; j--) {
+        k = king_before(stack[j + 1].dirty, side, k);
+        if (king_state(side, k) != st) break;
+        unapply(stack[j + 1], stack[j], side, st);
+      }
       return;
     }
+    king = before;
     i--;
   }
-  for (int j = i + 1; j <= top; j++) apply(stack[j - 1], stack[j]);
+  for (int j = i + 1; j <= top; j++) apply(stack[j - 1], stack[j], side, st);
+}
+
+void update(const Position& pos) {
+  const Accumulator& acc = pos.accumulators()[pos.game_ply()];
+  for (Color side : {WHITE, BLACK})
+    if (acc.net[side] != net_id) update(pos, side);
 }
 
 }  // namespace
@@ -258,19 +747,61 @@ bool load(const unsigned char* data, std::size_t size) {
   std::size_t pos = 0;
   if (!take(data, size, pos, magic, 4) || !take(data, size, pos, &version, 4) || !take(data, size, pos, &hidden, 4))
     return false;
-  if (std::memcmp(magic, "E2NN", 4) != 0 || (version != 1 && version != 2) || hidden != HIDDEN) return false;
+  if (std::memcmp(magic, "E2NN", 4) != 0 || version < 1 || version > 4 || hidden != HIDDEN) return false;
   // Version 2 adds the activation and the number of output layers; version
-  // 1 is plain clipped units and one output.
-  std::uint32_t screlu = 0, buckets = 1;
-  if (version == 2 && (!take(data, size, pos, &screlu, 4) || !take(data, size, pos, &buckets, 4))) return false;
-  if (screlu > 1 || buckets < 1 || buckets > MAX_BUCKETS) return false;
-  if (!take(data, size, pos, net.ft_weight, sizeof(net.ft_weight)) ||
-      !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)) ||
-      !take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
-      !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size)
+  // 3 also king buckets (their count, the mirror flag and the 64-square
+  // map); version 1 is plain clipped units and one output. The activation
+  // field: 0 clipped, 1 squared (SCReLU), 2 squared with fine output weights.
+  std::uint32_t screlu = 0, buckets = 1, king_buckets = 1, mirror = 0;
+  std::uint8_t king_map[64] = {};
+  if (version >= 2 && (!take(data, size, pos, &screlu, 4) || !take(data, size, pos, &buckets, 4))) return false;
+  if (version >= 3 && (!take(data, size, pos, &king_buckets, 4) || !take(data, size, pos, &mirror, 4) ||
+                       !take(data, size, pos, king_map, 64)))
     return false;
-  net.screlu = screlu == 1;
+  // Version 4: the extra layers' sizes, which must be the engine's.
+  std::uint32_t l1 = 0, l2 = 0;
+  if (version >= 4 && (!take(data, size, pos, &l1, 4) || !take(data, size, pos, &l2, 4) || l1 != L1 || l2 != L2 ||
+                       (screlu != 1 && screlu != 3)))
+    return false;
+  if (screlu > (version >= 4 ? 3u : 2u) || buckets < 1 || buckets > MAX_BUCKETS || king_buckets < 1 || king_buckets > MAX_KING_BUCKETS || mirror > 1)
+    return false;
+  for (std::uint8_t b : king_map)
+    if (b >= king_buckets) return false;
+  net.ft_weight.resize(std::size_t(king_buckets) * INPUTS * HIDDEN);
+  if (!take(data, size, pos, net.ft_weight.data(), net.ft_weight.size() * sizeof(std::int16_t)) ||
+      !take(data, size, pos, net.ft_bias, sizeof(net.ft_bias)))
+    return false;
+  net.layers = version >= 4;
+  net.pairwise = net.layers && screlu == 3;
+  if (net.layers) {
+    const int inputs = net.pairwise ? L1_INPUTS<true> : L1_INPUTS<false>;
+    std::vector<std::int16_t> w1(std::size_t(buckets) * L1 * inputs);
+    std::vector<float> w2(std::size_t(buckets) * L2 * L1);
+    if (!take(data, size, pos, w1.data(), w1.size() * sizeof(std::int16_t)) ||
+        !take(data, size, pos, net.l1_bias, buckets * sizeof(net.l1_bias[0])) ||
+        !take(data, size, pos, w2.data(), w2.size() * sizeof(float)) ||
+        !take(data, size, pos, net.l2_bias, buckets * sizeof(net.l2_bias[0])) ||
+        !take(data, size, pos, net.l3_weight, buckets * sizeof(net.l3_weight[0])) ||
+        !take(data, size, pos, net.l3_bias, buckets * sizeof(float)) || pos != size)
+      return false;
+    net.l1_weight.resize(w1.size());
+    for (std::size_t b = 0; b < buckets; b++)
+      for (int o = 0; o < L1; o++)
+        for (int i = 0; i < inputs; i++)
+          net.l1_weight[((b * (inputs / 2) + i / 2) * L1 + o) * 2 + (i & 1)] = w1[(b * L1 + o) * inputs + i];
+    for (std::size_t b = 0; b < buckets; b++)
+      for (int o = 0; o < L2; o++)
+        for (int i = 0; i < L1; i++) net.l2_weight[b][i][o] = w2[(b * L2 + o) * L1 + i];
+  } else if (!take(data, size, pos, net.out_weight, buckets * sizeof(net.out_weight[0])) ||
+             !take(data, size, pos, net.out_bias, buckets * sizeof(net.out_bias[0])) || pos != size) {
+    return false;
+  }
+  net.screlu = screlu >= 1;
+  net.fine = screlu == 2;
   net.buckets = int(buckets);
+  net.king_buckets = int(king_buckets);
+  net.mirror = mirror == 1;
+  std::memcpy(net.king_map, king_map, 64);
   if (++net_id == 0) net_id = 1;
   have_net = true;
   return true;
@@ -293,14 +824,22 @@ bool loaded() { return have_net; }
 
 int evaluate(const Position& pos) {
   const Accumulator& acc = pos.accumulators()[pos.game_ply()];
-  if (acc.net != net_id) update(pos);
+  if (acc.net[WHITE] != net_id || acc.net[BLACK] != net_id) update(pos);
   // Accumulators fit in 16 bits: the trainer keeps first-layer weights and
-  // biases within 1.98, so 33 terms of at most 1.98 * QA stay under 32767.
+  // biases within its --ft-clip (1.98 by default, at most 3.89), so a bias
+  // and 32 pieces, 33 terms of at most 3.89 * QA, stay under 32767.
   const Color us = pos.side_to_move();
   // The output layer for this many pieces (2 to 32): equal steps of piece
   // count, the fullest boards in the last. train.py's bucket_of is the same.
   const int bucket = net.buckets == 1 ? 0 : std::min((popcount(pos.pieces()) - 2) * net.buckets / 32, net.buckets - 1);
+  if (net.layers) return int(evaluate_layers(acc.values[us], acc.values[~us], bucket) * SCALE);
   const std::int16_t* w = net.out_weight[bucket];
+  if (net.fine) {
+    // The sum is in units of QA x QA x QB_FINE / 2^(15 - FINE_SHIFT): times
+    // 256 and over QA, it is in the bias's units, QA x QB_FINE.
+    const std::int32_t sum = output_squared_fine(acc.values[us], acc.values[~us], w);
+    return int(((std::int64_t(sum) << (15 - FINE_SHIFT)) / QA + net.out_bias[bucket]) * SCALE / (QA * QB_FINE));
+  }
   if (net.screlu) {
     const std::int32_t sum = output_squared(acc.values[us], acc.values[~us], w);
     return int((std::int64_t(sum) / QA + net.out_bias[bucket]) * SCALE / (QA * QB));
