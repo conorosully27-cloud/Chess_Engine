@@ -59,6 +59,8 @@ Contents:
 | 7.1 | `engine-7.1.nnue` | 1024 | **SCReLU** | 7.0's data (run v12) | 20 | **+14 STC, +6 LTC** |
 | 7.2 | `engine-7.2.nnue` | 1024 | SCReLU + **8 output buckets** | 7.0's data (run v13) | 20 | **+27 STC, +8 LTC** |
 | v14 | not kept | 1024 | + **4 king buckets, mirrored** | 7.0's data (660M) | 20 | **failed against 7.2** (see section 4) |
+| 7.2.1 | withdrawn | 1024 | v14b: 4 king buckets, no factoriser (epoch 10) | 660M | 10 | +3 +/- 8 LTC (withdrawn) |
+| **7.3** | `engine-7.3.nnue` | 1024 | **4 king buckets + factoriser + bucket decay 1**, `--lr-end 0.01 --ema 0.25 --loss-power 2.5`, fine output, re-exported `--scale 1.061` (run v15) | 661.8M | 20 | **+39 STC, +17 LTC** over 7.2 |
 
 The network files from 5.0 on are kept in `nets/`. Any of them loads with
 `setoption name EvalFile value nets/engine-X.nnue` (the hidden size must
@@ -533,6 +535,8 @@ The owner's roadmap (one unproven network change per run):
 | Run | Change | Notes |
 |---|---|---|
 | v14 | 4 king buckets, mirrored | **Failed** (section 4) |
+| **v15 = 7.3** | v15b + `--loss-power 2.5` | **+17.2 +/- 9.8 at 40+0.4 (1,112 games), +39.4 +/- 20.6 at 8+0.08 (354)**. Epochs 5 / 10 / 15 were -33 / about 0 / -2: most of the gain came in the last five epochs, at the lowest learning rate |
+| next | `--init-from` 7.3's checkpoint, about 10 epochs, fresh data; retune the search margins for 7.3's colder net | Warm start was +13 over 8 epochs from scratch on CPU |
 | **7.2.1** | **v13's checkpoint re-exported with `--fine-output`** | No training: `export.py`, then an SPRT against 7.2. Needs this engine |
 | v15a | v13's design + `--lr-end 0.01 --ema 0.25`, exported with `--fine-output` | Training-only tweaks: 0.17% better validation together at 10.4M positions; add `--ft-clip 3.85` if testing it too |
 | v15b | 4 king buckets + `--factorize --bucket-decay 1`, same schedule | King buckets again, with the fix for what sank v14 (section 4): 1.4% better validation than v15a and **+34 +/- 12 Elo over v15a in 1,640 games** (small nets, 10.4M positions) |
