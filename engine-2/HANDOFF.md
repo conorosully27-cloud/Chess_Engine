@@ -136,13 +136,15 @@ positions) lost to 7.2.
   version 4, engine support on AVX2 / AVX-512 / WebAssembly / plain with
   identical bench counts): **4.0% better validation** than one output
   layer on CPU (256 units, 10.4M positions), at about **0.7x the node
-  rate** (1024 units). Game test at 256 units in progress.
+  rate** (1024 units), **but -38 +/- 22 in games** at 256 units. Not for
+  v15.
 - **Warm start** (`--init-from` a finished plain net, v15b recipe): 1.2%
   better validation than v15b from scratch after 2 epochs. For v15b:
-  start from v13's checkpoint and train fewer epochs. Games in progress.
-- **`--loss-power 2.5`**: lower squared error than training on squared
-  error (0.020826 vs 0.020880 at the end), less overfitting; the net comes
-  out colder, so match the scale. Games in progress.
+  start from v13's checkpoint and train fewer epochs. **Games: +13.0 +/-
+  12.0 over 1,500** (4 warm epochs vs 8 from scratch).
+- **`--loss-power 2.5`**: **+17.0 +/- 11.4 over 1,620 games**; lower
+  squared error too. The net comes out colder, so match the scale. In the
+  owner's v15 run.
 - **8 king buckets**: 0.2% better validation, about 7% fewer nodes/s than
   4. Not for v15.
 - **`--k 300`**: much colder net (scale 0.83). Games queued.

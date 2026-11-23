@@ -175,7 +175,7 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
 | Change | Best | End | Notes |
 |---|---|---|---|
 | `--loss-power 2.5` | **0.020811** | **0.020826** | Better *squared* error than training on squared error, and less overfitting late. Colder: scale 0.895 vs 0.960. **Games: +17.0 +/- 11.4** (below) |
-| `--init-from` the finished plain net (v15a-style), 4 epochs | **0.020574** (epoch 2) | 0.020636 | 1.2% better than v15b from scratch after 2 epochs. Same scale. Games below |
+| `--init-from` the finished plain net (v15a-style), 4 epochs | **0.020574** (epoch 2) | 0.020636 | 1.2% better than v15b from scratch after 2 epochs. Same scale. **Games: +13.0 +/- 12.0** (below) |
 | `--king-buckets 8` | 0.020779 | 0.020858 | 0.2% better, but about **7% fewer nodes/s** than 4 buckets (1024 units; a 12.6 MB first layer) |
 | `--k 300` | (other target) | | Much colder: scale 0.830. Games below, re-exported on v15b's scale |
 
@@ -183,6 +183,12 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
   a finished plain net beat v15b from scratch after one epoch. For v15b
   that means `--init-from <v13>/checkpoint.pt` with fewer epochs, which
   could halve the run (about 17 h for 20 epochs on 660M).
+- **Warm start in games:** v15b's recipe for 4 epochs started from the
+  finished plain net, against v15b trained 8 epochs from scratch, both
+  256 units, same scale: **+13.0 +/- 12.0 over 1,500 games** (stopped
+  early). Half the king-bucket epochs and still stronger. For the next
+  king-bucket run: `--init-from <v13 or v15a>/checkpoint.pt` with about
+  half the epochs (10 instead of 20).
 - **Power loss in games:** the `--loss-power 2.5` net, re-exported on the
   v15b net's scale (`export.py --scale 1.073`), against v15b, both 256
   units, 8+0.08: **+17.0 +/- 11.4 over 1,620 games**, +420 -341 =859,
@@ -192,7 +198,7 @@ v15b itself: best 0.020820 (epoch 5), 0.020880 at the end.
 - **8 king buckets** are not worth their speed at this data size; worth
   another look once there is much more data.
 
-### Extra hidden layers (Nov 22): the largest validation gain on CPU
+### Extra hidden layers (Nov 22): the largest validation gain on CPU, lost in games
 
 `train.py --layers 16,32` (network file version 4): after the hidden
 units, 16 clipped units, then 32, then the output, one set per output
@@ -247,7 +253,17 @@ bucket (the "layer stacks" most top engines use).
     cache), the layers 8%, for +0.8 cp of rounding (5.6 vs 4.8 cp).
     Worth it only if speed turns out to decide the matter.
   - AVX-512 (in the code, same results): no faster on the cloud CPU.
-- Games at 256 units: below, when played.
+- **Games at 256 units: lost.** The 4-epoch net's epoch 3 (validation
+  0.020129, 3.3% better than v15b's 0.020880), on v15b's scale, against
+  v15b: **-38 +/- 22 over 420 games** (+84 -130 =206, LOS 0.03%,
+  pentanomial [16, 67, 79, 43, 5]; stopped early, decisive). About 0.75x
+  the node rate explains perhaps half of that; the rest says the
+  validation gain did not turn into better play at this size (its eval
+  also differs from the trainer's by 4.8 cp against ~3.5, and the search
+  was tuned with one-output nets). **Do not add `--layers` to runs for
+  now.** The code stays (file version 4) for a test at full size, ideally
+  with `--pairwise` (cheaper) and a net trained like 7.2, whose sparse
+  units make the extra layer far cheaper than on these dense CPU nets.
 
 ### Speed is strength
 - Incremental updates alone (2.6): **+102**. Faster network code was

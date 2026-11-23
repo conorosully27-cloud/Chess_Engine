@@ -11,6 +11,23 @@ near/far-miss reductions, network correction history (`CORR_NET_RATE`),
 TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
 Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
 
+## Extra hidden layers (`--layers 16,32`) on a 256-unit CPU net, Nov 22 2026
+
+**Change:** after the hidden units, 16 clipped units, then 32, then the
+output, one set per output bucket (network file version 4, engine code
+in `src/nnue.cpp`, kept). 256 units, 10.4M positions, v15b recipe, 4
+epochs, epoch 3's net, rescaled to the opponent's scale.
+
+**Result:** **-38 +/- 22 over 420 games** against the same recipe with
+one output layer (+84 -130 =206, LOS 0.03%; 8+0.08, 4 at a time, cloud;
+stopped early).
+
+**Prior:** 6/10 (validation 3.3-4.0% better, the biggest gain seen on CPU).
+
+**Commentary:** about 0.75x the node rate; and better validation did not
+turn into better play. Details in `NETWORK.md` section 3. Worth one
+retry only at full size with `--pairwise` and a 7.2-like (sparse) net.
+
 ## 7.2 without its endgame scaling (`MAT_SCALE_BASE` 0), Nov 22 2026
 
 **Change:** none in the code: 7.2 (the tuning build, bench 1224793) with
