@@ -122,6 +122,12 @@ TUNE_PARAM(SINGULAR_MARGIN, 12, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Cut-node negative extension: when the singular test fails at a cut
+// node and the table's score is below beta (the case the negative
+// extension above leaves alone), the hash move is searched CUT_NEG_EXT
+// plies shallower: other moves are as good, and a refutation is expected
+// here anyway. 0 = off.
+TUNE_PARAM(CUT_NEG_EXT, 1, 0, 2);
 // Check extension: a ply more in check, while the remaining depth is below
 // CHECK_EXT_DEPTH (6.1: always, i.e. MAX_PLY).
 TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
@@ -723,6 +729,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         return singular_beta;
       } else if (tt_score >= beta) {
         extension = -1;  // other moves come close and this one is expected to cut: less effort here
+      } else if (cut_node) {
+        extension = -CUT_NEG_EXT;  // not singular, and a refutation is expected here anyway
       }
     }
     const int new_depth = depth - 1 + extension;

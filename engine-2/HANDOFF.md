@@ -475,6 +475,10 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Cut-node negative extension** (`CUT_NEG_EXT` 1, 0 = off; on 7.3,
+  bench 1290299 -> 1319906): when the singular test fails at a cut node
+  and the table's score is below beta, the hash move is searched a ply
+  shallower. Testing vs 7.3 at 40+0.4 (`~/matches/cutneg-73.log`).
 - **Pawn history, ordering only** (`PAWN_HIST` 1, commit `d4f5f9e`):
   **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games. v2
   (`PAWN_HIST_LMR` 1: also in the LMR history; `PAWN_HIST_GRAVITY` 8000)
