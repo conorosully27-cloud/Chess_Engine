@@ -5,6 +5,31 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.3: king buckets, trained longer
+
+7.2's code (the v15 trainer and engine work: king input buckets, fine output
+weights, refresh cache) with the owner's run v15 network (`--hidden 1024
+--wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --ema 0.25
+--fine-output --king-buckets 4 --factorize --bucket-decay 1 --loss-power
+2.5`, 661.8M positions): 7.2's net plus 4 king buckets (factorised, pulled
+toward the shared weights), the learning rate falling 100x, a moving average
+of the weights, power-2.5 loss and fine output weights. The net came out
+colder than 7.2's, so net-20 was re-exported on 7.2's scale
+(`export.py --fine-output --scale 1.061`). Built in as
+`nets/engine-7.3.nnue` (network file version 3). Bench **1290299**
+(7.2: 1224793).
+
+**Against 7.2** (owner's laptop, 8moves_v3, 40+0.4, SPRT 0 / 5): **H1
+after 1,112 games**, +179 -124 =809, **+17.2 +/- 9.8**, LOS 99.97%, LLR
+2.94, pentanomial [3, 83, 336, 124, 10], no time losses. The first 198
+games at 3 games at a time (+28), the rest at 12 (about +14).
+
+The same run's earlier nets, each on 7.2's scale: epoch 5 -33 +/- 22
+(8+0.08, H0, 388 games); epoch 10 +6 +/- 12 (8+0.08, 1,260 games) and
+-4 +/- 18 (40+0.4, 360 games); epoch 15 -2 +/- 17 (40+0.4, 420 games),
+all stopped when the next net was ready. Most of the gain came in the last
+five epochs, at the lowest learning rate.
+
 ## 7.2: output buckets
 
 7.1.1's code with the owner's run v13 network (`--hidden 1024 --wdl 0.4

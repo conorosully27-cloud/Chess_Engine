@@ -176,7 +176,20 @@ positions) lost to 7.2.
   at the +/-127 limit SCReLU's 16-bit multiply needs; other buckets 0-7.
   Mildly limiting in bare endgames only.
 
-**Current best: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
+**Current best: ChessMcEngineFace 7.3** (Nov 23; branch
+`claude/sweet-ptolemy-sp040f`, PR to `main` pending) = 7.2's code with the
+owner's run v15 network (v15b recipe plus `--loss-power 2.5`: 4 king
+buckets, factorised, `--bucket-decay 1`, `--lr-end 0.01`, `--ema 0.25`,
+fine output; command in `CHANGELOG.md`), net-20 re-exported on 7.2's scale
+(`--scale 1.061`) as `nets/engine-7.3.nnue`: **+17.2 +/- 9.8 over 7.2 at
+40+0.4, H1 (0 / 5) after 1,112 games**, LOS 99.97%, on the owner's laptop
+(mostly 12 games at a time). Bench **1290299**. Baseline for SPRTs: build
+it, copy to `~/matches/engine2-7.3`. The match files (every epoch's net,
+checkpoints for epochs 5-20, logs) are in `~/matches/v15` on the laptop.
+Next: the owner plans to retune the search margins (the v15 nets come out
+5-10% colder than 7.2's; 7.3 is scaled to 7.2 until then), then v16.
+
+**Before 7.3: ChessMcEngineFace 7.2** (Nov 19; on `main`) = 7.1.1 with
 the owner's v13 network (SCReLU + 8 output buckets; `nets/engine-7.2.nnue`):
 +27 +/- 17 over 7.1.1 at 8+0.08 (H1), +8 +/- 8 at 40+0.4 (1,500 games,
 LOS 96.6%, stopped by the owner and released on both). Bench **1224793**.
