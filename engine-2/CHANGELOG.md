@@ -19,10 +19,17 @@ colder than 7.2's, so net-20 was re-exported on 7.2's scale
 `nets/engine-7.3.nnue` (network file version 3). Bench **1290299**
 (7.2: 1224793).
 
-**Against 7.2** (owner's laptop, 8moves_v3, 40+0.4, SPRT 0 / 5): **H1
-after 1,112 games**, +179 -124 =809, **+17.2 +/- 9.8**, LOS 99.97%, LLR
-2.94, pentanomial [3, 83, 336, 124, 10], no time losses. The first 198
-games at 3 games at a time (+28), the rest at 12 (about +14).
+**Against 7.2** (owner's laptop, 8moves_v3; 7.2 = this build with
+`EvalFile` 7.2's net, bench 1224793):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 40+0.4 | 1,112 | +179 -124 =809 | **+17.2 +/- 9.8** | 99.97% | 2.94, H1 (0/5) |
+| 8+0.08 | 354 | +80 -40 =234 | **+39.4 +/- 20.6** | 99.99% | 2.96, H1 (0/10) |
+
+Pentanomial [3, 83, 336, 124, 10] and [2, 27, 84, 57, 7]; no time
+losses. 40+0.4: the first 198 games at 3 games at a time (+28), the rest
+at 12 (about +14). 8+0.08: 10 at a time, 13 minutes.
 
 The same run's earlier nets, each on 7.2's scale: epoch 5 -33 +/- 22
 (8+0.08, H0, 388 games); epoch 10 +6 +/- 12 (8+0.08, 1,260 games) and

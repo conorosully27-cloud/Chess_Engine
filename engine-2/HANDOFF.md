@@ -189,7 +189,8 @@ buckets, factorised, `--bucket-decay 1`, `--lr-end 0.01`, `--ema 0.25`,
 fine output; command in `CHANGELOG.md`), net-20 re-exported on 7.2's scale
 (`--scale 1.061`) as `nets/engine-7.3.nnue`: **+17.2 +/- 9.8 over 7.2 at
 40+0.4, H1 (0 / 5) after 1,112 games**, LOS 99.97%, on the owner's laptop
-(mostly 12 games at a time). Bench **1290299**. Baseline for SPRTs: build
+(mostly 12 games at a time), and **+39.4 +/- 20.6 at 8+0.08, H1 (0 / 10)
+after 354 games** (10 at a time). Bench **1290299**. Baseline for SPRTs: build
 it, copy to `~/matches/engine2-7.3`. The match files (every epoch's net,
 checkpoints for epochs 5-20, logs) are in `~/matches/v15` on the laptop.
 Next: the owner plans to retune the search margins (the v15 nets come out
