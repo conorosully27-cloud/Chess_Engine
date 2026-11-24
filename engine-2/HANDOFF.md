@@ -182,8 +182,15 @@ positions) lost to 7.2.
   zones) was kept in place of the 32-row `embedding_bag` path above, which
   only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
 
-**Current best: ChessMcEngineFace 7.3** (Nov 23; branch
-`claude/sweet-ptolemy-sp040f`, PR to `main` pending) = 7.2's code with the
+**Current best: ChessMcEngineFace 7.4** (Nov 24) = 7.3 plus a ply more
+late move reduction for quiet moves when the hash move is a capture or
+promotion (`TT_NOISY_LMR` 1 in `src/search.cpp`): **+9.2 +/- 5.9 over 7.3
+at 40+0.4**, 1,922 games, LLR 3.75 (0 / 5) combined over three runs split
+by container restarts (`~/sprt-73-ttnoisy-ltc*.log`). Bench **1425857**.
+Baseline for SPRTs: build it, copy to `~/engines/engine2-7.4`. An 8+0.08
+check against 7.3 was started after release (`~/sprt-73-ttnoisy-stc-2.log`).
+
+**Before 7.4: ChessMcEngineFace 7.3** (Nov 23) = 7.2's code with the
 owner's run v15 network (v15b recipe plus `--loss-power 2.5`: 4 king
 buckets, factorised, `--bucket-decay 1`, `--lr-end 0.01`, `--ema 0.25`,
 fine output; command in `CHANGELOG.md`), net-20 re-exported on 7.2's scale
