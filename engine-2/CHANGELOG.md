@@ -5,6 +5,25 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.4: quiet moves reduced more after a noisy hash move
+
+7.3 with one more ply of late move reduction for quiet moves when the hash
+move is a capture or promotion (`TT_NOISY_LMR` 1): the position is tactical
+and its best move is a noisy one, so the late quiet moves matter less. Same
+network as 7.3. Bench **1425857** (7.3: 1290299).
+
+**Against 7.3** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LLR (bounds) |
+|---|---|---|---|---|
+| 40+0.4 | 1,922 | +193 -142 =1587 | **+9.2 +/- 5.9** | 3.75 (0/5), passed |
+
+Pentanomial [4, 96, 711, 145, 5]. Played as three runs (780, 62 and 1,080
+games) because the cloud container restarted twice; the Elo and LLR are
+computed over all three together (each run alone was short of the bound).
+86% draws. Not tested at 8+0.08 before release (a check was started
+after).
+
 ## 7.3: king buckets, trained longer
 
 7.2's code (the v15 trainer and engine work: king input buckets, fine output
