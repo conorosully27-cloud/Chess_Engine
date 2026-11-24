@@ -5,6 +5,26 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.5: cut-node negative extension
+
+7.4 with the hash move searched a ply shallower at a cut node when the
+singular test fails and the table's score is below beta (`CUT_NEG_EXT` 1
+in `src/search.cpp`): other moves are about as good, and a refutation is
+expected there anyway. (The existing negative extension only covered the
+case where the table's score beats beta.) Same network as 7.3. Bench
+**1381697** (7.4: 1425857).
+
+**Against 7.4** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LLR (bounds) |
+|---|---|---|---|---|
+| 40+0.4 | 1,962 | +191 -154 =1617 | **+6.6 +/- 5.9** | 2.24 (0/5), still running |
+
+Pentanomial [4, 113, 706, 158, 0]. Released by the owner before the SPRT finished (LOS 98%); the final
+numbers will replace these when it ends (`~/matches/cutneg-74.log`).
+On 7.3 the same change was flat, +0.4 +/- 6.0 over 1,940 games
+(stopped). Not tested at 8+0.08.
+
 ## 7.4: quiet moves reduced more after a noisy hash move
 
 7.3 with one more ply of late move reduction for quiet moves when the hash
