@@ -1558,6 +1558,19 @@ square, per side) -> 128 hidden per side -> 1.
    9101-9504 after container restarts). This machine also holds 2.3's 50M and 2.7's 100M
    (`~/nnue-data/part-*.bin`, `~/nnue-data/v2/`; copies sent to the owner).
 
+14. **Data run 7.4 (from Nov 24, cloud, owner's request; many sessions):
+   ChessMcEngineFace 7.4** (bench 1425857, so 7.3's network), **10,000
+   nodes a move**, keep 4, `8moves_v3` book + 2-5 random plies, 4
+   processes a session. Script: `scripts/nnue/datagen_7.4.sh` (copy to
+   `~/nnue-data/v74/`, set `TAG`, binary at `~/engines/engine2-7.4-datagen`).
+   **Rules so sessions never overlap:** each session uses its own `TAG`
+   (the session branch's suffix) in the file names,
+   `v74_<TAG>_part-1..4.bin`; seeds are `YYYYMMDDHHMM(UTC) * 10 + part`
+   at each start, so a restart or another session never replays games.
+   About **2,350 positions a minute per process (~0.56M an hour on 4
+   cores)**. Cloud data is lost when the container goes: copy it off.
+   Session `i4j4ni` started 12:53 UTC Nov 24, seeds 2026112412531-4.
+
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
 plays and analyses with Engine 2 by default; Engine 1.6 stays selectable
