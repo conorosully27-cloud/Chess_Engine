@@ -485,7 +485,10 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Cut-node negative extension** (`CUT_NEG_EXT` 1, 0 = off; on 7.3,
   bench 1290299 -> 1319906): when the singular test fails at a cut node
   and the table's score is below beta, the hash move is searched a ply
-  shallower. Testing vs 7.3 at 40+0.4 (`~/matches/cutneg-73.log`).
+  shallower. vs 7.3 at 40+0.4: stopped at 1940 games, +178 -176
+  =1586, +0.4 +/- 6.0, LLR -1.12 (led +16 at 280 games;
+  `~/matches/cutneg-73.log`). Retesting on 7.4 (bench 1425857 ->
+  1381697) at 40+0.4 (`~/matches/cutneg-74.log`).
 - **Pawn history, ordering only** (`PAWN_HIST` 1, commit `d4f5f9e`):
   **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games. v2
   (`PAWN_HIST_LMR` 1: also in the LMR history; `PAWN_HIST_GRAVITY` 8000)
