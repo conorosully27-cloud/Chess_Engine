@@ -73,7 +73,7 @@ TUNE_PARAM(TT_NOISY_LMR, 1, 0, 2);
 // kept failing high (more than CUTOFF_CNT_MIN cutoffs one ply down): the
 // moves here are being refuted easily, so later ones are likely refuted too.
 TUNE_PARAM(CUTOFF_LMR, 1, 0, 2);
-TUNE_PARAM(CUTOFF_CNT_MIN, 2, 0, 8);
+TUNE_PARAM(CUTOFF_CNT_MIN, 3, 0, 8);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
