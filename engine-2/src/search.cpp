@@ -69,6 +69,11 @@ TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // or promotion: the position is tactical and its best move is a noisy one,
 // so the late quiets are less likely to matter.
 TUNE_PARAM(TT_NOISY_LMR, 1, 0, 2);
+// Extra late move reduction when the replies to this node's earlier moves
+// kept failing high (more than CUTOFF_CNT_MIN cutoffs one ply down): the
+// moves here are being refuted easily, so later ones are likely refuted too.
+TUNE_PARAM(CUTOFF_LMR, 1, 0, 2);
+TUNE_PARAM(CUTOFF_CNT_MIN, 2, 0, 8);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
@@ -510,6 +515,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     if (alpha >= beta) return alpha;
   }
 
+  cutoff_cnt_[ply + 2] = 0;  // the grandchildren count afresh under this node
+  if (ply == 0) cutoff_cnt_[1] = 0;
   double_exts_[ply + 1] = double_exts_[ply];  // for children reached outside the move loop (null move, ProbCut)
   const bool in_check = pos.in_check();
   if (in_check && depth < CHECK_EXT_DEPTH) depth++;  // look further when in check, near the leaves (Berserk 8)
@@ -735,6 +742,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (pv_node) reduction--;  // less on the main line
         if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
         if (tt_move.is_capture() || tt_move.is_promotion()) reduction += TT_NOISY_LMR;  // the best move here is likely tactical
+        if (cutoff_cnt_[ply + 1] > CUTOFF_CNT_MIN) reduction += CUTOFF_LMR;  // earlier moves were refuted easily
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
         if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
         if (!improving && !pv_node && legal >= IMPROVING_LMR_MOVE) reduction += IMPROVING_LMR;  // getting worse: late quiets matter less
@@ -788,6 +796,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
           root_pv_lower_ = score >= beta;
         }
         if (score >= beta) {
+          cutoff_cnt_[ply]++;
           // History gravity: each update moves an entry toward +/-the
           // limit by a share of the bonus that shrinks as it nears it, so
           // entries saturate smoothly and recent results still count.
