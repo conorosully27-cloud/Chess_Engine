@@ -1570,6 +1570,12 @@ square, per side) -> 128 hidden per side -> 1.
    About **2,350 positions a minute per process (~0.56M an hour on 4
    cores)**. Cloud data is lost when the container goes: copy it off.
    Session `i4j4ni` started 12:53 UTC Nov 24, seeds 2026112412531-4.
+   **Keeping it running:** `TAG=<tag> scripts/nnue/datagen_7.4_ensure.sh
+   --loop` (detached with setsid nohup) is a watchdog: it rebuilds the
+   binary from commit 72942d5 if missing (checks the bench), then every
+   minute restarts any part that stopped, with a fresh seed (log in
+   `~/nnue-data/v74/run.log`). An hourly scheduled check-in into the
+   session runs it again after a container restart.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)
