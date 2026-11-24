@@ -32,6 +32,9 @@ endif()
 add_library(engine2_options INTERFACE)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(engine2_options INTERFACE -Wall -Wextra -Wshadow)
+  # The NNUE's float layers (src/nnue.cpp) must round the same in every
+  # build: no fused multiply-adds where one build has them and another not.
+  target_compile_options(engine2_options INTERFACE -ffp-contract=off)
   if(ENGINE_AVX2)
     target_compile_options(engine2_options INTERFACE -mavx2 -mpopcnt)
   endif()
@@ -59,7 +62,7 @@ if(ENGINE_TUNE)
 endif()
 
 # The NNUE network built into the engine (nets/, see src/nnue.h).
-set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-7.2.nnue CACHE FILEPATH "The network built into the engine")
+set(ENGINE_NET ${CMAKE_CURRENT_SOURCE_DIR}/nets/engine-7.3.nnue CACHE FILEPATH "The network built into the engine")
 set(DEFAULT_NET_CPP ${CMAKE_CURRENT_BINARY_DIR}/default_net.cpp)
 add_custom_command(
   OUTPUT ${DEFAULT_NET_CPP}

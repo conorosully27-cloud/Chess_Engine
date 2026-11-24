@@ -5,6 +5,59 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.4: quiet moves reduced more after a noisy hash move
+
+7.3 with one more ply of late move reduction for quiet moves when the hash
+move is a capture or promotion (`TT_NOISY_LMR` 1): the position is tactical
+and its best move is a noisy one, so the late quiet moves matter less. Same
+network as 7.3. Bench **1425857** (7.3: 1290299).
+
+**Against 7.3** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LLR (bounds) |
+|---|---|---|---|---|
+| 40+0.4 | 1,922 | +193 -142 =1587 | **+9.2 +/- 5.9** | 3.75 (0/5), passed |
+
+Pentanomial [4, 96, 711, 145, 5]. Played as three runs (780, 62 and 1,080
+games) because the cloud container restarted twice; the Elo and LLR are
+computed over all three together (each run alone was short of the bound).
+86% draws. Not tested at 8+0.08 before release (a check was started
+after).
+
+## 7.3: king buckets, trained longer
+
+7.2's code (the v15 trainer and engine work: king input buckets, fine output
+weights, refresh cache) with the owner's run v15 network (`--hidden 1024
+--wdl 0.4 --epochs 20 --screlu --output-buckets 8 --lr-end 0.01 --ema 0.25
+--fine-output --king-buckets 4 --factorize --bucket-decay 1 --loss-power
+2.5`, 661.8M positions): 7.2's net plus 4 king buckets (factorised, pulled
+toward the shared weights), the learning rate falling 100x, a moving average
+of the weights, power-2.5 loss and fine output weights. The net came out
+colder than 7.2's, so net-20 was re-exported on 7.2's scale
+(`export.py --fine-output --scale 1.061`). Built in as
+`nets/engine-7.3.nnue` (network file version 3). Bench **1290299**
+(7.2: 1224793).
+
+**Against 7.2** (owner's laptop, 8moves_v3; 7.2 = this build with
+`EvalFile` 7.2's net, bench 1224793):
+
+| time control | games | result | Elo | LOS | LLR (bounds) |
+|---|---|---|---|---|---|
+| 40+0.4 | 1,112 | +179 -124 =809 | **+17.2 +/- 9.8** | 99.97% | 2.94, H1 (0/5) |
+| 8+0.08 | 354 | +80 -40 =234 | **+39.4 +/- 20.6** | 99.99% | 2.96, H1 (0/10) |
+
+Pentanomial [3, 83, 336, 124, 10] and [2, 27, 84, 57, 7]; no time
+losses. 40+0.4: the first 198 games at 3 games at a time (+28), the rest
+at 12 (about +14). 8+0.08: 10 at a time, 13 minutes.
+
+The same run's earlier nets, each on 7.2's scale: epoch 5 -33 +/- 22
+(8+0.08, H0, 388 games); epoch 10 +6 +/- 12 (8+0.08, 1,260 games) and
+-4 +/- 18 (40+0.4, 360 games); epoch 15 -2 +/- 17 (40+0.4, 420 games),
+all stopped when the next net was ready. Most of the gain came in the last
+five epochs, at the lowest learning rate. For comparison, the withdrawn
+7.2.1 (v14b, king buckets without the factoriser, epoch 10) was +3 +/- 8
+over 7.2 at 40+0.4.
+
 ## 7.2.1: king buckets (withdrawn Nov 23)
 
 Withdrawn by the owner: main is back on 7.2's network and name, waiting

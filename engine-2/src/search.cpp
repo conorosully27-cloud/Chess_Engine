@@ -65,6 +65,10 @@ TUNE_PARAM(LMR_HISTORY, 5319, 500, 12000);
 // Extra late move reduction at cut nodes (null-window nodes expected to
 // fail high).
 TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
+// Extra late move reduction for quiet moves when the hash move is a capture
+// or promotion: the position is tactical and its best move is a noisy one,
+// so the late quiets are less likely to matter.
+TUNE_PARAM(TT_NOISY_LMR, 1, 0, 2);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
@@ -730,6 +734,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         reduction = LMR[std::min(depth, 63)][std::min(legal, 63)];
         if (pv_node) reduction--;  // less on the main line
         if (cut_node) reduction += CUT_NODE_LMR;  // a refutation is expected: the late moves matter less
+        if (tt_move.is_capture() || tt_move.is_promotion()) reduction += TT_NOISY_LMR;  // the best move here is likely tactical
         if (move == killer1 || move == killer2) reduction--;  // less for moves that refuted others
         if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
         if (!improving && !pv_node && legal >= IMPROVING_LMR_MOVE) reduction += IMPROVING_LMR;  // getting worse: late quiets matter less

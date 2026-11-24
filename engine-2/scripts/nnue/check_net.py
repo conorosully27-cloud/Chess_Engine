@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 import data
-from train import NNUE, SCALE, decode, features, upgrade_state
+from train import NNUE, SCALE, decode, features, net_state
 
 
 def main():
@@ -26,10 +26,12 @@ def main():
     records = records[np.sort(idx)]
 
     saved = torch.load(checkpoint, map_location="cpu")
-    state = upgrade_state(saved)
+    state = net_state(saved)
     # Hidden units, activation, output layers and king buckets, from the checkpoint.
-    king_buckets = state["ft.weight"].shape[0] // 768
-    model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets)
+    factorize = saved.get("factorize", False)
+    king_buckets = saved.get("king_buckets", state["ft.weight"].shape[0] // 768)
+    model = NNUE(state["ft.weight"].shape[1], saved.get("screlu", False), state["out.weight"].shape[0], king_buckets,
+                 factorize, saved.get("layers"), saved.get("pairwise", False))
     model.load_state_dict(state)
     model.eval()
     pieces, stm, _, _ = decode(records)
@@ -46,7 +48,10 @@ def main():
           f"99th percentile {np.percentile(diff, 99):.1f} cp; eval spread (std) {float_eval.std():.0f} cp")
     worst = int(np.argmax(diff))
     print(f"largest gap: {data.fen(records[worst])}: engine {engine_eval[worst]:.0f}, trainer {float_eval[worst]:.1f}")
-    return 0 if diff.mean() <= 5 and diff.max() <= 25 else 1
+    # Extra layers pass the first layer's rounding on through two more
+    # layers: about 5.5 cp on average, up to ~50 (simulated on a CPU net).
+    mean_ok, max_ok = (8, 80) if model.layers else (5, 25)
+    return 0 if diff.mean() <= mean_ok and diff.max() <= max_ok else 1
 
 
 if __name__ == "__main__":

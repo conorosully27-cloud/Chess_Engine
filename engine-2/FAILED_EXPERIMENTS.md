@@ -11,6 +11,76 @@ near/far-miss reductions, network correction history (`CORR_NET_RATE`),
 TT eval refinement (`TT_EVAL_REFINE`) and volatility history (`VOL_*`).
 Each entry's commit still has it; 7.1 (`776b476`) has all of them, off.
 
+## Extra hidden layers (`--layers 16,32`) on a 256-unit CPU net, Nov 22 2026
+
+**Change:** after the hidden units, 16 clipped units, then 32, then the
+output, one set per output bucket (network file version 4, engine code
+in `src/nnue.cpp`, kept). 256 units, 10.4M positions, v15b recipe, 4
+epochs, epoch 3's net, rescaled to the opponent's scale.
+
+**Result:** **-38 +/- 22 over 420 games** against the same recipe with
+one output layer (+84 -130 =206, LOS 0.03%; 8+0.08, 4 at a time, cloud;
+stopped early).
+
+**Prior:** 6/10 (validation 3.3-4.0% better, the biggest gain seen on CPU).
+
+**Commentary:** about 0.75x the node rate; and better validation did not
+turn into better play. Details in `NETWORK.md` section 3. Worth one
+retry only at full size with `--pairwise` and a 7.2-like (sparse) net.
+
+## 7.2 without its endgame scaling (`MAT_SCALE_BASE` 0), Nov 22 2026
+
+**Change:** none in the code: 7.2 (the tuning build, bench 1224793) with
+`setoption name MAT_SCALE_BASE value 0` against the same build with the
+default 120. That switches off the material scaling of the network's
+score below 40 units of material (the fifty-move scaling stays).
+
+**Why:** the scaling was tuned on 5.3's single-output net. 7.2's 8 output
+buckets are chosen by piece count, and `diagnose.py` shows each bucket's
+predicted results within about 1% of the real ones, so the buckets might
+already know that thin endgames are drawish, and the scaling would then
+count it twice.
+
+**Result:** **H0 after 1,272 games, -12.0 +/- 9.7**, +161 -205 =906,
+LOS 0.8%, pentanomial [18, 128, 376, 108, 6], LLR -2.97 [0, 5]
+(cloud, 8+0.08, 4 at a time, `scripts/match.sh`).
+
+**Prior:** 4/10.
+
+**Commentary:** the scaling still earns its keep with output buckets,
+about as much as it did when it went in (5.3). The net predicts the
+results of thin endgames well on average, yet shrinking its scores there
+helps the search: a calibrated average is not the same as the search
+preferring the right endgames. Keep it for v15; retune it (SPSA) with a
+new net only as part of a normal tune.
+
+## Training run v14: 4 king input buckets, mirrored, vs 7.2 (Nov 2026)
+
+**Change:** v13 (7.2's run) plus `train.py --king-buckets 4`. Each side's
+768 inputs come in 4 sets, chosen by its own king's zone, with the board
+mirrored left-right when that king is on files e-h. Same 660M positions
+and 20 epochs. The engine code (network file version 3, per-side
+accumulators, refresh cache) is from branch `claude/king-buckets`
+(`cf09573`, `bb883d2`), now merged into `claude/sweet-ptolemy-sp040f`.
+Epochs 6-20 ran on the faster trainer (same losses as the old one).
+
+**Result:** lost to 7.2 (owner, Nov 21). The SPRT numbers and the
+per-epoch validation losses next to v13's are not recorded here yet.
+
+**Prior:** 7/10 (other engines report +20 to +50).
+
+**Commentary** (full post-mortem in `NETWORK.md` section 4):
+- **No bugs found** in the trainer, the engine, or the pause and resume.
+- **Too little data per bucket.** In 660M positions the median
+  first-layer row sees 1.9M examples instead of 8.3M, and the buckets are
+  tied to game phase.
+- **On CPU tests the same design was 4.2% worse** in validation loss than
+  no buckets at 2.5M positions, and 2.5% worse at 10.4M.
+- About 5% fewer nodes/s.
+- **The fix, now in `train.py`:** `--factorize` (shared weights every
+  bucket adds to) with `--bucket-decay 1`. It was 0.97% *better* than no
+  buckets at 10.4M positions; that is the v15b recipe.
+
 ## Singular memo retried at 40+0.4, on 7.2 (Nov 2026)
 
 **Change** (commit b2aaed9, reverted in f5fd0e1): the singular memo from
