@@ -27,11 +27,13 @@ check() {
     pgrep -f "^$BIN datagen $F " >/dev/null && continue
     SEED=$(( $(date -u +%Y%m%d%H%M) * 1000 + SESSION * 10 + i ))
     echo "$(date -u) start part $i, seed $SEED" >> "$DIR/run.log"
-    (cd "$DIR" && setsid nohup "$BIN" datagen "$F" 1000000000 10000 "$SEED" "$BOOK" 4 >> part-$i.log 2>&1 < /dev/null &)
+    (cd "$DIR" && setsid -f "$BIN" datagen "$F" 1000000000 10000 "$SEED" "$BOOK" 4 >> part-$i.log 2>&1 < /dev/null 9>&-)
   done
 }
+# One watchdog at a time: a running --loop holds the lock (a one-off run then leaves the work to it).
+exec 9> "$DIR/watchdog.lock"
+flock -n 9 || exit 0
 check
 if [ "$1" = "--loop" ]; then
-  pgrep -f "datagen_7.4_ensure.sh --loop" | grep -vq "^$$\$" && exit 0   # one watchdog only
   while true; do sleep 60; check; done
 fi
