@@ -1558,24 +1558,25 @@ square, per side) -> 128 hidden per side -> 1.
    9101-9504 after container restarts). This machine also holds 2.3's 50M and 2.7's 100M
    (`~/nnue-data/part-*.bin`, `~/nnue-data/v2/`; copies sent to the owner).
 
-14. **Data run 7.4 (from Nov 24, cloud, owner's request; many sessions):
-   ChessMcEngineFace 7.4** (bench 1425857, so 7.3's network), **10,000
-   nodes a move**, keep 4, `8moves_v3` book + 2-5 random plies, 4
-   processes a session. Script: `scripts/nnue/datagen_7.4.sh` (copy to
-   `~/nnue-data/v74/`, set `TAG`, binary at `~/engines/engine2-7.4-datagen`).
-   **Rules so sessions never overlap:** each session uses its own `TAG`
-   (the session branch's suffix) in the file names,
-   `v74_<TAG>_part-1..4.bin`; seeds are `YYYYMMDDHHMM(UTC) * 10 + part`
-   at each start, so a restart or another session never replays games.
-   About **2,350 positions a minute per process (~0.56M an hour on 4
-   cores)**. Cloud data is lost when the container goes: copy it off.
-   Session `i4j4ni` started 12:53 UTC Nov 24, seeds 2026112412531-4.
-   **Keeping it running:** `TAG=<tag> scripts/nnue/datagen_7.4_ensure.sh
-   --loop` (detached with setsid nohup) is a watchdog: it rebuilds the
-   binary from commit 72942d5 if missing (checks the bench), then every
-   minute restarts any part that stopped, with a fresh seed (log in
-   `~/nnue-data/v74/run.log`). An hourly scheduled check-in into the
-   session runs it again after a container restart.
+14. **Data run 7.4 (from Nov 24, cloud, owner's request; several sessions
+   at once): ChessMcEngineFace 7.4** (bench 1425857, so 7.3's network),
+   **10,000 nodes a move**, keep 4, `8moves_v3` book + 2-5 random plies,
+   4 processes a session, about **2,350 positions a minute per process
+   (~0.56M an hour per session)**.
+   - **Script:** `TAG=<tag> SESSION=<n> scripts/nnue/datagen_7.4_ensure.sh
+     --loop`, detached with setsid nohup. It rebuilds
+     `~/engines/engine2-7.4-datagen` from commit 72942d5 if missing
+     (checks the bench), then every minute starts any of the 4 parts that
+     is not running, appending to `~/nnue-data/v74/v74_<TAG>_part-1..4.bin`
+     (log `~/nnue-data/v74/run.log`).
+   - **No overlaps:** each session has its own `SESSION` number and `TAG`;
+     seeds are `YYYYMMDDHHMM(UTC) * 1000 + SESSION * 10 + part` at each
+     start, so restarts and other sessions never replay games.
+   - **Sessions:** 1 = `i4j4ni` (branch `claude/dazzling-goldberg-i4j4ni`,
+     started 12:53 UTC Nov 24, first seeds 2026112412531-4 under the
+     older `*10 + part` rule); 2-4 = tags `s2`, `s3`, `s4`.
+   - Each session has an hourly scheduled check-in that restarts the
+     watchdog after a container restart.
 
 **Side project, owner's request (Oct 2026): Engine 2 in the phone app.**
 **Done (WebAssembly):** the app (`engine-1/index.html`, `engine-1/app/`)

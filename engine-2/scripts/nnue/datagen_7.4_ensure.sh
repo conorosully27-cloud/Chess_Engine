@@ -1,9 +1,10 @@
 #!/bin/bash
 # Keeps data run 7.4 going: rebuilds the 7.4 datagen binary if it is missing (checks bench 1425857),
 # then starts any of the 4 parts that is not running, each with a fresh seed
-# (YYYYMMDDHHMM(UTC) * 10 + part). Safe to run at any time; with --loop it checks every minute.
-# Usage: TAG=<session tag> datagen_7.4_ensure.sh [--loop]
+# (YYYYMMDDHHMM(UTC) * 1000 + SESSION * 10 + part, so sessions started in the same minute differ).
+# Usage: TAG=<file tag> SESSION=<1-99, unique per datagen session> datagen_7.4_ensure.sh [--loop]
 TAG=${TAG:?set TAG to a short name for this session}
+SESSION=${SESSION:?set SESSION to this datagen session number}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 BIN=~/engines/engine2-7.4-datagen
 DIR=~/nnue-data/v74
@@ -24,7 +25,7 @@ check() {
   for i in 1 2 3 4; do
     F=v74_${TAG}_part-$i.bin
     pgrep -f "^$BIN datagen $F " >/dev/null && continue
-    SEED=$(( $(date -u +%Y%m%d%H%M) * 10 + i ))
+    SEED=$(( $(date -u +%Y%m%d%H%M) * 1000 + SESSION * 10 + i ))
     echo "$(date -u) start part $i, seed $SEED" >> "$DIR/run.log"
     (cd "$DIR" && setsid nohup "$BIN" datagen "$F" 1000000000 10000 "$SEED" "$BOOK" 4 >> part-$i.log 2>&1 < /dev/null &)
   done
