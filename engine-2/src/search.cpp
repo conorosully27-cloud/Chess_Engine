@@ -99,6 +99,16 @@ TUNE_PARAM(HIST_BONUS_SUB, 29, 0, 600);
 TUNE_PARAM(HIST_BONUS_MAX, 2461, 300, 4000);
 TUNE_PARAM(HIST_GRAVITY, 12573, 4000, 30000);
 TUNE_PARAM(CONT_HIST_GRAVITY, 14859, 4000, 30000);
+// Pawn history: a third continuation-style table for quiet moves, indexed
+// by the pawn structure (as Stockfish's pawnHistory), so a plan that works
+// with these pawns is tried early in other positions with them. Used in
+// move ordering only. 0 = off.
+TUNE_PARAM(PAWN_HIST, 0, 0, 1);
+// Pawn history v2: also counted in the history that scales late move
+// reductions (1 = on), and held to its own lower gravity, as its entries
+// are updated far more often than a continuation entry.
+TUNE_PARAM(PAWN_HIST_LMR, 0, 0, 1);
+TUNE_PARAM(PAWN_HIST_GRAVITY, 8000, 2000, 30000);
 // Capture history (src/movepick.h): the same bonus, gravity toward
 // +/-CAPT_HIST_GRAVITY.
 TUNE_PARAM(CAPT_HIST_GRAVITY, 26137, 4000, 30000);
@@ -116,6 +126,12 @@ TUNE_PARAM(SINGULAR_MARGIN, 12, 5, 80);
 // the hash move is searched a ply shallower.
 TUNE_PARAM(DOUBLE_EXT_MARGIN, 20, 0, 100);
 TUNE_PARAM(DOUBLE_EXT_MAX, 6, 0, 20);
+// Cut-node negative extension: when the singular test fails at a cut
+// node and the table's score is below beta (the case the negative
+// extension above leaves alone), the hash move is searched CUT_NEG_EXT
+// plies shallower: other moves are as good, and a refutation is expected
+// here anyway. 0 = off.
+TUNE_PARAM(CUT_NEG_EXT, 1, 0, 2);
 // Check extension: a ply more in check, while the remaining depth is below
 // CHECK_EXT_DEPTH (6.1: always, i.e. MAX_PLY).
 TUNE_PARAM(CHECK_EXT_DEPTH, 7, 1, 128);
@@ -338,6 +354,7 @@ void SearchWorker::new_game() {
   std::fill(&history_[0][0], &history_[0][0] + PIECE_NB * 64, 0);
   std::fill(&capt_history_[0][0][0], &capt_history_[0][0][0] + PIECE_NB * 64 * 6, std::int16_t(0));
   std::fill(cont_history_.begin(), cont_history_.end(), std::int16_t(0));
+  std::fill(pawn_history_.begin(), pawn_history_.end(), std::int16_t(0));
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
@@ -384,6 +401,7 @@ SearchResult SearchWorker::search(Position& pos, const SearchLimits& limits, con
   for (auto& row : history_)
     for (int& h : row) h >>= HIST_DECAY_SHIFT;  // as Engine 1.6: an arithmetic shift, rounding down
   for (std::int16_t& h : cont_history_) h = std::int16_t(h >> HIST_DECAY_SHIFT);
+  for (std::int16_t& h : pawn_history_) h = std::int16_t(h >> HIST_DECAY_SHIFT);
   for (auto& by_piece : capt_history_)
     for (auto& by_to : by_piece)
       for (std::int16_t& h : by_to) h = std::int16_t(h >> HIST_DECAY_SHIFT);
@@ -649,7 +667,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   const Move killer1 = killers_[ply][0], killer2 = killers_[ply][1];
   std::int16_t* const cont1 = cont_row(ply, 1);
   std::int16_t* const cont2 = cont_row(ply, 2);
-  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2, &capt_history_);
+  std::int16_t* const pawn_row =
+      PAWN_HIST ? &pawn_history_[(pos.pawn_key() & (PAWN_HIST_SIZE - 1)) * CONT_INDEX] : nullptr;
+  MovePicker picker(pos, excluding ? Move() : tt_move, killer1, killer2, history_, cont1, cont2, &capt_history_,
+                    pawn_row);
   const int alpha_at_start = alpha;
   int best_score = -INF;
   Move best_move;
@@ -712,6 +733,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         return singular_beta;
       } else if (tt_score >= beta) {
         extension = -1;  // other moves come close and this one is expected to cut: less effort here
+      } else if (cut_node) {
+        extension = -CUT_NEG_EXT;  // not singular, and a refutation is expected here anyway
       }
     }
     const int new_depth = depth - 1 + extension;
@@ -739,7 +762,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (move.from() == threat_sq) reduction -= THREAT_LMR;  // the piece the opponent threatens
         if (!improving && !pv_node && legal >= IMPROVING_LMR_MOVE) reduction += IMPROVING_LMR;  // getting worse: late quiets matter less
         const int index = piece * 64 + move.to();
-        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0);
+        const int history = history_[piece][move.to()] + (cont1 ? cont1[index] : 0) + (cont2 ? cont2[index] : 0) +
+                            (PAWN_HIST_LMR && pawn_row ? pawn_row[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
         reduction = std::clamp(reduction, 0, depth - 2);
       } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
@@ -812,12 +836,14 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
             h = gravity(h, bonus, HIST_GRAVITY);
             cont_add(cont1, piece * 64 + move.to(), bonus);
             cont_add(cont2, piece * 64 + move.to(), bonus);
+            if (pawn_row) pawn_row[piece * 64 + move.to()] = std::int16_t(gravity(pawn_row[piece * 64 + move.to()], bonus, PAWN_HIST_GRAVITY));
             // The quiet moves tried before it failed here: count against them.
             for (int q = 0; q < quiets_count; q++) {
               int& hq = history_[quiets_searched[q] / 64][quiets_searched[q] % 64];
               hq = gravity(hq, -bonus, HIST_GRAVITY);
               cont_add(cont1, quiets_searched[q], -bonus);
               cont_add(cont2, quiets_searched[q], -bonus);
+              if (pawn_row) pawn_row[quiets_searched[q]] = std::int16_t(gravity(pawn_row[quiets_searched[q]], -bonus, PAWN_HIST_GRAVITY));
             }
           }
           break;

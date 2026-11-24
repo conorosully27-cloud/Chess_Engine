@@ -5,6 +5,214 @@ code can be recovered), the results, how promising it looked beforehand
 (out of 10), and why it failed. Newest at the top. Engine 1's are in
 `../engine-1/FAILED_EXPERIMENTS.md`.
 
+**Code of the newest five (Nov 2026) is not in 7.2's source** (merged as
+7.2 on `claude/clever-hamilton-9d52iy`): early table evaluations
+(`529b53f`), hindsight depth (`44e47e3`), fail-high softening
+(`122591c`), was-PV reductions (`ebcc4b0`) and cutoff-count reductions
+(`21faed9`) each have their switched-off code at that commit.
+
+## Pawn history v3 (ordering only, own gravity), on 7.2 (Nov 2026)
+
+**Change** (`PAWN_HIST` 1, `PAWN_HIST_LMR` 0, `PAWN_HIST_GRAVITY` 8000
+in `search.cpp`; committed with `PAWN_HIST` 0, so the code is in the
+tree): pawn history in quiet move ordering only, as v1, but its updates
+held to their own gravity (8000) instead of the continuation tables'
+14859. Bench 1325409.
+
+**Result:** vs 7.2 (cloud, 4 at a time):
+- **40+0.4, SPRT [0, 5]: 4606 games**, +436 -435 =3735, **+0.1 +/- 4.0**,
+  pentanomial [10, 319, 1645, 318, 11], **H0 accepted**. It led +7 at
+  400-900 games and +4.6 at 1700, then faded to zero
+  (`~/matches/pawnhist3-72.log`).
+- **8+0.08, SPRT [0, 5]: 3182 games**, +409 -405 =2368, **+0.4 +/- 5.7**,
+  LLR -1.22, stopped (`~/matches/pawnhist3-72-8.log`).
+- **40+0.4, non-regression SPRT [-3, 1]: 800 games**, +64 -77 =659,
+  -5.7 +/- 9.4, LLR -0.81; stopped by the owner, who turned it off
+  (`~/matches/pawnhist3-72-nonreg.log`).
+
+**Prior:** 6/10.
+
+**Why it failed (likely):** neutral, not harmful. Three forms of pawn
+history (v1-v3) all came out between -1 and +2 except v2's LMR use
+(-20). With two continuation histories and killers, this engine's quiet
+ordering seems to have little left for a pawn-structure table to add. A
+lesson in reading early leads: +7 over 900 games was noise.
+
+## Pawn history v2 (also in LMR, own gravity), on 7.2 (Nov 2026)
+
+**Change** (`PAWN_HIST_LMR` 1 and `PAWN_HIST_GRAVITY` 8000 in
+`search.cpp`, on top of `PAWN_HIST` 1; commit `ff9f111`): the pawn
+history entry is also added to the history sum that scales late move
+reductions (not history pruning), and its updates use their own gravity
+(8000 instead of the continuation tables' 14859). Bench 1254250.
+
+**Result:** vs 7.2 at 40+0.4 (cloud, 4 at a time, SPRT 0 / 5): **240
+games**, +22 -36 =182, **-20 +/- 19**, LLR -1.10; stopped by the owner
+(`~/matches/pawnhist2-72.log`). The gravity-only version
+(`PAWN_HIST_LMR` 0) is tested next (`~/matches/pawnhist3-72.log`).
+
+**Prior:** 6/10.
+
+**Why it failed (likely):** a fourth table in the LMR sum moves
+reductions too far (the divisor `LMR_HISTORY` was tuned for three); if
+retried, scale it down (e.g. half weight) or retune `LMR_HISTORY`.
+
+## Pawn history (ordering only), on 7.2 (Nov 2026)
+
+**Change** (`PAWN_HIST` 1 in `search.cpp`; commit `d4f5f9e`, committed
+off): a quiet-move history indexed by the pawn structure (1024 slots of
+the pawn key x piece * 64 + to), updated with the same bonus / malus and
+gravity as continuation history, added to quiet move ordering only (not
+LMR or pruning). Bench 1224793 -> 1410490.
+
+**Result:** vs 7.2 at 40+0.4 (cloud, 4 at a time, SPRT 0 / 5): **362
+games**, +36 -37 =289, **-1 +/- 15**, LLR -0.28. Stopped flat to test a
+fuller version (below/above: pawn history v2, also in LMR with its own
+gravity) (`~/matches/pawnhist-72.log`).
+
+**Prior:** 6/10 (standard in strong engines).
+
+**Why it failed (likely):** ordering alone adds little once killers and
+two continuation histories order the quiets; the payoff in other engines
+comes mostly from its use in reductions and pruning.
+
+## Early table evaluations without the eval cache, on the 7.1 candidate (Nov 2026)
+
+**Change** (`TT_EVAL_EARLY` 1 in `search.cpp`, `EVAL_CACHE` 0 in
+`evaluate.cpp`; the old behaviour is 0 / 1; commit `529b53f`; idea from
+another session): the static evaluation was kept twice (the table and a
+64K-entry per-thread eval cache) and reached the table only with the
+node's result, so nodes that returned early (reverse futility, null
+move, stand pat) never stored it. Now it is written to the table as soon
+as it is computed, in the main search and quiescence: over the same
+position, an empty slot or a quiescence entry (depth 0 or less), never
+over a deeper entry; and read back whenever the key matches, whatever
+the bound (quiescence now reads it too). The eval cache is switched off.
+On the 7.1 candidate (SCReLU net): bench 1382932 -> 1502285; speed the
+same within noise.
+
+**Result:** vs the 7.1 candidate (cloud, 4 at a time, SPRT 0 / 5),
+stopped by the owner at both time controls:
+- **8+0.08: 1118 games**, +121 -149 =848 (48.75%), **-9 +/- 9**,
+  pentanomial [4, 118, 342, 92, 3], LLR -2.42, close to H0
+  (`~/matches/tteval-71-8.log`).
+- **40+0.4: 680 games**, +55 -62 =563 (49.5%), **-4 +/- 10**,
+  pentanomial [1, 48, 249, 41, 1], LLR -1.19; it led by +10 at 200-280
+  games and faded (`~/matches/tteval-71-40.log`).
+
+**Prior:** 5/10 (a tidy-up; expected neutral, possibly faster).
+
+**Why it failed (likely):** the evaluation-only entries take the slots
+of quiescence results the table could have cut off with (9% more nodes
+in bench), and without the eval cache an evaluation lost from the table
+must be computed again. **Untried:** the gentler half, early evaluations
+written only over the same position or an empty slot, with the eval
+cache kept.
+
+## Hindsight depth, on the 7.1 candidate (Nov 2026)
+
+**Change** (`HINDSIGHT` 1, `HINDSIGHT_EXT_RED` 3, `HINDSIGHT_CP` 175;
+in the code, 0 = off; commit `44e47e3`): each ply records the LMR
+reduction it gave the move being searched. At a non-PV node not in
+check, a move reduced by 3+ plies where the side to move is no worse
+off than the parent thought (static eval <= minus the parent's) gets a
+ply more; one reduced by 2+ where the two static evals sum above
+175 cp gets a ply less (as Stockfish). On the 7.1 candidate
+(`claude/loving-lamport-ovy1fs` 7ffab6a, SCReLU net): bench 1382932 ->
+1236749 (11% fewer nodes); with it off, bench unchanged.
+
+**Result:** vs the 7.1 candidate (cloud, 4 at a time, SPRT 0 / 5),
+stopped as flat by the owner at **40+0.4 after 738 games**, +65 -64
+=609 (50.1%), **0 +/- 9**, pentanomial [2, 46, 270, 51, 0], LLR -0.44;
+it sat between +6 and 0 throughout (`~/matches/hind-71.log`). Not run at
+8+0.08.
+
+**Prior:** 5/10 (Stockfish's; untried here).
+
+**Why it failed (likely):** the two adjustments pull in opposite
+directions and most of the nodes it touches are already steered by the
+improving flag, cut-node and history terms in the same reductions; the
+11% node saving bought no strength, as with cutoff-count reductions.
+
+## Fail-high softening, on 7.0 (Nov 2026)
+
+**Change** (`FH_SOFTEN` 1; in the code, 0 = off): at the end of the main
+search (not quiescence), a non-mate score at or above beta at depth d
+comes back as `(score * d + beta) / (d + 1)`, before the table store and
+the correction-history update (as Stockfish). Bench 1277145 -> 1225070
+(4% fewer nodes); with it off, bench is identical to 7.0.
+
+**Result:** vs 7.0 (cloud, 4 at a time, SPRT 0 / 5), stopped as flat by
+the owner at both time controls:
+- **40+0.4: 1182 games**, +113 -116 =953 (49.9%), **-1 +/- 8**,
+  pentanomial [1, 93, 407, 88, 2], LLR -1.01; it led by +6 at 340
+  games and faded (`~/matches/fhsoft-70.log`).
+- **8+0.08: 922 games**, +132 -139 =651 (49.6%), **-3 +/- 12**,
+  pentanomial [10, 92, 261, 91, 7], LLR -0.72
+  (`~/matches/fhsoft-70-8.log`).
+
+**Prior:** 5/10 (Stockfish's; untried here).
+
+**Why it failed (likely):** the cutoffs it softens are already lower
+bounds that parents only compare against their own windows, so a
+smaller margin seldom changes a decision; where it does (RFP, null move,
+table cutoffs on the stored score), engine-2's margins were tuned on the
+unsoftened scores.
+
+## Was-PV reductions, on 6.9 (Nov 2026)
+
+**Change** (`TT_PV_LMR` 1; in the code, 0 = off): each TT entry keeps a
+1-bit was-PV flag (taken from the bound field, so entries stay 12
+bytes), set when the position was searched on a PV or already flagged.
+At non-PV nodes whose entry has the flag, late quiets and captures get
+one ply less reduction (as Stockfish's ttPv). Bench 1471053 ->
+1451553; with it off, bench is identical to 6.9.
+
+**Result:** vs 6.9 (cloud, 4 at a time, SPRT 0 / 5), stopped as flat by
+the owner at both time controls:
+- **40+0.4: 778 games**, +67 -67 =644 (50.0%), **0 +/- 9**,
+  pentanomial [2, 50, 285, 50, 2], LLR -0.54; it dipped to -12 at 380
+  games and came back (`~/matches/ttpv-69.log`).
+- **8+0.08: 1340 games**, +174 -175 =991 (49.96%), **0 +/- 9**,
+  pentanomial [9, 122, 407, 125, 7], LLR -0.66
+  (`~/matches/ttpv-69-8.log`).
+
+**Retried at 2 plies on 7.0** (`TT_PV_LMR` 2, bench 1277145 -> 1307770):
+stopped by the owner at **40+0.4 after 562 games**, +50 -57 =455
+(49.4%), **-4 +/- 11**, pentanomial [1, 43, 200, 36, 1], LLR -1.02
+(`~/matches/ttpv2-70.log`). No better than 1 ply.
+
+**Prior:** 6/10 (standard in strong engines; untried here).
+
+**Why it failed (likely):** engine-2 already reduces PV nodes by a ply
+less and its history and correction terms seem to protect the same
+moves; the bit may also need other was-PV uses (pruning margins, TT
+cutoff rules) before it pays, as in Stockfish where ttPv feeds many
+terms at once.
+
+## Cutoff-count reductions, on 6.7 (Nov 2026)
+
+**Change** (`CUTOFF_LMR` 1, `CUTOFF_LMR_MIN` 3; in the code, 0 = off;
+commit `21faed9`): each node counts its children that ended in a beta
+cutoff; once more than 3 have, its later late moves (quiets and
+captures) get a ply more reduction. Bench 1626117 -> 1182891 (27% fewer
+nodes).
+
+**Result:** vs 6.7 (cloud, 4 at a time, SPRT 0 / 5), stopped as flat by
+the owner at both time controls:
+- **40+0.4: 982 games**, +104 -105 =773 (49.95%), **0 +/- 9**,
+  pentanomial [4, 69, 343, 74, 1], LLR -0.70; it swung between -12 and
+  +7 and kept coming back to zero (`~/matches/cutcnt-67-40.log`).
+- **8+0.08: 618 games**, +91 -95 =432 (49.7%), **-2 +/- 14**,
+  pentanomial [4, 65, 175, 61, 4] (`~/matches/cutcnt-67-8.log`).
+
+**Prior:** 5/10 (Stockfish's cutoffCnt; untried here).
+
+**Why it failed (likely):** the node count fell by a quarter but the
+strength did not move, so the plies saved went to moves that did not
+need them. History, cut-node and improving terms probably already
+reduce the same late moves at such nodes.
+
 **7.1.1 removed the switched-off code** of the singular memo, recapture
 extension, history extension, corrected-eval reductions (`CORR_LMR_CP`),
 near/far-miss reductions, network correction history (`CORR_NET_RATE`),

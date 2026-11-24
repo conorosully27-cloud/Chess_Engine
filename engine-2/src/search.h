@@ -107,6 +107,9 @@ class SearchWorker {
   // by piece * 64 + to; used for the move one ply earlier (the opponent's)
   // and two plies earlier (our own).
   std::vector<std::int16_t> cont_history_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);
+  // Pawn history: quiet-move history by pawn structure, [pawn key slot][piece * 64 + to].
+  static constexpr int PAWN_HIST_SIZE = 1024;
+  std::vector<std::int16_t> pawn_history_ = std::vector<std::int16_t>(PAWN_HIST_SIZE * CONT_INDEX);
   std::uint64_t tbhits_ = 0;
   std::array<std::uint64_t, 64 * 64> root_move_nodes_{};  // nodes spent under each root move (from * 64 + to)  // tablebase probes that found the position
   int eval_stack_[MAX_PLY + 2] = {};  // each ply's static evaluation (EVAL_NONE in check), for "improving"
