@@ -41,7 +41,7 @@ TUNE_PARAM(LMP_SCALE, 69, 25, 300);
 // better, so late quiet moves are likelier to matter. 100 = off. (2.10's
 // version halved the count when not improving and lost; this one only
 // searches more.)
-TUNE_PARAM(LMP_IMPROVING_PCT, 150, 100, 300);
+TUNE_PARAM(LMP_IMPROVING_PCT, 100, 100, 300);  // 150 tested on 7.5: -1, off
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves

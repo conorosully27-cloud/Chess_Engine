@@ -11,6 +11,25 @@ code can be recovered), the results, how promising it looked beforehand
 (`122591c`), was-PV reductions (`ebcc4b0`) and cutoff-count reductions
 (`21faed9`) each have their switched-off code at that commit.
 
+## Improving-aware late move pruning, on 7.5 (Nov 2026)
+
+**Change:** at improving nodes (see `IMPROVING_RFP`), late move pruning
+keeps `LMP_IMPROVING_PCT` percent of its quiet-move count before pruning;
+other nodes unchanged. Tested at 150. Bench 1381697 -> 1183501 (14% fewer
+nodes). Now committed at 100 (off).
+
+**Result:** SPRT [0, 5] against 7.5 at 40+0.4, 4 at a time, killed by the
+owner at 1,060 games: +91 -95 =874, Elo -1.3 +/- 7.7, LLR -1.24, LOS
+36.9%. Pentanomial [4, 61, 401, 63, 1].
+
+**Prior:** 5/10.
+
+**Commentary:** the opposite of 2.10's version (fewer quiets when not
+improving, -12), and also flat: the late move pruning count looks about
+right as it is, in both directions. Improving nodes already get a milder
+futility margin and fewer reductions, so searching more of their late
+quiets adds little.
+
 ## Pawn history v3 (ordering only, own gravity), on 7.2 (Nov 2026)
 
 **Change** (`PAWN_HIST` 1, `PAWN_HIST_LMR` 0, `PAWN_HIST_GRAVITY` 8000
