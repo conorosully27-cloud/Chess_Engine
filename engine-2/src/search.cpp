@@ -197,6 +197,10 @@ TUNE_PARAM(CORR_NON_PAWN_RATE, 20, 5, 100);
 // even with it then; retried on a newer network as the owner suggested).
 TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
+// The minor-piece and major-piece tables (each keyed by both sides' pieces
+// of that kind plus the kings) learn at CORR_MINMAJ_RATE percent, held
+// within +/-CORR_LIMIT_CP like the others. 0 = off.
+TUNE_PARAM(CORR_MINMAJ_RATE, 20, 0, 100);
 // Re-search depth from the reduced search's own result. A late move that
 // beat alpha in its reduced search is searched again at full depth; how
 // far it beat the best score so far says how much that second search
@@ -313,6 +317,8 @@ std::string score_to_uci(int score) {
 
 }  // namespace
 
+bool SearchWorker::corr_minmaj_on() { return CORR_MINMAJ_RATE > 0; }
+
 void search_params_changed() {
   LMR = make_lmr();
   LMR100 = make_lmr100();
@@ -364,6 +370,8 @@ void SearchWorker::new_game() {
   std::fill(&corr_history_[0][0], &corr_history_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(&corr_non_pawn_[0][0][0], &corr_non_pawn_[0][0][0] + COLOR_NB * COLOR_NB * CORR_SIZE, std::int16_t(0));
   std::fill(corr_cont_.begin(), corr_cont_.end(), std::int16_t(0));
+  std::fill(&corr_minor_[0][0], &corr_minor_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
+  std::fill(&corr_major_[0][0], &corr_major_[0][0] + COLOR_NB * CORR_SIZE, std::int16_t(0));
   clear_eval_cache();
 }
 
@@ -872,10 +880,10 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     const CorrEntries corr = corr_entries(pos, ply);
     const int weight = std::min(depth + 1, CORR_MAX_WEIGHT);
     const int error = (best_score - raw_eval) * CORR_GRAIN - corr.total();
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < CORR_TABLES; i++) {
       if (!corr.entry[i]) continue;
       std::int16_t& c = *corr.entry[i];
-      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : CORR_CONT_RATE;  // percent
+      const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : i == 3 ? CORR_CONT_RATE : CORR_MINMAJ_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
       const int limit = (i != 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
       c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));

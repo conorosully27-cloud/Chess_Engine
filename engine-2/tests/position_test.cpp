@@ -216,7 +216,10 @@ void test_random_playouts() {
         Move m = list[rng() % list.size()];
         pos.make_move(m);
         moves_played++;
-        if (pos.key() != pos.compute_key() || !pos.is_consistent()) {
+        if (pos.key() != pos.compute_key() || !pos.is_consistent() || pos.pawn_key() != pos.compute_pawn_key() ||
+            pos.non_pawn_key(WHITE) != pos.compute_non_pawn_key(WHITE) ||
+            pos.non_pawn_key(BLACK) != pos.compute_non_pawn_key(BLACK) || pos.minor_key() != pos.compute_minor_key() ||
+            pos.major_key() != pos.compute_major_key()) {
           std::printf("inconsistent after %s from %s\n", m.uci().c_str(), fens.back().c_str());
           CHECK(false);
           return;

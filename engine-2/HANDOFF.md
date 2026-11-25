@@ -490,6 +490,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Minor-piece and major-piece correction histories** (`CORR_MINMAJ_RATE`
+  20, 0 = off; on 7.5, bench 1381697 -> 1232090): two more correction
+  tables, keyed by both sides' knights, bishops and kings and by both
+  sides' rooks, queens and kings, learning at the non-pawn tables' rate.
+  Testing vs 7.5 at 40+0.4 (`~/matches/corrmm-75.log`).
 - **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
   off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
   quiet moves before late move pruning; others unchanged (2.10's version

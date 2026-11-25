@@ -130,10 +130,19 @@ class SearchWorker {
   std::int16_t corr_history_[COLOR_NB][CORR_SIZE] = {};
   std::int16_t corr_non_pawn_[COLOR_NB][COLOR_NB][CORR_SIZE] = {};  // [side to move][pieces' color]
   std::vector<std::int16_t> corr_cont_ = std::vector<std::int16_t>(CONT_INDEX * CONT_INDEX);  // [move 2 back][last move]
+  // Keyed by both sides' minor pieces and kings, and by both sides' major
+  // pieces and kings (entries 4 and 5; null when CORR_MINMAJ_ON is off).
+  std::int16_t corr_minor_[COLOR_NB][CORR_SIZE] = {};
+  std::int16_t corr_major_[COLOR_NB][CORR_SIZE] = {};
+  static constexpr int CORR_TABLES = 6;
+  static bool corr_minmaj_on();  // search.cpp: CORR_MINMAJ_RATE > 0
   struct CorrEntries {
-    std::int16_t* entry[4];
+    std::int16_t* entry[CORR_TABLES];
     int total() const {
-      return *entry[0] + *entry[1] + *entry[2] + (entry[3] ? *entry[3] : 0);
+      int t = 0;
+      for (const std::int16_t* e : entry)
+        if (e) t += *e;
+      return t;
     }
   };
   CorrEntries corr_entries(const Position& pos, int ply) {
@@ -143,7 +152,9 @@ class SearchWorker {
       cont = &corr_cont_[ply_move_[ply - 2] * CONT_INDEX + ply_move_[ply - 1]];
     return {{&corr_history_[us][pos.pawn_key() & (CORR_SIZE - 1)],
              &corr_non_pawn_[us][WHITE][pos.non_pawn_key(WHITE) & (CORR_SIZE - 1)],
-             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)], cont}};
+             &corr_non_pawn_[us][BLACK][pos.non_pawn_key(BLACK) & (CORR_SIZE - 1)], cont,
+             corr_minmaj_on() ? &corr_minor_[us][pos.minor_key() & (CORR_SIZE - 1)] : nullptr,
+             corr_minmaj_on() ? &corr_major_[us][pos.major_key() & (CORR_SIZE - 1)] : nullptr}};
   }
   Move pv_table_[MAX_PLY][MAX_PLY] = {};
   int pv_length_[MAX_PLY] = {};

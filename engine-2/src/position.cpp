@@ -53,8 +53,7 @@ void Position::put_piece(Piece pc, Square s) {
   psq_mg_ += psqt::PSQ.mg[pc][s];
   psq_eg_ += psqt::PSQ.eg[pc][s];
   phase_ += psqt::PHASE_WEIGHT[type_of(pc)];
-  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][s];
-  else non_pawn_key_[color_of(pc)] ^= Zobrist::psq[pc][s];
+  toggle_keys(pc, Zobrist::psq[pc][s]);
   by_type_[type_of(pc)] |= b;
   by_color_[color_of(pc)] |= b;
   occ_ |= b;
@@ -67,8 +66,7 @@ void Position::remove_piece(Square s) {
   psq_mg_ -= psqt::PSQ.mg[pc][s];
   psq_eg_ -= psqt::PSQ.eg[pc][s];
   phase_ -= psqt::PHASE_WEIGHT[type_of(pc)];
-  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][s];
-  else non_pawn_key_[color_of(pc)] ^= Zobrist::psq[pc][s];
+  toggle_keys(pc, Zobrist::psq[pc][s]);
   by_type_[type_of(pc)] &= ~b;
   by_color_[color_of(pc)] &= ~b;
   occ_ &= ~b;
@@ -81,8 +79,7 @@ void Position::move_piece(Square from, Square to) {
   board_[to] = pc;
   psq_mg_ += psqt::PSQ.mg[pc][to] - psqt::PSQ.mg[pc][from];
   psq_eg_ += psqt::PSQ.eg[pc][to] - psqt::PSQ.eg[pc][from];
-  if (type_of(pc) == PAWN) pawn_key_ ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
-  else non_pawn_key_[color_of(pc)] ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
+  toggle_keys(pc, Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to]);
   by_type_[type_of(pc)] ^= b;
   by_color_[color_of(pc)] ^= b;
   occ_ ^= b;
@@ -96,6 +93,7 @@ bool Position::set(const std::string& fen) {
   psq_mg_ = psq_eg_ = phase_ = 0;
   pawn_key_ = Zobrist::NO_PAWNS;
   non_pawn_key_[WHITE] = non_pawn_key_[BLACK] = 0;
+  minor_key_ = major_key_ = 0;
   side_ = WHITE;
   states_.clear();
   states_.reserve(1024);
@@ -242,6 +240,26 @@ Key Position::compute_non_pawn_key(Color c) const {
   Bitboard pieces_c = pieces(c) & ~pieces(PAWN);
   while (pieces_c) {
     Square s = pop_lsb(pieces_c);
+    k ^= Zobrist::psq[board_[s]][s];
+  }
+  return k;
+}
+
+Key Position::compute_minor_key() const {
+  Key k = 0;
+  Bitboard b = pieces(KNIGHT) | pieces(BISHOP) | pieces(KING);
+  while (b) {
+    Square s = pop_lsb(b);
+    k ^= Zobrist::psq[board_[s]][s];
+  }
+  return k;
+}
+
+Key Position::compute_major_key() const {
+  Key k = 0;
+  Bitboard b = pieces(ROOK) | pieces(QUEEN) | pieces(KING);
+  while (b) {
+    Square s = pop_lsb(b);
     k ^= Zobrist::psq[board_[s]][s];
   }
   return k;

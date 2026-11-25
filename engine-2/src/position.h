@@ -80,6 +80,10 @@ class Position {
   // Zobrist hash of one side's pieces other than pawns (king included), for
   // the search's correction history.
   Key non_pawn_key(Color c) const { return non_pawn_key_[c]; }
+  // Zobrist hashes of both sides' knights, bishops and kings, and of both
+  // sides' rooks, queens and kings, for the same.
+  Key minor_key() const { return minor_key_; }
+  Key major_key() const { return major_key_; }
   Move last_move() const { return st().move; }
   int game_ply() const { return int(states_.size()) - 1; }
 
@@ -116,6 +120,8 @@ class Position {
   Key compute_key() const;
   Key compute_pawn_key() const;
   Key compute_non_pawn_key(Color c) const;
+  Key compute_minor_key() const;
+  Key compute_major_key() const;
   // Checks that the bitboards, mailbox and king counts agree; used by tests.
   bool is_consistent() const;
 
@@ -124,6 +130,17 @@ class Position {
   void put_piece(Piece pc, Square s);
   void remove_piece(Square s);
   void move_piece(Square from, Square to);
+  // Applies a Zobrist change for piece pc to the keys that hash it.
+  void toggle_keys(Piece pc, Key z) {
+    const PieceType t = type_of(pc);
+    if (t == PAWN) {
+      pawn_key_ ^= z;
+      return;
+    }
+    non_pawn_key_[color_of(pc)] ^= z;
+    if (t == KNIGHT || t == BISHOP || t == KING) minor_key_ ^= z;
+    if (t == ROOK || t == QUEEN || t == KING) major_key_ ^= z;
+  }
   void update_check_info(StateInfo& s) const;
   void compute_check_squares(const StateInfo& s) const;
   bool ep_capturable(Square ep, Color stm) const;
@@ -138,6 +155,7 @@ class Position {
   int psq_mg_, psq_eg_, phase_;
   Key pawn_key_;
   Key non_pawn_key_[COLOR_NB];
+  Key minor_key_, major_key_;
   Color side_;
   std::vector<StateInfo> states_;
   // Never shrinks: entries past game_ply() are stale and overwritten by
