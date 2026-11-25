@@ -189,9 +189,9 @@ positions) lost to 7.2.
 **Current best: ChessMcEngineFace 7.5** (Nov 24) = 7.4 plus the
 cut-node negative extension (`CUT_NEG_EXT` 1 in `src/search.cpp`: when
 the singular test fails at a cut node and the table's score is below
-beta, the hash move is searched a ply shallower): **+6.6 +/- 5.9 over 7.4
-at 40+0.4**, 1,962 games, LLR 2.24 (0 / 5), released before the SPRT
-finished; it is still running (`~/matches/cutneg-74.log`). Bench
+beta, the hash move is searched a ply shallower): **+7.0 +/- 5.4 over 7.4
+at 40+0.4**, 2,390 games, LLR 2.96 (0 / 5), passed (released at 1,962
+games, +6.6; `~/matches/cutneg-74.log`). Not tested at 8+0.08. Bench
 **1381697**. Baseline for SPRTs: build it (net `nets/engine-7.3.nnue`).
 
 **Before 7.5: ChessMcEngineFace 7.4** (Nov 24) = 7.3 plus a ply more
@@ -496,7 +496,7 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   shallower. vs 7.3 at 40+0.4: stopped at 1940 games, +178 -176
   =1586, +0.4 +/- 6.0, LLR -1.12 (led +16 at 280 games;
   `~/matches/cutneg-73.log`). Retesting on 7.4 (bench 1425857 ->
-  1381697) at 40+0.4: **+6.6 +/- 5.9** at 1,962 games, released as
+  1381697) at 40+0.4: **passed**, +7.0 +/- 5.4 over 2,390 games;
   **7.5** (above).
 - **Pawn history, ordering only** (`PAWN_HIST` 1, commit `d4f5f9e`):
   **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games. v2
