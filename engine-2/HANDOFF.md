@@ -490,6 +490,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
+  off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
+  quiet moves before late move pruning; others unchanged (2.10's version
+  halved the count when not improving, -12). Testing vs 7.5 at 40+0.4
+  (`~/matches/lmpimp-75.log`).
 - **Cut-node negative extension** (`CUT_NEG_EXT` 1, 0 = off; on 7.3,
   bench 1290299 -> 1319906): when the singular test fails at a cut node
   and the table's score is below beta, the hash move is searched a ply

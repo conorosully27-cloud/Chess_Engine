@@ -36,6 +36,12 @@ TUNE_PARAM(FUT_MARGIN, 94, 40, 300);
 TUNE_PARAM(LMP_DEPTH, 5, 1, 10);
 TUNE_PARAM(LMP_BASE, 3, 0, 12);
 TUNE_PARAM(LMP_SCALE, 69, 25, 300);
+// Improving nodes (see IMPROVING_RFP) keep LMP_IMPROVING_PCT percent of
+// the late move pruning count before pruning: the position is getting
+// better, so late quiet moves are likelier to matter. 100 = off. (2.10's
+// version halved the count when not improving and lost; this one only
+// searches more.)
+TUNE_PARAM(LMP_IMPROVING_PCT, 150, 100, 300);
 
 // SEE pruning: at depth <= SEE_PRUNE_DEPTH, moves that lose more than this
 // much material on their square (static exchange) are skipped. Quiet moves
@@ -656,7 +662,8 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
   // Futility: near the leaves, quiet moves can't lift a hopeless position.
   const bool futile = !pv_node && !in_check && depth <= FUT_DEPTH && static_eval + (FUT_BASE + FUT_MARGIN * depth) <= alpha;
   const bool prune_late = !pv_node && !in_check && depth <= LMP_DEPTH;
-  const int lmp_quiets = LMP_BASE + depth * depth * LMP_SCALE / 100;
+  const int lmp_quiets_base = LMP_BASE + depth * depth * LMP_SCALE / 100;
+  const int lmp_quiets = improving ? lmp_quiets_base * LMP_IMPROVING_PCT / 100 : lmp_quiets_base;
   const bool see_prune = !pv_node && !in_check && depth <= SEE_PRUNE_DEPTH;
   int quiets_tried = 0;
   int quiets_searched[MoveList::MAX_MOVES];  // piece * 64 + to of quiet moves tried
