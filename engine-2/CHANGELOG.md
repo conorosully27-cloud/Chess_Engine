@@ -18,11 +18,12 @@ case where the table's score beats beta.) Same network as 7.3. Bench
 
 | time control | games | result | Elo | LLR (bounds) |
 |---|---|---|---|---|
-| 40+0.4 | 1,962 | +191 -154 =1617 | **+6.6 +/- 5.9** | 2.24 (0/5), still running |
+| 40+0.4 | 2,390 | +235 -187 =1968 | **+7.0 +/- 5.4** | 2.96 (0/5), passed |
 
-Pentanomial [4, 113, 706, 158, 0]. Released by the owner before the SPRT finished (LOS 98%); the final
-numbers will replace these when it ends (`~/matches/cutneg-74.log`).
-On 7.3 the same change was flat, +0.4 +/- 6.0 over 1,940 games
+Pentanomial [4, 141, 854, 195, 1], LOS 99.5%. Released by the owner at
+1,962 games (+6.6 +/- 5.9, LLR 2.24); the SPRT passed after, played as
+three runs split by container restarts and computed over all of them
+(`~/matches/cutneg-74.log`). 82% draws. On 7.3 the same change was flat, +0.4 +/- 6.0 over 1,940 games
 (stopped). Not tested at 8+0.08.
 
 ## 7.4: quiet moves reduced more after a noisy hash move
