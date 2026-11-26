@@ -494,7 +494,10 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   20, 0 = off; on 7.5, bench 1381697 -> 1232090): two more correction
   tables, keyed by both sides' knights, bishops and kings and by both
   sides' rooks, queens and kings, learning at the non-pawn tables' rate.
-  Testing vs 7.5 at 40+0.4 (`~/matches/corrmm-75.log`).
+  At 20 vs 7.5 at 40+0.4, paused by the owner at 3,240 games: +337 -327
+  =2576, +1.1 +/- 4.8, LLR -1.18 (resumable from
+  `matches/run-20261125-094216`). 400 games at 8+0.08 for a rough read
+  (`~/matches/corrmm-75-8s.log`), then rate 10 (bench 1174821) next.
 - **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
   off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
   quiet moves before late move pruning; others unchanged (2.10's version
