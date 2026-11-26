@@ -199,8 +199,9 @@ TUNE_PARAM(CORR_CONT_RATE, 10, 2, 100);
 TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 // The minor-piece and major-piece tables (each keyed by both sides' pieces
 // of that kind plus the kings) learn at CORR_MINMAJ_RATE percent, held
-// within +/-CORR_LIMIT_CP like the others. 0 = off.
-TUNE_PARAM(CORR_MINMAJ_RATE, 10, 0, 100);
+// within +/-CORR_MINMAJ_LIMIT_CP. 0 = off.
+TUNE_PARAM(CORR_MINMAJ_RATE, 20, 0, 100);
+TUNE_PARAM(CORR_MINMAJ_LIMIT_CP, 45, 8, 127);
 // Re-search depth from the reduced search's own result. A late move that
 // beat alpha in its reduced search is searched again at full depth; how
 // far it beat the best score so far says how much that second search
@@ -885,7 +886,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
       std::int16_t& c = *corr.entry[i];
       const std::int64_t rate = i == 0 ? 100 : i < 3 ? CORR_NON_PAWN_RATE : i == 3 ? CORR_CONT_RATE : CORR_MINMAJ_RATE;  // percent
       const std::int64_t scale = std::int64_t(CORR_WEIGHT_SCALE) * 100;
-      const int limit = (i != 3 ? CORR_LIMIT_CP : CORR_CONT_LIMIT_CP) * CORR_GRAIN;
+      const int limit = (i < 3 ? CORR_LIMIT_CP : i == 3 ? CORR_CONT_LIMIT_CP : CORR_MINMAJ_LIMIT_CP) * CORR_GRAIN;
       c = std::int16_t(std::clamp<std::int64_t>((c * scale + std::int64_t(error) * weight * rate) / scale, -limit, limit));
     }
   }

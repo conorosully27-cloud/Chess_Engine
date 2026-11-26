@@ -497,7 +497,14 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   At 20 vs 7.5 at 40+0.4, paused by the owner at 3,240 games: +337 -327
   =2576, +1.1 +/- 4.8, LLR -1.18 (resumable from
   `matches/run-20261125-094216`). 400 games at 8+0.08 for a rough read
-  (`~/matches/corrmm-75-8s.log`), then rate 10 (bench 1174821) next.
+  (`~/matches/corrmm-75-8s.log`): +51 -43 =306, +7 +/- 16. Rate 10
+  (bench 1174821) vs 7.5 at 40+0.4, killed by the owner at 560 games:
+  +53 -60 =447, -4.3 +/- 11.3, LLR -1.02. Now an SPSA (owner's call) of
+  `CORR_MINMAJ_RATE`, a new `CORR_MINMAJ_LIMIT_CP` (45, the new tables'
+  own cap), `CORR_NON_PAWN_RATE`, `CORR_LIMIT_CP` and `CORR_MAX_WEIGHT`:
+  3,000 pairs at 8+0.08, `--r-end 0.005 --c-scale 2`, 4 workers, from
+  20 / 45 / 20 / 45 / 15; state and log in `~/spsa-corrmm/` (resume with
+  `~/spsa-corrmm/run.sh`).
 - **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
   off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
   quiet moves before late move pruning; others unchanged (2.10's version
