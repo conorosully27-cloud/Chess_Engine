@@ -504,7 +504,12 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   own cap), `CORR_NON_PAWN_RATE`, `CORR_LIMIT_CP` and `CORR_MAX_WEIGHT`:
   3,000 pairs at 8+0.08, `--r-end 0.005 --c-scale 2`, 4 workers, from
   20 / 45 / 20 / 45 / 15; state and log in `~/spsa-corrmm/` (resume with
-  `~/spsa-corrmm/run.sh`).
+  `~/spsa-corrmm/run.sh`). **Done** (final 31 / 13 / 23 / 20 / 32); set
+  to the average of its last 500 pairs (owner's call): `CORR_LIMIT_CP` 31,
+  `CORR_MAX_WEIGHT` 14, `CORR_NON_PAWN_RATE` 22, `CORR_MINMAJ_RATE` 20,
+  `CORR_MINMAJ_LIMIT_CP` 32 (bench 1180660). SPRT [0, 5] vs 7.5 at 8+0.08
+  (`~/matches/corrmm-spsa-75-8s.log`), then at 40+0.4
+  (`~/matches/corrmm-spsa-75.log`).
 - **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
   off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
   quiet moves before late move pruning; others unchanged (2.10's version

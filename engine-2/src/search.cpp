@@ -189,9 +189,9 @@ TUNE_PARAM(TM_SURPRISE_PCT, 100, 50, 200);
 // Values from an SPSA run (Oct 2026, 2,000 pairs at 8+0.08, from 64, 16, 25).
 constexpr int CORR_GRAIN = 256;
 constexpr int CORR_WEIGHT_SCALE = 256;
-TUNE_PARAM(CORR_LIMIT_CP, 45, 16, 127);
-TUNE_PARAM(CORR_MAX_WEIGHT, 15, 4, 64);
-TUNE_PARAM(CORR_NON_PAWN_RATE, 20, 5, 100);
+TUNE_PARAM(CORR_LIMIT_CP, 31, 16, 127);
+TUNE_PARAM(CORR_MAX_WEIGHT, 14, 4, 64);
+TUNE_PARAM(CORR_NON_PAWN_RATE, 22, 5, 100);
 // The last-two-moves table, far sparser, learns at CORR_CONT_RATE percent
 // and is held within +/-CORR_CONT_LIMIT_CP (the cautious version from 4.0,
 // even with it then; retried on a newer network as the owner suggested).
@@ -201,7 +201,7 @@ TUNE_PARAM(CORR_CONT_LIMIT_CP, 16, 4, 127);
 // of that kind plus the kings) learn at CORR_MINMAJ_RATE percent, held
 // within +/-CORR_MINMAJ_LIMIT_CP. 0 = off.
 TUNE_PARAM(CORR_MINMAJ_RATE, 20, 0, 100);
-TUNE_PARAM(CORR_MINMAJ_LIMIT_CP, 45, 8, 127);
+TUNE_PARAM(CORR_MINMAJ_LIMIT_CP, 32, 8, 127);
 // Re-search depth from the reduced search's own result. A late move that
 // beat alpha in its reduced search is searched again at full depth; how
 // far it beat the best score so far says how much that second search
