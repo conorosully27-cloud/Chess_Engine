@@ -186,7 +186,15 @@ positions) lost to 7.2.
   zones) was kept in place of the 32-row `embedding_bag` path above, which
   only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
 
-**Current best: ChessMcEngineFace 7.5** (Nov 24) = 7.4 plus the
+**Current best: ChessMcEngineFace 7.6** (Nov 27) = 7.5 plus late quiet
+checks reduced (`CHECK_LMR` 1 in `src/search.cpp`: late quiet moves that
+give check get late move reductions, a ply less than other quiets; before,
+never reduced): **+8 over 7.5 at 40+0.4** (+8.6 +/- 6.8 at release, 1,500
+games, LLR 2.49 of 2.94, `~/sprt-75-checklmr-ltc.log`). Not tested at
+8+0.08. Bench **1213141**. Baseline for SPRTs: build it (net
+`nets/engine-7.3.nnue`).
+
+**Before 7.6: ChessMcEngineFace 7.5** (Nov 24) = 7.4 plus the
 cut-node negative extension (`CUT_NEG_EXT` 1 in `src/search.cpp`: when
 the singular test fails at a cut node and the table's score is below
 beta, the hash move is searched a ply shallower): **+7.0 +/- 5.4 over 7.4

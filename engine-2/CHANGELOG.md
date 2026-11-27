@@ -5,6 +5,22 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 7.6: late quiet checks reduced
+
+7.5 with late quiet moves that give check reduced by late move reductions,
+a ply less than other quiet moves (`CHECK_LMR` 1 in `src/search.cpp`;
+before, they were never reduced). Same network as 7.3. Bench **1213141**
+(7.5: 1381697).
+
+**Against 7.5** (cloud, 8moves_v3, 4 games at a time):
+
+| time control | games | result | Elo | LLR (bounds) |
+|---|---|---|---|---|
+| 40+0.4 | 1,500 | +156 -119 =1225 | +8.6 +/- 6.8 | 2.49 (0/5), running |
+
+Released by the owner at 1,500 games and recorded as **+8 Elo**
+(`~/sprt-75-checklmr-ltc.log`). 82% draws. Not tested at 8+0.08.
+
 ## 7.5: cut-node negative extension
 
 7.4 with the hash move searched a ply shallower at a cut node when the
