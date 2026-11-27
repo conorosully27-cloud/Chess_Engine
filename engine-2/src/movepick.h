@@ -49,7 +49,8 @@ inline PieceType captured_type(const Position& pos, Move m) {
 // continuation history after the moves one and two plies earlier, from
 // cont1 and cont2 where given.
 void score_moves(const Position& pos, const MoveList& list, int* scores, Move tt_move, Move killer1, Move killer2,
-                 const HistoryTable& history, ContHistoryRow cont1 = nullptr, ContHistoryRow cont2 = nullptr);
+                 const HistoryTable& history, ContHistoryRow cont1 = nullptr, ContHistoryRow cont2 = nullptr,
+                 ContHistoryRow pawn = nullptr);
 
 // Scores captures and promotions as score_moves does, but without SEE for
 // captures that aren't promotions, which is left until one is reached:
@@ -73,9 +74,10 @@ Move pick_next(MoveList& list, int* scores, int i);
 class MovePicker {
  public:
   MovePicker(const Position& pos, Move tt_move, Move killer1, Move killer2, const HistoryTable& history,
-             ContHistoryRow cont1 = nullptr, ContHistoryRow cont2 = nullptr, const CaptureHistory* capt = nullptr)
+             ContHistoryRow cont1 = nullptr, ContHistoryRow cont2 = nullptr, const CaptureHistory* capt = nullptr,
+             ContHistoryRow pawn = nullptr)
       : pos_(pos), tt_move_(tt_move), killer1_(killer1), killer2_(killer2), history_(history), cont1_(cont1),
-        cont2_(cont2), capt_(capt) {}
+        cont2_(cont2), pawn_(pawn), capt_(capt) {}
 
   Move next();
   // The search will prune every remaining quiet move that doesn't give
@@ -89,6 +91,7 @@ class MovePicker {
   const Move tt_move_, killer1_, killer2_;
   const HistoryTable& history_;
   const ContHistoryRow cont1_, cont2_;
+  const ContHistoryRow pawn_;  // pawn history row for this pawn structure, or nullptr
   const CaptureHistory* const capt_;
   Stage stage_ = HASH_MOVE;
   MoveList captures_, quiets_, bad_captures_;  // bad_captures_: those SEE failed, in the order reached

@@ -20,6 +20,10 @@ history behind the search and evaluation.
    many small confirmed steps, not only changes worth +10. Use SPRT
    bounds 0 / 5 (`ELO0=0 ELO1=5`), not 0 / 10, which rejects anything
    under about +5 by design.
+3. **Score reports: no pentanomial explanation needed** (owner, Nov 16:
+   "I don't care about the pentanomial that much"). Give games, W/L/D,
+   Elo and LLR; the `Ptnml(0-2)` line can be recorded in logs but need
+   not be explained in replies.
 
 What this costs: a 120+1 game takes about 5 minutes, so 4 at a time is
 about 50 games an hour, against about 650 at 8+0.08. A 2-hour leg is
@@ -182,7 +186,15 @@ positions) lost to 7.2.
   zones) was kept in place of the 32-row `embedding_bag` path above, which
   only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
 
-**Current best: ChessMcEngineFace 7.4** (Nov 24) = 7.3 plus a ply more
+**Current best: ChessMcEngineFace 7.5** (Nov 24) = 7.4 plus the
+cut-node negative extension (`CUT_NEG_EXT` 1 in `src/search.cpp`: when
+the singular test fails at a cut node and the table's score is below
+beta, the hash move is searched a ply shallower): **+7.0 +/- 5.4 over 7.4
+at 40+0.4**, 2,390 games, LLR 2.96 (0 / 5), passed (released at 1,962
+games, +6.6; `~/matches/cutneg-74.log`). Not tested at 8+0.08. Bench
+**1381697**. Baseline for SPRTs: build it (net `nets/engine-7.3.nnue`).
+
+**Before 7.5: ChessMcEngineFace 7.4** (Nov 24) = 7.3 plus a ply more
 late move reduction for quiet moves when the hash move is a capture or
 promotion (`TT_NOISY_LMR` 1 in `src/search.cpp`): **+9.2 +/- 5.9 over 7.3
 at 40+0.4**, 1,922 games, LLR 3.75 (0 / 5) combined over three runs split
@@ -478,6 +490,44 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **Cut-node negative extension** (`CUT_NEG_EXT` 1, 0 = off; on 7.3,
+  bench 1290299 -> 1319906): when the singular test fails at a cut node
+  and the table's score is below beta, the hash move is searched a ply
+  shallower. vs 7.3 at 40+0.4: stopped at 1940 games, +178 -176
+  =1586, +0.4 +/- 6.0, LLR -1.12 (led +16 at 280 games;
+  `~/matches/cutneg-73.log`). Retesting on 7.4 (bench 1425857 ->
+  1381697) at 40+0.4: **passed**, +7.0 +/- 5.4 over 2,390 games;
+  **7.5** (above).
+- **Pawn history, ordering only** (`PAWN_HIST` 1, commit `d4f5f9e`):
+  **flat** vs 7.2 at 40+0.4, -1 +/- 15 over 362 games. v2
+  (`PAWN_HIST_LMR` 1: also in the LMR history; `PAWN_HIST_GRAVITY` 8000)
+  **rejected**, -20 +/- 19 over 240 games. Testing gravity only
+  (`PAWN_HIST_LMR` 0, gravity 8000) vs 7.2: 40+0.4 paused at 2840
+  games, +1.5 +/- 5.1, LLR -0.76 (led +7 at 400-900 games, faded;
+  `~/matches/pawnhist3-72.log`, resumable from
+  `matches/run-20261120-142850`); 8+0.08 stopped at
+  3182 games, +0.4 +/- 5.7, LLR -1.22 (`~/matches/pawnhist3-72-8.log`);
+  40+0.4 resumed: **H0 accepted** at 4606 games, +0.1 +/- 4.0
+  (+436 -435 =3735); non-regression [-3, 1] stopped at 800 games,
+  -5.7 +/- 9.4. **Turned off** by the owner (`PAWN_HIST` 0; code kept).
+- **Early table evaluations, eval cache dropped** (`TT_EVAL_EARLY` 1,
+  `EVAL_CACHE` 0; committed as 0 / 1, the old behaviour): **rejected** vs
+  the 7.1 candidate, -9 +/- 9 over 1,118 games at 8+0.08 and -4 +/- 10
+  over 680 at 40+0.4 (`FAILED_EXPERIMENTS.md`). The gentler half (cache
+  kept, no overwriting of quiescence entries) is untried.
+- **Hindsight depth** (`HINDSIGHT`, 0 = off): **flat** vs the 7.1
+  candidate, 0 +/- 9 over 738 games at 40+0.4 (`FAILED_EXPERIMENTS.md`).
+- **Fail-high softening** (`FH_SOFTEN`, 0 = off): **flat** vs 7.0,
+  -1 +/- 8 over 1,182 games at 40+0.4 and -3 +/- 12 over 922 at
+  8+0.08 (`FAILED_EXPERIMENTS.md`).
+- **Was-PV reductions** (`TT_PV_LMR`, 0 = off; 1-bit flag in the TT
+  entry): **flat** vs 6.9, 0 +/- 9 over 778 games at 40+0.4 and
+  0 +/- 9 over 1,340 at 8+0.08; at 2 vs 7.0, -4 +/- 11 over 562 at
+  40+0.4 (`FAILED_EXPERIMENTS.md`). The flag is
+  in commit `ebcc4b0` (not in 7.2's source), for other was-PV uses.
+- **Cutoff-count reductions** (`CUTOFF_LMR`, 0 = off): **flat** at
+  1 / 3 vs 6.7, 0 +/- 9 over 982 games at 40+0.4 and -2 +/- 14 over
+  618 at 8+0.08 (`FAILED_EXPERIMENTS.md`).
 - **Near-miss reductions** (`NEAR_LMR_CP`, `FAR_LMR_CP`, 0 = off):
   **rejected** at 15 / 300 vs 6.7, 962 games, -3 +/- 10
   (`FAILED_EXPERIMENTS.md`).
@@ -582,7 +632,18 @@ were run against 6.1):
 5. **Long time control check of 6.1 vs 6.0** (40+0.4, laptop): the deeper
    null move should gain more there.
 6. **Data run at 10,000-20,000 nodes per position** from 6.1 (laptop),
-   then train with `--hidden 1024 --wdl 0.4`. Likely the biggest lever:
+   then train with `--hidden 1024 --wdl 0.4`.
+   **Running (Nov 11, owner's request, this session's cloud machine):
+   data run 10** from **6.2.1** (bench 1088726, binary
+   `~/engines/engine2-6.2.1-datagen`), **10,000 nodes** a move,
+   `8moves_v3` book + 2-5 random plies, keep 4. 4 processes x 25M into
+   `~/nnue-data/v10/part-1..4.bin`, seeds 20101-20104. About **0.8M
+   positions an hour** in all (~19M a day, ~5 days for 100M). **Resume
+   with `~/nnue-data/v10/run.sh`** (detached, appends; takes the next seed
+   block itself: 20201-20204, ...; `starts.txt` lists them). A second cloud
+   session runs the same settings with seeds **20105-20108** (resumes
+   20205-20208, ...) into its own `~/nnue-data/v10/part-5..8.bin`: seeds
+   ending 01-04 belong to this machine, 05-08 to the other. Likely the biggest lever:
    Berserk 8 has a 512-unit net yet is ~50 Elo stronger, mostly data.
 7. **Strength checks of 6.1:** vs Tucano 12.00 (3489) and Berserk 8
    (3553) again; next opponents Endspiel 2.0.0 (3504), Lambergar 1.5
