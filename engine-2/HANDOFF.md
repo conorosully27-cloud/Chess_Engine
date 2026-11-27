@@ -498,6 +498,16 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
 - **Corrected-evaluation reductions** (`CORR_LMR_CP`, 0 = off):
   **rejected** at 40 vs 6.7, 848 games, -6 +/- 12
   (`FAILED_EXPERIMENTS.md`).
+- **20+0.2 SPSA of 13 search values on 7.6 (owner's laptop, Nov 27):**
+  `scripts/tune/laptop-spsa-76-20s.ps1`, 6,000 pairs, `--r-end 0.02
+  --c-scale 2`, 12 at a time, state in `~\spsa-76-20s\` on the laptop.
+  Values: `LMR_BASE`, `LMR_DIV`, `LMR_HISTORY`, `SINGULAR_MARGIN`,
+  `DOUBLE_EXT_MARGIN`, `RESEARCH_DEEPER_CP` (never tuned), `RFP_MARGIN`,
+  `FUT_MARGIN`, `LMP_SCALE`, `SEE_CAPTURE_MARGIN`, `PROBCUT_MARGIN`,
+  `NULL_EVAL_DIV`, `HIST_PRUNE_MARGIN`: all last tuned at 8+0.08 (mostly
+  on 6.6), before the 7.1-7.3 networks changed the evaluation's scale.
+  `NULL_EVAL_DIV`'s step cut 30 -> 10 (set when it was 200, now 65). Test
+  the average of the last 1,000 pairs.
 - **Minor-piece and major-piece correction histories** (`CORR_MINMAJ_RATE`
   20, 0 = off; on 7.5, bench 1381697 -> 1232090): two more correction
   tables, keyed by both sides' knights, bishops and kings and by both
