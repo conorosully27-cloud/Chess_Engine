@@ -69,8 +69,6 @@ TUNE_PARAM(CUT_NODE_LMR, 1, 0, 3);
 // or promotion: the position is tactical and its best move is a noisy one,
 // so the late quiets are less likely to matter.
 TUNE_PARAM(TT_NOISY_LMR, 1, 0, 2);
-// Fail-high damping (1 on, 0 off): see the end of negamax.
-TUNE_PARAM(FH_BLEND, 1, 0, 1);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
@@ -888,11 +886,6 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
     tte.bound = bound;
     tte.eval = std::int16_t(in_check ? EVAL_NONE : raw_eval);
   }
-  // Fail-high damping: away from the main line a score above beta is only a
-  // bound and often an overshoot; pull it toward beta, less so the deeper the
-  // search behind it. The table keeps the full score.
-  if (FH_BLEND && !pv_node && best_score >= beta && !is_mate_score(best_score) && !is_mate_score(beta))
-    best_score = (best_score * depth + beta) / (depth + 1);
   return best_score;
 }
 
