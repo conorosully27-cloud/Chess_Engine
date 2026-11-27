@@ -520,8 +520,8 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   -870 =5003, +0.0 +/- 4.0, LLR -2.98 (+12 early, faded). Now at 40+0.4
   anyway (owner's call, `~/matches/corrmm-spsa-75.log`): killed by the
   owner at 1,860 games once 7.6 was out: +152 -144 =1564, +1.5 +/- 5.8,
-  LLR -0.58. Restarted vs 7.6 at 40+0.4 (bench 1182555,
-  `~/matches/corrmm8s-76.log`). The owner runs a
+  LLR -0.58. Restarted vs 7.6, then stopped by the owner at once: only
+  the laptop's 7.6 SPRT (20+0.2 values) runs now. The owner runs a
   20+0.2 SPSA from these values on the laptop
   (`scripts/tune/laptop-corrmm-20s.ps1`): done, last-500-pair average
   29 / 15 / 21 / 11 / 31 (limit, weight, non-pawn rate, minmaj rate,
