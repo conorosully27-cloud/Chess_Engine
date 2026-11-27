@@ -508,8 +508,11 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   to the average of its last 500 pairs (owner's call): `CORR_LIMIT_CP` 31,
   `CORR_MAX_WEIGHT` 14, `CORR_NON_PAWN_RATE` 22, `CORR_MINMAJ_RATE` 20,
   `CORR_MINMAJ_LIMIT_CP` 32 (bench 1180660). SPRT [0, 5] vs 7.5 at 8+0.08
-  (`~/matches/corrmm-spsa-75-8s.log`), then at 40+0.4
-  (`~/matches/corrmm-spsa-75.log`).
+  (`~/matches/corrmm-spsa-75-8s.log`): **failed** at 6,744 games, +871
+  -870 =5003, +0.0 +/- 4.0, LLR -2.98 (+12 early, faded). Now at 40+0.4
+  anyway (owner's call, `~/matches/corrmm-spsa-75.log`). The owner runs a
+  20+0.2 SPSA from these values on the laptop
+  (`scripts/tune/laptop-corrmm-20s.ps1`).
 - **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
   off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
   quiet moves before late move pruning; others unchanged (2.10's version
