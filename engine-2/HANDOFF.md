@@ -520,7 +520,12 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   -870 =5003, +0.0 +/- 4.0, LLR -2.98 (+12 early, faded). Now at 40+0.4
   anyway (owner's call, `~/matches/corrmm-spsa-75.log`). The owner runs a
   20+0.2 SPSA from these values on the laptop
-  (`scripts/tune/laptop-corrmm-20s.ps1`).
+  (`scripts/tune/laptop-corrmm-20s.ps1`): done, last-500-pair average
+  29 / 15 / 21 / 11 / 31 (limit, weight, non-pawn rate, minmaj rate,
+  minmaj limit). **7.6 merged in (Nov 27):** with the new tables off the
+  branch benches 1213141 = 7.6; with the 8+0.08 values 1182555. The laptop
+  SPRT (`scripts/tune/laptop-sprt-corrmm-40s.ps1`) now builds 7.6 vs 7.6
+  + the 20+0.2 values.
 - **Improving-aware late move pruning** (`LMP_IMPROVING_PCT` 150, 100 =
   off; on 7.5, bench 1381697 -> 1183501): improving nodes keep 50% more
   quiet moves before late move pruning; others unchanged (2.10's version
