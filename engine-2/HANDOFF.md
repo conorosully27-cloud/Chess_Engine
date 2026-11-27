@@ -189,8 +189,9 @@ positions) lost to 7.2.
 **Current best: ChessMcEngineFace 7.6** (Nov 27) = 7.5 plus late quiet
 checks reduced (`CHECK_LMR` 1 in `src/search.cpp`: late quiet moves that
 give check get late move reductions, a ply less than other quiets; before,
-never reduced): **+8 over 7.5 at 40+0.4** (+8.6 +/- 6.8 at release, 1,500
-games, LLR 2.49 of 2.94, `~/sprt-75-checklmr-ltc.log`). Not tested at
+never reduced): **+9.4 +/- 6.6 over 7.5 at 40+0.4**, 1,592 games, LLR
+3.00 (0 / 5), passed (released at 1,500 games, +8.6;
+`~/sprt-75-checklmr-ltc.log`). Not tested at
 8+0.08. Bench **1213141**. Baseline for SPRTs: build it (net
 `nets/engine-7.3.nnue`).
 

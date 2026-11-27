@@ -16,9 +16,10 @@ before, they were never reduced). Same network as 7.3. Bench **1213141**
 
 | time control | games | result | Elo | LLR (bounds) |
 |---|---|---|---|---|
-| 40+0.4 | 1,500 | +156 -119 =1225 | +8.6 +/- 6.8 | 2.49 (0/5), running |
+| 40+0.4 | 1,592 | +166 -123 =1303 | **+9.4 +/- 6.6** | 3.00 (0/5), passed |
 
-Released by the owner at 1,500 games and recorded as **+8 Elo**
+Pentanomial [2, 91, 567, 134, 2], LOS 99.7%. Released by the owner at
+1,500 games (+8.6 +/- 6.8, LLR 2.49); the SPRT passed after
 (`~/sprt-75-checklmr-ltc.log`). 82% draws. Not tested at 8+0.08.
 
 ## 7.5: cut-node negative extension
