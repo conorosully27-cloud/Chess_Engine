@@ -72,6 +72,8 @@ TUNE_PARAM(TT_NOISY_LMR, 1, 0, 2);
 // Late quiet moves that give check are reduced too (1 on, 0 off: never
 // reduced), a ply less than other quiets.
 TUNE_PARAM(CHECK_LMR, 1, 0, 1);
+// The same for late captures that give check (1 on, 0 off: never reduced).
+TUNE_PARAM(CHECK_CAPT_LMR, 1, 0, 1);
 // Null move: a ply more reduction per NULL_EVAL_DIV centipawns the static
 // evaluation is above beta, at most NULL_EVAL_MAX (0 = off; flat alone on
 // 2.2 + IIR as "stronger null move v3").
@@ -770,7 +772,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
                             (PAWN_HIST_LMR && pawn_row ? pawn_row[index] : 0);
         reduction -= std::clamp(history / LMR_HISTORY, -2, 2);  // less for moves that did well elsewhere
         reduction = std::clamp(reduction, 0, depth - 2);
-      } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && !pos.in_check() && ply > 0) {
+      } else if (depth >= 3 && legal > 2 && capt_entry && !in_check && (CHECK_CAPT_LMR || !pos.in_check()) && ply > 0) {
         // Captures ordered late (losing ones, or ones that did badly before)
         // get a milder reduction, steered by capture history.
         // Rounded down after the offset (adding 10000 keeps the division a floor).
@@ -778,6 +780,7 @@ int SearchWorker::negamax(int depth, int alpha, int beta, int ply, bool cut_node
         if (pv_node) reduction--;
         if (cut_node) reduction += CUT_NODE_LMR;
         reduction -= std::clamp(*capt_entry / CAPT_LMR_HISTORY, -2, 2);
+        if (pos.in_check()) reduction--;  // a checking capture: a ply less
         if (move.from() == threat_sq) reduction -= THREAT_LMR;
         reduction = std::clamp(reduction, 0, depth - 2);
       }
