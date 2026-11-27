@@ -1,6 +1,6 @@
 # 40+0.4 SPRT [0, 5] on the laptop: 7.6 + minor/major correction tables with
 # the 20+0.2 SPSA's values, against 7.6 (main). Windows PowerShell, from engine-2\:
-#   powershell -ExecutionPolicy Bypass -File scripts\tune\laptop-sprt-corrmm-40s-76.ps1 [-Workers 12]
+#   powershell -ExecutionPolicy Bypass -File scripts\tune\laptop-sprt-corrmm-40s.ps1 [-Workers 12]
 # Values: by default the average of the SPSA's last 500 pairs, read from
 # ~\spsa-corrmm-20s\log.txt (as for the 8+0.08 tune); or give all five, e.g.
 #   ... -LimitCp 29 -MaxWeight 16 -NonPawnRate 22 -MinMajRate 11 -MinMajLimitCp 31
