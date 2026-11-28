@@ -5,6 +5,40 @@ Every accepted change with its measured effect, newest first. Matches use
 each played with both colors). Elo figures are fastchess's estimate with its
 95% error margin.
 
+## 8.0: 7.6 renamed, the first version above 3600
+
+The same code and network as 7.6 (net `nets/engine-7.3.nnue`), renamed by
+the owner once it measured above 3600 on CCRL Blitz. Bench **1213141**
+(unchanged).
+
+**Against Bread 4.0.0** (tag `v4.0.0`, Jul 29 2026, its embedded network;
+taken as **3620** on CCRL Blitz; cloud, 40+0.4, Hash 64, 1 thread each,
+4 games at a time, `scripts/match.sh`'s book), with the earlier versions
+in the same conditions:
+
+| version | games | result | Elo | pentanomial [0-2] | performance |
+|---|---|---|---|---|---|
+| **7.6 = 8.0** | 1,300 | +152 -214 =934 | **-16.6 +/- 9.3** | [7, 161, 376, 99, 7] | **about 3603** |
+| 7.5 | 750 | +65 -137 =548 | -33.5 +/- 12.8 | [11, 103, 212, 45, 4] | about 3587 |
+| 7.4 | 480 (stopped) | +45 -82 =353 | -26.8 +/- 14.7 | [6, 56, 147, 31, 0] | about 3593 |
+| 7.3 | 750 | +67 -142 =541 | -34.9 +/- 12.1 | [6, 110, 216, 39, 4] | about 3585 |
+| 7.2 | 750 | +68 -141 =541 | -33.9 +/- 12.1 | [12, 94, 225, 43, 1] | about 3586 |
+
+7.6 was planned at 750 games and extended to 1,300 by the owner to bring
+the margin under 10 (`~/matches/76-bread4-ltc.log`; the "Finished match"
+line midway is where it was paused to extend it). No time losses. About
+an 80% chance that the true result is better than -20 (3600), counting
+only the match's own error; Bread's own rating carries more. 7.5 at
+8+0.08 against Bread: +163 -203 =634, -13.9 +/- 12.3 over 1,000 games
+(`~/matches/75-bread4-stc.log`), about 20 Elo closer than at 40+0.4,
+which fits Bread's larger network (768x8 king buckets -> 1536 pairwise ->
+16 -> 1, about 9.6M parameters, against our 3.1M) paying off with time.
+
+**Other outside checks at 40+0.4** (same conditions): 7.3 vs Thrawn 3.2
+(3591) +143 -93 =514, +23.2 +/- 12.9 over 750 games (7.2: +25.1 +/-
+13.9); 7.4 vs 7.0, +67 -35 =276, +29.5 +/- 17.5 over 378 games (stopped
+by the owner; +47.5 +/- 23.9 at 8+0.08 over 302 games).
+
 ## 7.6: late quiet checks reduced
 
 7.5 with late quiet moves that give check reduced by late move reductions,
