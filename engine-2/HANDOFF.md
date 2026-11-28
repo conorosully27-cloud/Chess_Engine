@@ -506,8 +506,17 @@ games; 1/20 vs 1/25 was -3 +/- 11 over 1,098).
   `FUT_MARGIN`, `LMP_SCALE`, `SEE_CAPTURE_MARGIN`, `PROBCUT_MARGIN`,
   `NULL_EVAL_DIV`, `HIST_PRUNE_MARGIN`: all last tuned at 8+0.08 (mostly
   on 6.6), before the 7.1-7.3 networks changed the evaluation's scale.
-  `NULL_EVAL_DIV`'s step cut 30 -> 10 (set when it was 200, now 65). Test
-  the average of the last 1,000 pairs.
+  `NULL_EVAL_DIV`'s step cut 30 -> 10 (set when it was 200, now 65).
+  **Done (Nov 28)**, tune games +1544 -1505 =8951. 7.6 / final / average
+  of the last 1,000 pairs (tested): `RFP_MARGIN` 72 / 61 / 61,
+  `FUT_MARGIN` 94 / 83 / 80, `LMP_SCALE` 69 / 81 / 79,
+  `SEE_CAPTURE_MARGIN` 67 / 83 / 80, `LMR_BASE` 64 / 139 / 126, `LMR_DIV`
+  280 / 339 / 339, `LMR_HISTORY` 5319 / 6459 / 6446, `NULL_EVAL_DIV` 65 /
+  23 / 22, `HIST_PRUNE_MARGIN` 6431 / 4830 / 4916, `SINGULAR_MARGIN` 12 /
+  14 / 12, `DOUBLE_EXT_MARGIN` 20 / 10 / 11, `PROBCUT_MARGIN` 190 / 148 /
+  139, `RESEARCH_DEEPER_CP` 40 / 48 / 46. Bench 1213141 -> 876266 (much
+  heavier reductions at shallow and middle depths). SPRT [0, 5] vs 7.6
+  at 40+0.4 on the laptop: `scripts/tune/laptop-sprt-76-spsa20.ps1`.
 - **Minor-piece and major-piece correction histories** (`CORR_MINMAJ_RATE`
   20, 0 = off; on 7.5, bench 1381697 -> 1232090): two more correction
   tables, keyed by both sides' knights, bishops and kings and by both
