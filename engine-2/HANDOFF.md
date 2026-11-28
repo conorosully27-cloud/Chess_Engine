@@ -186,7 +186,18 @@ positions) lost to 7.2.
   zones) was kept in place of the 32-row `embedding_bag` path above, which
   only handles plain nets; prefetch, TF32 and `--lr-end` were kept.
 
-**Current best: ChessMcEngineFace 7.6** (Nov 27) = 7.5 plus late quiet
+**Current best: ChessMcEngineFace 8.0** (Nov 28) = 7.6 renamed, same code,
+network and bench (**1213141**): the owner's mark for 8.0 was 3600 on CCRL
+Blitz, and 7.6 scored **-16.6 +/- 9.3 against Bread 4.0.0** (taken as
+3620) over 1,300 games at 40+0.4, about **3603** (`~/matches/76-bread4-ltc.log`;
+7.2 to 7.5 were all -27 to -35 against Bread, see CHANGELOG 8.0). Bread
+gains on us with time (7.5 was -14 at 8+0.08 against -34 at 40+0.4), and
+its edge is the network (768x8 -> 1536 pairwise -> 16 -> 1, about 3x our
+parameters), not the search: next steps against it are v16 (1536-2048
+units, 8 king zones, more data), then pairwise and a small second layer.
+Baseline for SPRTs: build it (net `nets/engine-7.3.nnue`).
+
+**Before 8.0: ChessMcEngineFace 7.6** (Nov 27) = 7.5 plus late quiet
 checks reduced (`CHECK_LMR` 1 in `src/search.cpp`: late quiet moves that
 give check get late move reductions, a ply less than other quiets; before,
 never reduced): **+8 over 7.5 at 40+0.4** (+8.6 +/- 6.8 at release, 1,500
