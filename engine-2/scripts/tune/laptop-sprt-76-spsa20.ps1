@@ -54,9 +54,8 @@ $wt = New-Tree "wt-cand"
 $search = Join-Path $wt "engine-2\src\search.cpp"
 $text = Get-Content -Raw $search
 foreach ($n in $vals.Keys) {
-  $new = $text -replace "TUNE_PARAM\($n, -?\d+,", "TUNE_PARAM($n, $($vals[$n]),"
-  if ($new -eq $text) { throw "could not set $n" }
-  $text = $new
+  if ($text -notmatch "TUNE_PARAM\($n, -?\d+,") { throw "could not find $n" }
+  $text = $text -replace "TUNE_PARAM\($n, -?\d+,", "TUNE_PARAM($n, $($vals[$n]),"
 }
 Set-Content -NoNewline -Encoding ascii $search $text
 Compile $wt $cand
